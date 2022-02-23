@@ -1,0 +1,5 @@
+_base_: [
+    '../backbones/mobilenet_v2.yaml',
+    '../heads/linear_cls.yaml',
+    '../losses/cross_entropy.yaml'
+]

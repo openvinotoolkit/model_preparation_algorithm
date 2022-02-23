@@ -1,0 +1,5 @@
+_base_: [
+    '../backbones/ote_mobilenet_v3_large_075.yaml',
+    '../heads/linear_cls.yaml',
+    '../losses/cross_entropy.yaml'
+]

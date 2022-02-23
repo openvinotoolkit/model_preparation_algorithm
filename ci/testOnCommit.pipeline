@@ -1,0 +1,44 @@
+pipeline {
+    agent {
+        label 'mpabuilder'
+    }
+    stages {
+        stage('Configure') {
+            steps {
+                script {
+                    checkout scm
+                    shortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
+                    authorCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%aN'").trim()
+                    currentBuild.displayName = "${authorCommit}-${BUILD_NUMBER}"
+                    echo shortCommit
+                    echo authorCommit
+                }
+            }
+        }
+
+        stage("Run on commit tests") {
+            parallel {
+                stage("Run tests on cpu image") {
+                    steps {
+                      sh """
+                          env
+                      """
+                      echo shortCommit
+                      build job: "mpa/utils-common/mpa-on-commit-cpu", parameters: [[$class: 'StringParameterValue', name: 'MPACOMMIT', value: shortCommit]]
+                    }
+                }
+
+                stage("Run tests on gpu image") {
+                    steps {
+                      sh """
+                          env
+                      """
+                      echo shortCommit
+                      build job: "mpa/utils-common/mpa-on-commit-gpu", parameters: [[$class: 'StringParameterValue', name: 'MPACOMMIT', value: shortCommit]]
+                    }
+                }
+            }
+        }
+    }
+}
+

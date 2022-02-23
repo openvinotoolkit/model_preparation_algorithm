@@ -1,0 +1,4 @@
+_base_: [
+  '../backbones/ote_litehrnet18.yaml',
+  '../../../../recipes/stages/_base_/models/segmentors/seg_class_incr.py'
+]

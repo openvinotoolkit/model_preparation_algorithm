@@ -1,0 +1,24 @@
+_base_:
+    - {{ fileDirname }}/../_base_/default_runtime.py
+
+stages:
+    - name: byol_train
+      task: representation
+      mode: train
+      type: BYOLTrainer
+      downstream_config: {{ fileDirname }}/stage_otedet.yaml
+      downstream_task: detection
+      config: {{ fileDirname }}/stage_byol.yaml
+      img_size: !!python/tuple [112,112]
+      output:
+        - pretrained
+    - name: det_byol
+      task: detection
+      mode: train
+      type: DetectionTrainer
+      config: {{ fileDirname }}/stage_otedet.yaml
+      input:
+        pretrained:
+          stage_name: byol_train
+          output_key: pretrained
+

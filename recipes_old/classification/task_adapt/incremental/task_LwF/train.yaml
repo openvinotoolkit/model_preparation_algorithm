@@ -1,0 +1,44 @@
+_base_: [
+    '../../../_base_/base.py',
+    '../../../_base_/model.py',
+    '../../../_base_/data.py',
+    '../../../_base_/optimizer.py'
+]
+
+name: cls-task-inc-lwf
+
+model:
+    type: 'TaskIncrementalLwF'
+    backbone:
+        type: ResNet
+        depth: 18
+        num_stages: 4
+        out_indices:
+          - !!python/tuple
+            - 3
+            -
+        style: pytorch
+    head:
+        type: 'TaskIncLwfHead'
+        in_channels: 512
+
+optimizer:
+    type: 'Adam'
+    lr: 0.003
+
+lr_config:
+    policy: 'CosineAnnealing'
+    min_lr_ratio: 0.0001
+
+runner:
+    type: 'EpochBasedRunner'
+    max_epochs: 50
+
+task_adapt:
+    type: lwf
+    op: MERGE  # REPLACE | MERGE
+    online_mode: false
+
+evaluation:
+    metric: accuracy
+

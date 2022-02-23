@@ -1,0 +1,20 @@
+.vscode
+.venv
+dump.rdb
+
+*user_config*
+
+mpa.egg-info/
+# Unit test / coverage reports
+__pycache__
+htmlcov/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+.reports
+/test_log
+/data
+/logs
+venv/
+*.so

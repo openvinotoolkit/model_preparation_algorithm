@@ -1,0 +1,9 @@
+_base_: ../train.yaml
+
+name: det-ta-frcnn-incremental-train-lwf
+type: Trainer
+
+task_adapt:
+    type: lwf
+    op: MERGE  # REPLACE | MERGE
+    online_mode: true

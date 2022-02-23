@@ -1,0 +1,21 @@
+data:
+    train:
+        type: RepeatDataset
+        times: 3
+        dataset :
+            type: CocoDataset
+            ann_file: data/wgisd_full/train_5_classes.json
+            img_prefix: data/wgisd_full/data/
+            classes: ['CDY', 'CFR', 'CSV', 'SVB', 'SYH']
+
+    val:
+        type: CocoDataset
+        ann_file: data/wgisd_full/test_5_classes.json
+        img_prefix: data/wgisd_full/data/
+        classes: ['CDY', 'CFR', 'CSV', 'SVB', 'SYH']
+
+    test:
+        type: CocoDataset
+        ann_file: data/wgisd_full/test_5_classes.json
+        img_prefix: data/wgisd_full/data/
+        classes: ['CDY', 'CFR', 'CSV', 'SVB', 'SYH']

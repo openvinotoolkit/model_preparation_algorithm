@@ -1,0 +1,39 @@
+_base_: [
+    #'../recipes/classification/_base_/datasets/custom_data_bs32.py',
+    '../custom_data_bs32.py',
+]
+
+data:
+  samples_per_gpu: 32
+  train:
+    type: 'MultiClsDataset'    
+    data_prefix: ''
+    data_file: 'csvs/dss18.data.csv'
+    ann_file: 'csvs/dss18.anno.train.csv'    
+    tasks:
+      Gender: [ "Male", "Female", "Unknown" ]
+      Backpack: [ 'Yes', 'No' ]
+      Longhair: [ 'Yes', 'No', 'Unknown' ]
+  val:
+    type: 'MultiClsDataset'
+    data_prefix: ''    
+    data_file: 'csvs/dss18.data.csv'
+    ann_file: 'csvs/dss18.anno.val.csv'
+    tasks:
+      Gender: [ "Male", "Female", "Unknown" ]
+      Backpack: [ 'Yes', 'No' ]
+      Longhair: [ 'Yes', 'No', 'Unknown' ]
+  test:
+    type: 'MultiClsDataset'
+    data_prefix: ''    
+    data_file: 'csvs/dss18.data.csv'
+    ann_file: 'csvs/dss18.anno.test.csv'
+    tasks:
+      Gender: [ "Male", "Female", "Unknown" ]
+      Backpack: [ 'Yes', 'No' ]
+      Longhair: [ 'Yes', 'No', 'Unknown' ]
+
+evaluation:
+    metric: ['accuracy','f1_score']
+
+

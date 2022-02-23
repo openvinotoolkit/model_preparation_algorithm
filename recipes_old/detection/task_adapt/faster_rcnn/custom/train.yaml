@@ -1,0 +1,7 @@
+_base_: ../train.yaml
+
+name: det-ta-frcnn-custom-train
+type: DetectionTrainer
+
+task_adapt:
+    op: REPLACE  # REPLACE | MERGE

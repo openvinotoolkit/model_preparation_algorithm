@@ -1,0 +1,16 @@
+workflow_hooks:
+    - type: WFProfileHook
+      name: profile_hook
+      
+stages:
+  - name: finetune
+    type: SegTrainer
+    task: seg
+    mode: train
+    config: {{ fileDirname }}/train_voc_ote_sup_ocr_semi_1_16_weight_0.1d_cutmix_seg_single_adaptive_nof.yaml
+
+    output:
+      - final_ckpt
+
+hparams:
+    dummy: 0

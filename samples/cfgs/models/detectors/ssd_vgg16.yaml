@@ -1,0 +1,4 @@
+_base_: [
+  '../backbones/vgg16.yaml',
+  '../../../../recipes/stages/_base_/models/detectors/ssd.py'
+]

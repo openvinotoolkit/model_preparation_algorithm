@@ -1,0 +1,36 @@
+_base_: [
+    #'../recipes/classification/_base_/datasets/custom_data_bs32.py',
+    '../custom_data_bs32.py',
+]
+
+data:
+  samples_per_gpu: 32
+  train:
+    type: LwfTaskIncDataset
+    data_prefix: '/media/hdd1/PAC_data/DSS18_person'
+    data_file: 'csvs/dss18.data.csv'
+    ann_file: 'csvs/dss18.anno.train.csv'
+    tasks:
+      Age: [ "Other", "Senior", "Kids", "Unknown" ]
+  val:
+    type: LwfTaskIncDataset
+    data_prefix: '/media/hdd1/PAC_data/DSS18_person'
+    data_file: 'csvs/dss18.data.csv'
+    ann_file: 'csvs/dss18.anno.val.csv'
+    tasks:
+      Age: [ "Other", "Senior", "Kids", "Unknown" ]
+      Gender: [ "Male", "Female", "Unknown" ]
+      Backpack: [ 'Yes', 'No' ]
+      Longhair: [ 'Yes', 'No', 'Unknown' ]
+  test:
+    type: LwfTaskIncDataset
+    data_prefix: '/media/hdd1/PAC_data/DSS18_person'
+    data_file: 'csvs/dss18.data.csv'
+    ann_file: 'csvs/dss18.anno.test.csv'
+    tasks:
+      Age: [ "Other", "Senior", "Kids", "Unknown" ]
+      Gender: [ "Male", "Female", "Unknown" ]
+      Backpack: [ 'Yes', 'No' ]
+      Longhair: [ 'Yes', 'No', 'Unknown' ]
+evaluation:
+    metric: ['accuracy','f1_score']

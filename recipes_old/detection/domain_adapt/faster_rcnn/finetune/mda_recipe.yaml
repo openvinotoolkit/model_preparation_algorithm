@@ -1,0 +1,11 @@
+stages:
+    - name: finetune
+      type: MdaRunner
+      task: detection
+      mode: train
+      config: {{ fileDirname }}/train.yaml
+      output:
+          - final_ckpt
+
+hparams:
+    dummy: 0

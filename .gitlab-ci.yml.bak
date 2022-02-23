@@ -1,0 +1,98 @@
+# variables:
+#     ARTIFACT_DIR: ${CI_PROJECT_DIR}/.reports
+
+
+# stages:
+#     - static analysis
+#     - unit_test
+#     - intg_test
+
+# flake8:
+#     stage: static analysis
+#     except:
+#         - schedules
+#     tags:
+#         - mpa-lint
+#     script:
+#         - docker run -i --rm -v $(pwd):/apps alpine/flake8:3.9.0 --statistics --max-line-length=120 mpa
+
+# unittest_cpu:
+#     stage: unit_test
+#     tags:
+#         - mpa-unittest
+#     variables:
+#         GIT_SUBMODULE_STRATEGY: recursive
+#     before_script:
+#         - mkdir -p $ARTIFACT_DIR
+#         - rm -rf $ARTIFACT_DIR/*
+#         - ln -s /ci/backup/avas data
+#         - git submodule sync --recursive
+#         - git submodule update --init --recursive
+#     script:
+#         - ${CI_PROJECT_DIR}/run-test.sh
+#     artifacts:
+#         reports:
+#             junit: ${ARTIFACT_DIR}/unit-tests.xml
+
+# unittest_gpu:
+#     stage: unit_test
+#     tags:
+#         - mpa-unittest
+#     variables:
+#         GIT_SUBMODULE_STRATEGY: recursive
+#     before_script:
+#         - mkdir -p $ARTIFACT_DIR
+#         - rm -rf $ARTIFACT_DIR/*
+#         - ln -s /ci/backup/avas data
+#         - git submodule sync --recursive
+#         - git submodule update --init --recursive
+#     script:
+#         - CUDA_VISIBLE_DEVICES=0 ${CI_PROJECT_DIR}/run-test.sh
+#               --output_file unit-tests-gpu.xml
+#     artifacts:
+#         reports:
+#             junit: ${ARTIFACT_DIR}/unit-tests-gpu.xml
+
+# intgtest_cpu:
+#     stage: intg_test
+#     only:
+#         - schedules
+#     tags:
+#         - mpa-intg-test
+#     variables:
+#         GIT_SUBMODULE_STRATEGY: recursive
+#         OUTPUT_FILE: intg-tests-gpu.xml
+#     before_script:
+#         - mkdir -p $ARTIFACT_DIR
+#         - rm -rf $ARTIFACT_DIR/*
+#         - ln -s /ci/backup/avas data
+#         - git submodule sync --recursive
+#         - git submodule update --init --recursive
+#     script:
+#         - TEST_TYPE=nightly ${CI_PROJECT_DIR}/run-test.sh
+#               --output_file ${OUTPUT_FILE}
+#     artifacts:
+#         reports:
+#             junit: ${ARTIFACT_DIR}/${OUTPUT_FILE}
+
+# intgtest_gpu:
+#     stage: intg_test
+#     only:
+#         - schedules
+#     tags:
+#         - mpa-intg-test
+#     variables:
+#         GIT_SUBMODULE_STRATEGY: recursive
+#         OUTPUT_FILE: intg-tests-gpu.xml
+#     before_script:
+#         - mkdir -p $ARTIFACT_DIR
+#         - rm -rf $ARTIFACT_DIR/*
+#         - ln -s /ci/backup/avas data
+#         - git submodule sync --recursive
+#         - git submodule update --init --recursive
+#     script:
+#         - CUDA_VISIBLE_DEVICES=0 TEST_TYPE=nightly ${CI_PROJECT_DIR}/run-test.sh
+#               --output_file ${OUTPUT_FILE}
+#     artifacts:
+#         reports:
+#             junit: ${ARTIFACT_DIR}/${OUTPUT_FILE}

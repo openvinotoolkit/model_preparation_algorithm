@@ -1,0 +1,29 @@
+_base_: [
+    '../../../_base_/base.py',
+    '../../../_base_/model.py',
+    '../../../_base_/data_repeated.py',
+    '../../../_base_/optimizer.py'
+]
+
+name: instseg-da-maskrcnn-finetune-train
+type: DetectionTrainer
+
+optimizer:
+    type: 'SGD'
+    lr: 0.025
+    momentum: 0.9
+    weight_decay: 0.0001
+
+lr_config:
+    policy: 'step'
+    warmup: 'linear'
+    warmup_iters: 250
+    warmup_ratio: 0.00025
+    step: [54, 72]
+total_epochs: 80
+
+evaluation:
+    interval: 1
+    metric: ['bbox', 'segm']
+    classwise: true
+    save_best: 'segm_mAP'

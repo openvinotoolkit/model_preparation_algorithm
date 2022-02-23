@@ -1,0 +1,7 @@
+model:
+    backbone:
+        type: MobileNetV2
+        widen_factor: 1.0
+    pretrained: mmcls://mobilenet_v2
+    # head:
+    #     in_channels: 1280

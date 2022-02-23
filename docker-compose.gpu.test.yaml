@@ -1,0 +1,36 @@
+version: '3.5'
+
+services:
+  ci-worker:
+    privileged: true
+    shm_size: '5g'
+    networks:
+      - mpa_gpu
+    container_name: mpa_gpu_image_${BUILD_NAME_SEED}
+    image: registry.toolbox.iotg.sclab.intel.com/${MPA_IMAGE_NAME}:${MPA_IMAGE_TAG}
+    environment:
+      CUDA_HOME: /usr/local/cuda
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    volumes:
+      - /validation/components-data/mpa/data:/usr/src/app/data
+      - ./models:/usr/src/app/models
+      - ./recipes:/usr/src/app/recipes
+      - ./recipes_old:/usr/src/app/recipes_old
+      - ./samples:/usr/src/app/samples
+      - ./tests:/usr/src/app/tests
+      - ./mpa:/usr/src/app/mpa
+      - ./tools:/usr/src/app/tools
+      - ./.reports:/usr/src/app/.reports
+      - ${BUILD_LOGS}:/usr/src/app/logs
+    command:
+      - /bin/sleep
+      - infinity
+
+volumes:
+  logs:
+    driver: local
+
+networks:
+  mpa_gpu:
+    driver: bridge
+    name: mpa_gpu_${BUILD_NAME_SEED}

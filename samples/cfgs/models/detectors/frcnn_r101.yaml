@@ -1,0 +1,4 @@
+_base_: [
+  '../backbones/resnet101.yaml',
+  '../../../../recipes/stages/_base_/models/detectors/faster_rcnn.py'
+]

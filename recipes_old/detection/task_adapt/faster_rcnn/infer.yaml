@@ -1,0 +1,10 @@
+_base_: ../../../../external/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py
+
+name: det-ta-frcnn-infer
+type: DetectionInferrer
+
+input_source: test
+
+task_adapt:
+    op: REPLACE  # REPLACE | MERGE
+    online_mode: false

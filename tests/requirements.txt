@@ -1,0 +1,16 @@
+--trusted-host pypi.sclab.intel.com
+--extra-index-url http://pypi.sclab.intel.com:8000
+e2e-test-framework~=1.172.0
+pillow==8.2.0
+bandit
+flake8
+mypy
+pylint
+pytest
+pytest-cov
+coverage
+# ../../../.cache/pip/e2e-test-framework/e2e_test_framework-1.172.20210519111305-py3-none-any.whl  # for NL
+flaky>=3.6.1
+opencv-python==4.5.*
+scikit-image==0.16.2
+testfixtures>=6.14.2

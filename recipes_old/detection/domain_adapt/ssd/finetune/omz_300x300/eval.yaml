@@ -1,0 +1,9 @@
+_base_: train.yaml
+
+name: det-da-ssd-finetune-train
+type: DetectionEvaluator
+
+evaluation:
+    metric: bbox
+    classwise: true
+

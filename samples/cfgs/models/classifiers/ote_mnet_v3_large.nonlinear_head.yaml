@@ -1,0 +1,9 @@
+_base_: [
+    '../backbones/ote_mobilenet_v3_large.yaml',
+    '../heads/non_linear_cls.yaml',
+    '../losses/cross_entropy.yaml'
+]
+
+# model:
+#     head:
+#         hid_channels: 1280

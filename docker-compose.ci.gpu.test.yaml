@@ -1,0 +1,33 @@
+version: "3.5"
+
+services:
+  cli:
+    shm_size: '5g'
+    build:
+      context: .
+      dockerfile: Dockerfile.ci.gpu.test
+      args:
+        uid: ${UID}
+        gid: ${GID}
+        cuda_tag: ${CUDA_TAG}
+        ver_pytorch: ${VER_PYTORCH}
+    runtime: nvidia
+    environment:
+      CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES}
+      CUDA_HOME: /usr/local/cuda
+      NVIDIA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES}
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    volumes:
+      - ./data:/usr/src/app/data
+      - ./models:/usr/src/app/models
+      - ./recipes:/usr/src/app/recipes
+      - ./recipes_old:/usr/src/app/recipes_old
+      - ./samples:/usr/src/app/samples
+      - ./tests:/usr/src/app/tests
+      - ./mpa:/usr/src/app/mpa
+      - ./tools:/usr/src/app/tools
+      - ./logs:/usr/src/app/logs
+      - ./.reports:/usr/src/app/.reports
+    command:
+      - /bin/sleep
+      - infinity

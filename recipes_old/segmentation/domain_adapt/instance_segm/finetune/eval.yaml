@@ -1,0 +1,14 @@
+_base_: [
+    '../../../_base_/base.py',
+    '../../../_base_/model.py',
+    '../../../_base_/data.py',
+    '../../../_base_/optimizer.py'
+]
+
+name: instseg-da-maskrcnn-finetune-train
+type: DetectionEvaluator
+
+evaluation:
+    interval: 1
+    metric: ['bbox', 'segm']
+    classwise: true

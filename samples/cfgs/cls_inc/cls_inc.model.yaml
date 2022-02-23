@@ -1,0 +1,25 @@
+model:
+  pretrained: 'mmcls://mobilenet_v2'
+  type: ClsIncrementalClassifier
+  backbone:
+    type: MobileNetV2
+    widen_factor: 1.0
+  neck:
+    type: GlobalAveragePooling
+  head:
+    type: ClsIncrHead
+    num_classes: 6
+    in_channels: 1280
+    loss:
+      type: WeightedCrossEntropyLoss
+      loss_weight: 1.0
+      class_weight: [0.33, 0.33, 0.33, 0.33, 0.33, 1]
+    distillation_loss:
+      type: 'LwfLoss'
+      T: 2.0
+      loss_weight: 1.0
+    ranking_loss:
+      type: TripletLoss
+      margin: 0.3
+      dist_metric: cosine
+    topk: 1

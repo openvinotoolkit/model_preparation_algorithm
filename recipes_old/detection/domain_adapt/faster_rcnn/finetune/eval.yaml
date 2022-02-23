@@ -1,0 +1,8 @@
+_base_: train.yaml
+
+name: det-da-frcnn-finetune-train
+type: DetectionEvaluator
+
+evaluation:
+    metric: bbox
+    classwise: true

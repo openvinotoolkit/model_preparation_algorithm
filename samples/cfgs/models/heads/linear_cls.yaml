@@ -1,0 +1,6 @@
+model:
+    head:
+        type: LinearClsHead
+        num_classes: -1
+        in_channels: -1
+        topk: !!python/tuple [1, 5]

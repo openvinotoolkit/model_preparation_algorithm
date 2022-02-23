@@ -1,0 +1,8 @@
+_base_: [
+    '../../../_base_/WIP_IL/base_cityscapes.py',
+    '../../../_base_/WIP_IL/model_litehrnet_cityscapes.py',
+    '../../../_base_/WIP_IL/data_cityscapes.py',
+    '../../../_base_/WIP_IL/optimizer_step.py'
+]
+
+name: semi-sl-litehrnet-train

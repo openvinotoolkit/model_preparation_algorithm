@@ -1,0 +1,35 @@
+stages:
+  - name: task-inc-pre-stage
+    type: ClsInferrer
+    task: classification
+    mode: train
+    config: {{ fileDirname }}/train.yaml
+    output:
+      - pre_stage_res
+
+  - name: task-inc-lwf
+    type: ClsTrainer
+    task: classification
+    mode: train
+    config: {{ fileDirname }}/train.yaml
+    input:
+      pre_stage_res:
+        stage_name: task-inc-pre-stage
+        output_key: pre_stage_res  # stage_name: output_key
+    output:
+      - final_ckpt
+
+  - name: evaluation
+    type: ClsEvaluator
+    task: classification
+    mode: train
+    config: {{ fileDirname }}/eval.yaml
+    input:
+      pretrained:
+        stage_name: task-inc-lwf
+        output_key: final_ckpt
+  - name: evaluation
+    type: ClsEvaluator
+    task: classification
+    mode: eval
+    config: {{ fileDirname }}/eval.yaml

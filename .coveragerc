@@ -1,0 +1,13 @@
+[run]
+data_file = .reports/.coverage
+source = 
+        mpa/
+branch = true
+omit =
+        */__init__.py
+        */tests/*
+        setup.py
+
+[report]
+omit =
+        __init__.py

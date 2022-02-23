@@ -1,0 +1,13 @@
+_base_: train.yaml
+
+name: det-ta-frcnn-eval
+type: DetectionEvaluator
+
+task_adapt:
+    op: REPLACE  # REPLACE | MERGE
+    online_mode: false
+
+evaluation:
+    metric: bbox
+    classwise: true
+

@@ -1,0 +1,4 @@
+model:
+    backbone:
+        type: 'OTEEfficientNet'
+        version: 'b0'

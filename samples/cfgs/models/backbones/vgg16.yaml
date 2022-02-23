@@ -1,0 +1,11 @@
+model:
+    pretrained: open-mmlab://vgg16_caffe
+    backbone:
+        type: SSDVGG
+        input_size: 384
+        depth: 16
+        with_last_pool: false
+        ceil_mode: true
+        out_indices: !!python/tuple [3, 4]
+        out_feature_indices: !!python/tuple [22, 34]
+        l2_norm_scale: 20

@@ -1,0 +1,21 @@
+data:
+    train:
+        type: RepeatDataset
+        times: 2
+        dataset :
+            type: CocoDataset
+            ann_file: data/coco/annotations/semi_supervised/instances_train2017.1@1.0.json
+            img_prefix: data/coco/train2017
+            classes: ['cup']
+
+    val:
+        type: CocoDataset
+        ann_file: data/coco/annotations/semi_supervised/instances_val2017.1@0.1.json
+        img_prefix: data/coco/val2017
+        classes: ['cup']
+
+    test:
+        type: CocoDataset
+        ann_file: data/coco/annotations/semi_supervised/instances_val2017.1@0.1.json
+        img_prefix: data/coco/val2017
+        classes: ['cup']

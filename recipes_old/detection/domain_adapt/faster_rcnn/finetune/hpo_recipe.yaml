@@ -1,0 +1,50 @@
+stages:
+    - name: hpo
+      type: HpoRunner
+      mode: train
+      hpo:
+        trainer:
+          type: DetectionTrainer
+          config: {{ fileDirname }}/train.yaml
+        hyperparams:
+          - {name: 'lr', type: 'loguniform', range: [0.0001, 0.1]}
+          - {name: 'bs', type: 'qloguniform', range: [2, 4, 1]}
+        metric: 'bbox_mAP'
+        num_trials: 30
+        max_iterations: 8
+        subset_size: 2500
+        search_alg: 'asha' # 'bayes_opt'
+        gpu_list: [0]
+      output:
+        - hyperparams
+
+    - name: finetune
+      type: DetectionTrainer
+      task: detection
+      mode: train
+      config: {{ fileDirname }}/train.yaml
+      input:
+        hyperparams:
+          stage_name: hpo
+          output_key: hyperparams
+      output:
+          - final_ckpt
+
+    - name: final-eval
+      type: DetectionEvaluator
+      task: detection
+      mode: train
+      config: {{ fileDirname }}/eval.yaml
+      input:
+          pretrained:
+              stage_name: finetune
+              output_key: final_ckpt  # stage_name: output_key
+
+    - name: eval-only
+      type: DetectionEvaluator
+      task: detection
+      mode: eval
+      config: {{ fileDirname }}/eval.yaml
+
+hparams:
+    dummy: 0

@@ -1,0 +1,40 @@
+stages:
+    - name: pre-stage
+      type: DetectionInferrer
+      task: detection
+      mode: train  # Pre-stage for training
+      config: {{ fileDirname }}/../infer.yaml
+      input_source: train  # override 'test' for pseudo labeling
+      output:
+          - pre_stage_res
+
+    - name: task-adapt-lwf-off
+      type: DetectionTrainer
+      task: detection
+      mode: train
+      config: {{ fileDirname }}/train_lwf_off.yaml
+      input:
+          pre_stage_res:
+              stage_name: pre-stage
+              output_key: pre_stage_res  # stage_name: output_key
+      output:
+          - final_ckpt
+
+    - name: final-eval
+      type: DetectionEvaluator
+      task: detection
+      mode: train
+      config: {{ fileDirname }}/../eval.yaml
+      input:
+          pretrained:
+              stage_name: task-adapt-lwf-off
+              output_key: final_ckpt  # stage_name: output_key
+
+    - name: eval-only
+      type: DetectionEvaluator
+      task: detection
+      mode: eval
+      config: {{ fileDirname }}/../eval.yaml
+
+hparams:
+    dummy: 0

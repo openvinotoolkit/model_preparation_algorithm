@@ -1,0 +1,24 @@
+ARG VER_CUDA
+
+FROM registry.toolbox.iotg.sclab.intel.com/mpa/cu${VER_CUDA}/cli:latest
+
+ARG uid
+ARG gid
+
+RUN groupadd -r -g ${gid} mpa && useradd -r -m mpa -s /bin/bash -g ${gid} -u ${uid} && echo "${gid}:${uid}"
+
+# to install additional dependencies for the newly added tasks.
+# once mpa docker images are updated, following pip installation command should be removed.
+# RUN pip install scikit-image
+# RUN pip install instaboostfast --no-deps
+# RUN pip install albumentations
+
+# set work directory
+WORKDIR /usr/src/app
+RUN chown -R mpa:mpa /usr/src/app
+
+USER mpa
+
+RUN echo "source /opt/intel/openvino/bin/setupvars.sh" >> /home/mpa/.bash_profile
+ENV BASH_ENV="/home/mpa/.bash_profile"
+ENV XDG_CACHE_HOME="/usr/src/app/data/.cache"

@@ -1,0 +1,5 @@
+model:
+    head:
+        loss:
+            type: CrossEntropyLoss
+            loss_weight: 1.0

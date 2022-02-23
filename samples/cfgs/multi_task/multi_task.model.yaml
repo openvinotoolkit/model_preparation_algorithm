@@ -1,0 +1,19 @@
+model:
+  pretrained: 'mmcls://mobilenet_v2'
+  type: ImageClassifier
+  backbone:
+    type: MobileNetV2
+    widen_factor: 1.0
+  neck:
+    type: GlobalAveragePooling
+  head:
+    type: MultiClsHead
+    in_channels: 1280
+    loss:
+      type: SoftmaxPolarityLoss
+      loss_weight: 1.0
+    tasks:
+      Gender: [ "Male", "Female", "Unknown" ]
+      Backpack: [ 'Yes', 'No' ]
+      Longhair: [ 'Yes', 'No', 'Unknown' ]
+    topk: 1

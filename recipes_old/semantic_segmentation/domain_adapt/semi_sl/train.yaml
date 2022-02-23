@@ -1,0 +1,32 @@
+_base_: [
+    '../../_base_/base_epoch.py',
+    '../../_base_/model_cps.py',
+    '../../_base_/data_semi.py',
+    '../../_base_/optimizer_step.py'
+]
+
+name: semi-sl-resnet50v1c-train
+# type: SegTrainer
+
+optimizer:
+    type: 'SGD'
+    lr: 0.025
+    momentum: 0.9
+    weight_decay: 0.0001
+
+lr_config:
+    policy: 'step'
+    warmup: 'linear'
+    warmup_iters: 250
+    warmup_ratio: 0.00025
+    step: [22, 30]
+total_epochs: 34
+
+checkpoint_config:
+    interval: 100
+
+evaluation:
+    interval: 1
+    metric: 'mIoU'
+    save_best: 'mIoU'
+    rule: 'greater'

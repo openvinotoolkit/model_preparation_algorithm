@@ -1,0 +1,39 @@
+model:
+    # pretrained: ./models/semantic_segmentation/litehrnet18_imagenet1k_rsc.pth
+    backbone:
+        type: LiteHRNet 
+        norm_cfg:
+            type: BN
+            requires_grad: true
+        norm_eval: false
+        extra:
+            stem:
+                stem_channels: 32
+                out_channels: 32
+                expand_ratio: 1
+                strides: !!python/tuple [2, 2]
+                extra_stride: false
+                input_norm: false
+            num_stages: 3
+            stages_spec:
+                num_modules: !!python/tuple [2, 4, 2]
+                num_branches: !!python/tuple [2, 3, 4]
+                num_blocks: !!python/tuple [2, 2, 2]
+                module_type: !!python/tuple ['LITE', 'LITE', 'LITE']
+                with_fuse: !!python/tuple [true, true, true]
+                reduce_ratios: !!python/tuple [8, 8, 8]
+                num_channels: !!python/tuple [!!python/tuple [40, 80], !!python/tuple [40, 80, 160], !!python/tuple [40, 80, 160, 320]]
+            out_modules:
+                conv:
+                    enable: false
+                    channels: 320
+                position_att:
+                    enable: false
+                    key_channels: 128
+                    value_channels: 320
+                    psp_size: !!python/tuple [1, 3, 6, 8]
+                local_att:
+                    enable: false
+            out_aggregator:
+                enable: true
+            add_input: false
