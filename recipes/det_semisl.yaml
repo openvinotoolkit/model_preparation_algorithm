@@ -26,3 +26,9 @@ stages:
       task: detection
       mode: eval
       config: {{ fileDirname }}/stages/detection/unbiased_teacher.py
+
+    - name: infer-only
+      type: DetectionInferrer
+      task: detection
+      mode: infer
+      config: {{ fileDirname }}/stages/detection/unbiased_teacher.py

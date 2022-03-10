@@ -1,0 +1,53 @@
+# Description.
+model_template_id: Advanced_Transfer_Learning_for_FRCNN_based_object_detection
+name: FRCNN
+task_type: DETECTION
+task_family: VISION
+instantiation: "CLASS"
+summary: Advanced transfer learning for FRCNN with ResNet50 backbone.
+application:
+  ~
+
+# Algo backend.
+framework: MPA v1.1.0
+
+# Task implementations.
+entrypoints:
+  base: mpa.apis.tasks.DetectionTrainTask
+  openvino: mmdet.apis.ote.apis.detection.OpenVINODetectionTask
+
+# Capabilities.
+capabilities:
+  - compute_representations
+
+# Hyperparameters.
+hyper_parameters:
+  base_path: ../configuration.yaml
+  parameter_overrides:
+    learning_parameters:
+      batch_size:
+        default_value: 64
+      learning_rate:
+        default_value: 0.05
+      learning_rate_warmup_iters:
+        default_value: 100
+      num_iters:
+        default_value: 13000
+    algo_backend:
+      train_type: 
+        default_value: SemiSupervised
+
+# Training resources.
+max_nodes: 1
+training_targets:
+  - GPU
+  - CPU
+
+# Stats.
+gigaflops: 9.4
+size: 7.6
+# # Inference options. Defined by OpenVINO capabilities, not Algo Backend or Platform.
+# inference_targets:
+#   - CPU
+#   - GPU
+#   - VPU

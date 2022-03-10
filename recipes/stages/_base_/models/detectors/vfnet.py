@@ -47,4 +47,4 @@ model = dict(
         max_per_img=100
     )
 )
-
+load_from='https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/object_detection/v2/resnet50-vfnet.pth'

@@ -41,7 +41,12 @@ if [[ -e ${venv_dir} ]]; then
 fi
 
 # Create virtual environment
-$PYTHON_NAME -m venv ${venv_dir} --prompt="mpa-venv"
+$PYTHON_NAME -m venv ${venv_dir} --prompt="mpa"
+
+if ! [ -e "${venv_dir}/bin/activate" ]; then
+  echo "The virtual environment was not created."
+  exit
+fi
 
 . ${venv_dir}/bin/activate
 
@@ -66,8 +71,8 @@ fi
 
 # install PyTorch and MMCV.
 export TORCH_VERSION=1.8.2
-# get suitable mmcv-full version from external/mmdet
-export MMCV_VERSION=$(awk -F"==" '$1=="mmcv-full"{print $2}' external/mmdetection/requirements/runtime.txt)
+export TORCHVISION_VERSION=0.9.2
+export MMCV_VERSION=1.3.14
 
 if [[ -z ${CUDA_VERSION} ]]; then
   echo "CUDA was not found, installing dependencies in CPU-only mode. If you want to use CUDA, set CUDA_HOME and CUDA_VERSION beforehand."
@@ -75,83 +80,69 @@ else
   # Remove dots from CUDA version string, if any.
   CUDA_VERSION_CODE=$(echo ${CUDA_VERSION} | sed -e "s/\.//" -e "s/\(...\).*/\1/")
   echo "Using CUDA_VERSION ${CUDA_VERSION}"
-  if [[ "${CUDA_VERSION_CODE}" != "111" && "${CUDA_VERSION_CODE}" != "102" ]] ; then
-    echo "CUDA version must be either 10.2 or 11.1"
+  if [[ "${CUDA_VERSION_CODE}" != "111" ]] && [[ "${CUDA_VERSION_CODE}" != "102" ]] ; then
+    echo "CUDA version must be either 11.1 or 10.2"
     exit 1
   fi
-  if [[ "${CUDA_VERSION_CODE}" == "102" ]] ; then
-    if [[ "${TORCH_VERSION}" != "1.8.2" ]] && [[ "${TORCH_VERSION}" != "1.9.0" ]]; then
-      echo "if CUDA version is 10.2, then PyTorch must be either 1.8.2 or 1.9.0"
-      exit 1
-    fi
-  elif [[ "${CUDA_VERSION_CODE}" == "111" ]] ; then
-    if [[ "${TORCH_VERSION}" != "1.9.0" ]] && [[ "${TORCH_VERSION}" != "1.8.2" ]]; then
-      echo "if CUDA version is 11.1, then PyTorch must be 1.9.0 or"
-      exit 1
-    fi
-  fi
+  echo "export CUDA_HOME=${CUDA_HOME}" >> ${venv_dir}/bin/activate
 fi
 
 CONSTRAINTS_FILE=$(tempfile)
 cat constraints.txt >> ${CONSTRAINTS_FILE}
+export PIP_CONSTRAINT=${CONSTRAINTS_FILE}
 
-pip install --upgrade pip || exit 1
-pip install wheel -c ${CONSTRAINTS_FILE} || exit 1
-pip install --upgrade setuptools -c ${CONSTRAINTS_FILE} || exit 1
-
-if [[ -z $CUDA_VERSION_CODE ]]; then
-  pip install torch==${TORCH_VERSION} torchvision cpuonly -f https://download.pytorch.org/whl/torch_stable.html \
-          -c ${CONSTRAINTS_FILE} || exit 1
-  echo torch==${TORCH_VERSION} >> ${CONSTRAINTS_FILE}
-  # echo torchvision >> ${CONSTRAINTS_FILE}
-elif [[ $CUDA_VERSION_CODE == "102" ]]; then
-  pip install torch==${TORCH_VERSION} torchvision -c ${CONSTRAINTS_FILE} || exit 1
-  echo torch==${TORCH_VERSION} >> ${CONSTRAINTS_FILE}
-  # echo torchvision >> ${CONSTRAINTS_FILE}
-else
-  pip install torch==${TORCH_VERSION}+cu${CUDA_VERSION_CODE} torchvision -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html \
-          -c ${CONSTRAINTS_FILE} || exit 1
-  echo torch==${TORCH_VERSION}+cu${CUDA_VERSION_CODE} >> ${CONSTRAINTS_FILE}
-  # echo torchvision >> ${CONSTRAINTS_FILE}
-fi
+# Newer versions of pip have troubles with NNCF installation from the repo commit.
+pip install pip==21.2.1 || exit 1
+pip install wheel || exit 1
+pip install --upgrade setuptools || exit 1
 
 if [[ -z $CUDA_VERSION_CODE ]]; then
-  pip install --no-cache-dir mmcv-full==${MMCV_VERSION} -f https://download.openmmlab.com/mmcv/dist/cpu/torch${TORCH_VERSION}/index.html -c ${CONSTRAINTS_FILE} || exit 1
+  export TORCH_VERSION=${TORCH_VERSION}+cpu
+  export TORCHVISION_VERSION=${TORCHVISION_VERSION}+cpu
 else
-  pip install --no-cache-dir mmcv-full==${MMCV_VERSION} -f https://download.openmmlab.com/mmcv/dist/cu${CUDA_VERSION_CODE}/torch${TORCH_VERSION}/index.html -c ${CONSTRAINTS_FILE} || exit 1
+  export TORCH_VERSION=${TORCH_VERSION}+cu${CUDA_VERSION_CODE}
+  export TORCHVISION_VERSION=${TORCHVISION_VERSION}+cu${CUDA_VERSION_CODE}
 fi
+
+pip install torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html || exit 1
+echo torch==${TORCH_VERSION} >> ${CONSTRAINTS_FILE}
+echo torchvision==${TORCHVISION_VERSION} >> ${CONSTRAINTS_FILE}
+
+pip install --no-cache-dir mmcv-full==${MMCV_VERSION} || exit 1
+
+# Install other requirements.
+# Install mmpycocotools from source to make sure it is compatible with installed numpy version.
+pip install --no-cache-dir --no-binary=mmpycocotools mmpycocotools || exit 1
+cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
+cat requirements.test.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
 
 # install MPA
-sed '/^ *#/d;s/#.*//' requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
-cat requirements.test.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
-pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
+pip install -e . || exit 1
 
 MPA_DIR=`realpath .`
 echo "export MPA_DIR=${MPA_DIR}" >> ${venv_dir}/bin/activate
 
-# Install other requirements.
-# pip install instaboostfast -c ${CONSTRAINTS_FILE} || exit 1
-# pip uninstall -y pycocotools || exit 1
-
-# Install mmpycocotools and Polygon3 from source to make sure it is compatible with installed numpy version.
-pip install --no-cache-dir --no-binary=mmpycocotools mmpycocotools -c ${CONSTRAINTS_FILE} || exit 1
-pip install --no-cache-dir --no-binary=Polygon3 Polygon3==3.0.8 -c ${CONSTRAINTS_FILE} || exit 1
-
-
 # install external modules
-cd external/mmdetection
-cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
-cd -
-pip install -e external/mmdetection -c ${CONSTRAINTS_FILE} || exit 1
-
-cd external/mmsegmentation
-cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
-cd -
-pip install -e external/mmsegmentation -c ${CONSTRAINTS_FILE} || exit 1
-
+if [[ ! -z $OTE_PATH ]]; then
+  # mmdetection
+  cd $OTE_PATH/external/mmdetection
+  cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
+  pip install -e . || exit 1
+  cd -
+  # mmsegmentation
+  #cd $OTE_PATH/external/mmsegmentation
+  cd external/mmsegmentation  # Temporary due to mmcv version
+  cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
+  pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
+  cd -
+  pip install -e $OTE_PATH/ote_sdk -c ${CONSTRAINTS_FILE} || exit 1
+  pip install -e $OTE_PATH/ote_cli -c ${CONSTRAINTS_FILE} || exit 1
+else
+  echo "OTE_PATH should be specified to install dependencies"
+  exit 1
+fi
 pip install -e external/mda -c ${CONSTRAINTS_FILE} || exit 1
 pip install -e external/hpo -c ${CONSTRAINTS_FILE} || exit 1
-pip install -e external/training_extensions/ote_sdk -c ${CONSTRAINTS_FILE} || exit 1
 
 deactivate
 

@@ -1,5 +1,0 @@
-_base_:
-    - {{ fileDirname }}/_base_/data_bs128_pixpro.py
-    - {{ fileDirname }}/_base_/base.py
-    - {{ fileDirname }}/_base_/model_pixpro.py
-    - {{ fileDirname }}/_base_/optimizer_lars_5k.py

@@ -1,6 +1,8 @@
 from .model_ema_hook import DualModelEMAHook
 from mmcv.runner import HOOKS
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @HOOKS.register_module()
@@ -25,7 +27,7 @@ class UnbiasedTeacherHook(DualModelEMAHook):
 
         average_pseudo_label_ratio = self._get_average_pseudo_label_ratio(runner)
         logger.info(f'avr_ps_ratio: {average_pseudo_label_ratio}')
-        if average_pseudo_label_ratio >= self.min_pseudo_label_ratio:
+        if average_pseudo_label_ratio > self.min_pseudo_label_ratio:
             self._get_model(runner).enable_unlabeled_loss()
             self.unlabeled_loss_enabled = True
             logger.info('---------- Enabled unlabeled loss')

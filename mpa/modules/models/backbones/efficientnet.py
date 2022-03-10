@@ -18,7 +18,9 @@ from mmcv.runner import load_checkpoint
 
 from mmcls.models.builder import BACKBONES
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 pretrained_root = "https://github.com/osmr/imgclsmob/releases/download/v0.0.364/"
 pretrained_urls = {

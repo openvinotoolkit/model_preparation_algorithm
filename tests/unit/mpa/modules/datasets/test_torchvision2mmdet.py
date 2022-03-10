@@ -6,8 +6,12 @@ import copy
 import cv2 as cv
 from torchvision import transforms as T
 from PIL import Image, ImageFilter
+from unittest.mock import patch, MagicMock, Mock
+
+import mpa.modules.datasets.pipelines.torchvision2mmdet as torchvision2mmdet
 from mpa.modules.datasets.pipelines.torchvision2mmdet import (
-    ColorJitter, RandomGrayscale, RandomErasing, RandomGaussianBlur, RandomApply
+    ColorJitter, RandomGrayscale, RandomErasing, RandomGaussianBlur, RandomApply,
+    NDArrayToTensor, NDArrayToPILImage, PILImageToNDArray, BranchImage,
 )
 
 from tests.constants.mpa_components import MPAComponent
@@ -91,3 +95,56 @@ def test_random_random_gaussian_blur():
         np.asarray(md_output['img'])
     )
 
+@pytest.mark.components(MPAComponent.MPA)
+@pytest.mark.reqids(Requirements.REQ_1)
+@pytest.mark.priority_high
+@pytest.mark.unit
+def test_random_apply():
+    with patch(f'{__name__}.torchvision2mmdet.T.RandomApply.__init__') as init, \
+            patch(f'{__name__}.torchvision2mmdet.build_from_cfg') as build_from_cfg:
+                t = RandomApply([dict(), dict()], 0.5)
+                init.assert_called()
+                build_from_cfg.assert_called()
+
+@pytest.mark.components(MPAComponent.MPA)
+@pytest.mark.reqids(Requirements.REQ_1)
+@pytest.mark.priority_high
+@pytest.mark.unit
+def test_ndarray_to_tensor():
+    data = dict(img=np.random.rand(3, 5, 5))
+    op = NDArrayToTensor(['img'])
+    data = op(data)
+    assert isinstance(data['img'], torch.Tensor)
+
+@pytest.mark.components(MPAComponent.MPA)
+@pytest.mark.reqids(Requirements.REQ_1)
+@pytest.mark.priority_high
+@pytest.mark.unit
+def test_ndarray_to_pil_image():
+    data = dict(img=np.random.rand(3, 5, 5))
+    op = NDArrayToPILImage(['img'])
+    data = op(data)
+    assert isinstance(data['img'], Image.Image)
+
+@pytest.mark.components(MPAComponent.MPA)
+@pytest.mark.reqids(Requirements.REQ_1)
+@pytest.mark.priority_high
+@pytest.mark.unit
+def test_pil_image_to_ndarry():
+    data = dict(img=np.random.rand(3, 5, 5))
+    op = NDArrayToPILImage(['img'])
+    data = op(data)
+    op = PILImageToNDArray(['img'])
+    data = op(data)
+    assert isinstance(data['img'], np.ndarray)
+
+@pytest.mark.components(MPAComponent.MPA)
+@pytest.mark.reqids(Requirements.REQ_1)
+@pytest.mark.priority_high
+@pytest.mark.unit
+def test_branch_image():
+    data = dict(img=np.random.rand(3, 5, 5), img_fields=['img'])
+    op = BranchImage(dict(img='img0'))
+    data = op(data)
+    assert 'img' in data and 'img0' in data
+    np.testing.assert_array_equal(data['img'], data['img0'])

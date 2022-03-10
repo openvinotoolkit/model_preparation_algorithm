@@ -17,7 +17,9 @@ class TaskAdaptEvalDataset(object):
         self.model_classes = model_classes
         self.CLASSES = self.dataset.CLASSES
         self.data2model = map_class_names(self.CLASSES, self.model_classes)
-        self.dataset.cat2label, self.dataset.cat_ids = map_cat_and_cls_as_order(self.CLASSES, self.dataset.coco.cats)
+        if org_type == 'CocoDataset':
+            self.dataset.cat2label, self.dataset.cat_ids = map_cat_and_cls_as_order(
+                self.CLASSES, self.dataset.coco.cats)
 
     def __getitem__(self, idx):
         return self.dataset[idx]

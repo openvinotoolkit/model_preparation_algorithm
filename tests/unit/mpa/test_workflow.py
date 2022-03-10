@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import Mock, MagicMock
 
 from mpa.workflow import Workflow
-from mpa.modules.hooks.workflow_hook import WorkflowHook
+from mpa.modules.hooks.workflow_hooks import WorkflowHook
 from mpa.stage import Stage
 
 from tests.constants.mpa_components import MPAComponent

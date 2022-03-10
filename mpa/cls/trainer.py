@@ -25,7 +25,8 @@ from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.cls.stage import ClsStage
 from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.utils.logger import get_logger
-from mpa.utils import logger
+
+logger = get_logger()
 
 
 @STAGES.register_module()
@@ -212,7 +213,7 @@ class ClsTrainer(ClsStage):
                 batch_processor=None,
                 optimizer=optimizer,
                 work_dir=cfg.work_dir,
-                logger=get_logger(),
+                logger=logger,
                 meta=meta))
 
         # an ugly walkaround to make the .log and .log.json filenames the same

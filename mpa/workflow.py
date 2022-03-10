@@ -24,7 +24,7 @@ class Workflow(object):
     def _call_wf_hooks(self, fname, stage_idx=-1):
         if self.workflow_hooks is not None:
             for hook in self.workflow_hooks:
-                getattr(hook, fname)(stage_idx, self.results)
+                getattr(hook, fname)(self, stage_idx, self.results)
 
     def run(self, **kwargs):
         model_cfg = kwargs.get('model_cfg', None)

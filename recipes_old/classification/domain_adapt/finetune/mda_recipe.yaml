@@ -1,9 +1,0 @@
-stages:
-  - name: finetune
-    type: MdaRunner
-    task: classification
-    mode: train
-    config: {{ fileDirname }}/train.yaml
-    mda_metric: z-score
-    output:
-      - final_score

@@ -1,5 +1,5 @@
-import os.path as osp
 import numpy as np
+import os.path as osp
 from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 
@@ -8,7 +8,10 @@ from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTenso
 from mmdet.models import build_detector
 
 from mpa.registry import STAGES
-from .stage import DetectionStage, get_train_data_cfg
+from .stage import DetectionStage
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @STAGES.register_module()
@@ -29,16 +32,34 @@ class DetectionInferrer(DetectionStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
-        self.logger.info('infer!')
+        cfg.dump(osp.join(cfg.work_dir, 'config.py'))
+        logger.info(f'Config:\n{cfg.pretty_text}')
+        logger.info('infer!')
 
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         outputs = self.infer(cfg)
 
         # Save outputs
-        output_file_path = osp.join(cfg.work_dir, 'pre_stage_res.npy')
+        output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
         np.save(output_file_path, outputs, allow_pickle=True)
-        return dict(pre_stage_res=output_file_path)
+        return dict(
+            output_file_path=output_file_path,
+            outputs=outputs
+            )
+        # TODO: save in json
+        """
+        class NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return json.JSONEncoder.default(self, obj)
+
+        a = np.array([[1, 2, 3], [4, 5, 6]])
+        json_dump = json.dumps({'a': a, 'aa': [2, (2, 3, 4), a], 'bb': [2]},
+                               cls=NumpyEncoder)
+        print(json_dump)
+        """
 
     def infer(self, cfg):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
@@ -46,19 +67,20 @@ class DetectionInferrer(DetectionStage):
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
 
-        # Input source
-        input_source = cfg.get('input_source', 'test')
-        self.logger.info(f'Inferring on input source: data.{input_source}')
-        if input_source == 'train':
-            src_data_cfg = get_train_data_cfg(cfg)
-        else:
-            src_data_cfg = cfg.data[input_source]
         data_cfg = cfg.data.test.copy()
-        data_cfg.test_mode = src_data_cfg.get('test_mode', False)
-        data_cfg.ann_file = src_data_cfg.ann_file
-        data_cfg.img_prefix = src_data_cfg.img_prefix
-        if 'classes' in src_data_cfg:
-            data_cfg.classes = src_data_cfg.classes
+        # Input source
+        if 'input_source' in cfg:
+            input_source = cfg.get('input_source')
+            logger.info(f'Inferring on input source: data.{input_source}')
+            if input_source == 'train':
+                src_data_cfg = self.get_train_data_cfg(cfg)
+            else:
+                src_data_cfg = cfg.data[input_source]
+            data_cfg.test_mode = src_data_cfg.get('test_mode', False)
+            data_cfg.ann_file = src_data_cfg.ann_file
+            data_cfg.img_prefix = src_data_cfg.img_prefix
+            if 'classes' in src_data_cfg:
+                data_cfg.classes = src_data_cfg.classes
         self.dataset = build_dataset(data_cfg)
         dataset = self.dataset
 
@@ -110,5 +132,4 @@ class DetectionInferrer(DetectionStage):
             classes=target_classes,
             detections=detections
         )
-
         return outputs

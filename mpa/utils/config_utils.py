@@ -41,7 +41,6 @@ class MPAConfig(Config):
             # Substitute base variables from placeholders to strings
             base_var_dict = Config._pre_substitute_base_vars(
                 temp_config_file.name, temp_config_file.name)
-
             if filename.endswith('.py'):
                 temp_module_name = osp.splitext(temp_config_name)[0]
                 sys.path.insert(0, temp_config_dir)
@@ -88,7 +87,7 @@ class MPAConfig(Config):
             cfg_dict_list = list()
             cfg_text_list = list()
             for f in base_filename:
-                _cfg_dict, _cfg_text = Config._file2dict(osp.join(cfg_dir, f))
+                _cfg_dict, _cfg_text = MPAConfig._file2dict(osp.join(cfg_dir, f))
                 cfg_dict_list.append(_cfg_dict)
                 cfg_text_list.append(_cfg_text)
 
@@ -103,9 +102,9 @@ class MPAConfig(Config):
                 if len(base_cfg_dict.keys() & c.keys()) > 0:
                     # raise KeyError(f'Duplicate key is not allowed among bases [{base_cfg_dict.keys() & c.keys()}]')
                     logger.warning(f'Duplicate key is detected among bases [{base_cfg_dict.keys() & c.keys()}]')
-                    logger.warning(f'base = {base_cfg_dict}, cfg = {c}')
+                    logger.debug(f'base = {base_cfg_dict}, cfg = {c}')
                     base_cfg_dict = Config._merge_a_into_b(base_cfg_dict, c)
-                    logger.warning(f'merged dict = {base_cfg_dict}')
+                    logger.debug(f'merged dict = {base_cfg_dict}')
                 else:
                     base_cfg_dict.update(c)
 

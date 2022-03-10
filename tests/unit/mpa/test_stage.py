@@ -31,11 +31,18 @@ class TestStage(unittest.TestCase):
             stage = Stage('stage', 'test-mode', cfg)
         self.assertEqual(e.type, ValueError)
 
-        cfg = Mock(spec=Config, total_epochs=10)
+        cfg = MagicMock(spec=Config, total_epochs=10)
         cfg.checkpoint_config = Mock(interval=1)
+        cfg.custom_hooks = []
         cfg.runner = Mock(max_epochs=1)
         cfg.pop = Mock(return_value=1)
-        cfg.get = Mock(return_value='')
+
+        def cfg_get(*args):
+            if args[0] == 'custom_hooks':
+                return []
+            else:
+                return ''
+        cfg.get = Mock(side_effect=cfg_get)
         stage = Stage('stage', 'test-mode', cfg)
         self.assertIsInstance(stage, Stage, 'cannot create a Stage instance with Config object')
 
@@ -62,10 +69,7 @@ class TestStage(unittest.TestCase):
         self.assertEqual(common_cfg['runner'], stage.cfg['runner'])
 
         # kwargs
-        logger_info = MagicMock()
-        with patch('mpa.utils.logger.info', logger_info):
-            stage = Stage('stage', 'test-mode', cfg, something_new='new-value')
-        logger_info.assert_called()
+        stage = Stage('stage', 'test-mode', cfg, something_new='new-value')
         self.assertEqual('new-value', stage.cfg['something_new'])
 
     @pytest.mark.reqids(Requirements.REQ_1)

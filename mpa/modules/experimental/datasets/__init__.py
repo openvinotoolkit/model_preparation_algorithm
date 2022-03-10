@@ -1,4 +1,5 @@
 # flake8: noqa
+from . import cls_tv_dataset
 from . import pseudo_incr_dataset
 from . import pseudo_semi_dataset
 from . import oversampling_dataset

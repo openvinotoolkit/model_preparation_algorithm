@@ -6,3 +6,4 @@ _base_: [
 model:
     backbone:
         out_indices: !!python/tuple [2, 3, 4, 5,]
+        norm_eval: true  # for dual model sync

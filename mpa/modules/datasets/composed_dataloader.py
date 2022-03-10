@@ -1,4 +1,6 @@
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 class CDLIterator:

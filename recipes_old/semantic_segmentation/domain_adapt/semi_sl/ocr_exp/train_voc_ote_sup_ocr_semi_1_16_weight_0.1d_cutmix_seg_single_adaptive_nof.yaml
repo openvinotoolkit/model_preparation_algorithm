@@ -1,8 +1,0 @@
-_base_: [
-    '../../../_base_/ocr_exp/base.py',
-    '../../../_base_/ocr_exp/model_lite_hrnet_ote_ocr_ce_cps_0.1d_cutmix_seg_single_adaptive.py',
-    # '../../../_base_/ocr_exp/data_voc_semi_1_16.py',
-    '../../../_base_/ocr_exp/optimizer_no_freeze_ema_switch.py'
-]
-
-name: semi-sl-litehrnet-train

@@ -4,7 +4,8 @@ from mmseg.ops import resize
 import torch
 import functools
 from collections import OrderedDict
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+logger = get_logger()
 
 
 @SEGMENTORS.register_module()

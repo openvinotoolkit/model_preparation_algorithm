@@ -2,7 +2,7 @@ _base_ = [
     './atss.py'
 ]
 
-model= dict(
+model = dict(
     type='CustomATSS',
     bbox_head=dict(
         type='CustomATSSHead',
@@ -15,4 +15,3 @@ model= dict(
         ),
     ),
 )
-

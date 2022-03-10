@@ -1,7 +1,9 @@
 import torch
 import numpy as np
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 def map_class_names(src_classes, dst_classes):
@@ -55,6 +57,7 @@ def class_sensitive_copy_state_dict_cls(src_dict, src_classes, dst_dict, dst_cla
                                  f'{k}')
         else:
             logger.warning(f'WARNING: can not find weight key: {k} in dst_model')
+    logger.info('copied state dict completely')
 
 
 def prob_extractor(model, data_loader):

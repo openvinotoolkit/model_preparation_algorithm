@@ -5,7 +5,9 @@ import pandas as pd
 from mmcv.runner import Hook, HOOKS
 
 from .utils import plot_mem, print_report
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @HOOKS.register_module()

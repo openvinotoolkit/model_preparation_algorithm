@@ -2,7 +2,7 @@ _base_ = [
     './vfnet.py'
 ]
 
-model= dict(
+model = dict(
     type='CustomVFNet',
     bbox_head=dict(
         type='CustomVFNetHead',
@@ -24,7 +24,7 @@ data = dict(
         ),
         Normalize=dict(**__img_norm_cfg),
         MultiScaleFlipAug=dict(
-            img_scale=(1344, 480),
+            img_scale=(1344, 800),
             flip=False,
             transforms=[
                 dict(type='Resize', keep_ratio=False),
@@ -36,4 +36,3 @@ data = dict(
         ),
     ),
 )
-

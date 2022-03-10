@@ -9,7 +9,9 @@ from mmcls.models import build_classifier
 from mpa.registry import STAGES
 from .stage import ClsStage
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @STAGES.register_module()

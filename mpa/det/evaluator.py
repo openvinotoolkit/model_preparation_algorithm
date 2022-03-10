@@ -1,5 +1,10 @@
+import os.path as osp
+import json
 from mpa.registry import STAGES
 from .inferrer import DetectionInferrer
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @STAGES.register_module()
@@ -19,12 +24,14 @@ class DetectionEvaluator(DetectionInferrer):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
-        self.logger.info('evaluate!')
+        cfg.dump(osp.join(cfg.work_dir, 'config.py'))
+        logger.info(f'Config:\n{cfg.pretty_text}')
+        logger.info('evaluate!')
 
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         # Inference
-        infer_results = super().infer(cfg)
+        infer_results = self.infer(cfg)
         detections = infer_results['detections']
 
         # Evaluate inference results
@@ -32,6 +39,9 @@ class DetectionEvaluator(DetectionInferrer):
         for key in ['interval', 'tmpdir', 'start', 'gpu_collect', 'save_best']:
             eval_kwargs.pop(key, None)
         eval_result = self.dataset.evaluate(detections, **eval_kwargs)
-        self.logger.info(eval_result)
+        logger.info(eval_result)
+        output_file_path = osp.join(cfg.work_dir, 'eval_result.json')
+        with open(output_file_path, 'w') as f:
+            json.dump(eval_result, f, indent=4)
 
         return dict(mAP=eval_result.get('bbox_mAP_50', 0.0))

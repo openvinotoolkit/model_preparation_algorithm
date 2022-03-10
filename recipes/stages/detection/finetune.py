@@ -6,11 +6,14 @@ _base_ = [
 model = dict(super_type='UnbiasedTeacher')  # Used as general framework
 
 custom_hooks = [
-    dict(type='DualModelEMAHook',
-        momentum=0.0004,
+    dict(
+        type='DualModelEMAHook',
+        epoch_momentum=0.4,
         start_epoch=2,
     ),
-    dict(type='EarlyStoppingHook',
+    dict(
+        type='LazyEarlyStoppingHook',
+        start=3,
         patience=5,
         iteration_patience=1000,
         metric='bbox_mAP',

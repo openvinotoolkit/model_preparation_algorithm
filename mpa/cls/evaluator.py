@@ -3,7 +3,9 @@ from os import path as osp
 from mpa.registry import STAGES
 from .inferrer import ClsInferrer
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @STAGES.register_module()

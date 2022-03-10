@@ -4,7 +4,9 @@ import torch.nn as nn
 from mmcls.models.builder import CLASSIFIERS, build_backbone, build_neck, build_head
 
 from mpa.modules.models.classifiers.sam_classifier import SAMClassifier
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @CLASSIFIERS.register_module()

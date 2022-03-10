@@ -3,10 +3,12 @@ import torch.nn.functional as F
 import torch.distributed as dist
 from functools import partial
 
-from mpa.utils import logger
 from mmseg.models.builder import LOSSES
 from mpa.modules.models.losses.pixel_base import BasePixelLoss
 from mmseg.models.losses.cross_entropy_loss import _expand_onehot_labels
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @LOSSES.register_module()

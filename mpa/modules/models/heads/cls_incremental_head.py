@@ -4,7 +4,9 @@ from mmcls.models.builder import HEADS, build_loss
 from mmcls.models.heads.linear_head import LinearClsHead
 import torch.nn.functional as F
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @HEADS.register_module()

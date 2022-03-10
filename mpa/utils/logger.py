@@ -2,8 +2,12 @@ import logging
 import os
 import sys
 
+# import torch.distributed as dist
 
-__all__ = ['config_logger', 'get_log_dir', 'get_logger']
+from mmcv.runner.dist_utils import master_only
+
+# __all__ = ['config_logger', 'get_log_dir', 'get_logger']
+__all__ = ['config_logger', 'get_log_dir']
 
 _LOGGING_FORMAT = '%(asctime)s | %(levelname)s : %(message)s'
 _LOG_DIR = None
@@ -34,12 +38,12 @@ def _get_logger():
 
 _logger = _get_logger()
 
-# to expose supported APIs
-_override_methods = ['setLevel', 'addHandler', 'addFilter', 'info',
-                     'warning', 'error', 'critical', 'print']
-for fn in _override_methods:
-    locals()[fn] = getattr(_logger, fn)
-    __all__.append(fn)
+# # to expose supported APIs
+# _override_methods = ['setLevel', 'addHandler', 'addFilter', 'info',
+#                      'warning', 'error', 'critical', 'print']
+# for fn in _override_methods:
+#     locals()[fn] = getattr(_logger, fn)
+#     __all__.append(fn)
 
 
 def config_logger(log_file, level='WARNING'):
@@ -76,19 +80,6 @@ def get_log_dir():
     return _LOG_DIR
 
 
-# debug log should be disabled before release
-def debug(message, *args, **kws):
-    pass
-    # if _logger.isEnabledFor(logging.DEBUG):
-    #     _logger.log(logging.DEBUG, message, *args, **kws)
-
-
-def get_logger(rank=-1):
-    if rank is None or rank > 0:
-        return _DummyLogger('dummy')
-    return _logger
-
-
 class _DummyLogger(logging.Logger):
     def debug(message, *args, **kws):
         pass
@@ -104,3 +95,21 @@ class _DummyLogger(logging.Logger):
 
     def error(message, *args, **kws):
         pass
+
+
+# apply decorator @master_only to the lower severity logging functions
+# TODO: need to check whether it works as expected
+_logging_methods = ['print', 'debug', 'info', 'warning']
+for fn in _logging_methods:
+    master_only(getattr(_logger, fn))
+
+
+def get_logger():
+    # if dist.is_available() and dist.is_initialized():
+    #     rank = dist.get_rank()
+    # else:
+    #     rank = 0
+    # if rank == 0:
+    #     return _logger
+    # return _DummyLogger('dummy')
+    return _logger

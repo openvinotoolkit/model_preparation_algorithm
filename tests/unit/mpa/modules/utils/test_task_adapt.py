@@ -5,7 +5,7 @@ from mpa.modules.utils.task_adapt import map_class_names, class_sensitive_copy_s
 
 from tests.constants.mpa_components import MPAComponent
 from tests.constants.requirements import Requirements
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, Mock
 
 
 @pytest.mark.components(MPAComponent.MPA)
@@ -53,11 +53,13 @@ def test_class_sensitive_copy_state_dict_cls():
     class_sensitive_copy_state_dict(state_dict, ['class1'], state_dict, ['class1', 'class2'], 'TaskIncrementalLwF')
     wrong_params = os.path.join(assets_path, 'model_cfg/ckpt/cifar10_5cls_mnet_v2.pth')
     wrong_state_dict = torch.load(wrong_params, map_location=torch.device('cpu'))['state_dict']
-    logger_warning = MagicMock()
-    with patch('mpa.utils.logger.warning', logger_warning):
+    mock_warning = Mock()
+    mock_logger = Mock(warning=mock_warning)
+    # mock_logger.warning = mock_warning
+    with patch('mpa.modules.utils.task_adapt.logger', mock_logger):
         class_sensitive_copy_state_dict(wrong_state_dict, ['class1'], state_dict, ['class1', 'class2'],
                                         'TaskIncrementalLwF')
-    logger_warning.assert_called()
+    mock_warning.assert_called()
 
 
 @pytest.mark.components(MPAComponent.MPA)

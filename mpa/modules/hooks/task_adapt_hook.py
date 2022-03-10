@@ -2,7 +2,9 @@ from mmcv.runner import HOOKS, Hook
 from torch.utils.data import DataLoader
 
 from mpa.modules.datasets.samplers.cls_incr_sampler import ClsIncrSampler
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @HOOKS.register_module()

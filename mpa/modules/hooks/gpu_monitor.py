@@ -2,7 +2,9 @@ import torch
 
 from mmcv.runner import Hook, HOOKS
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @HOOKS.register_module()

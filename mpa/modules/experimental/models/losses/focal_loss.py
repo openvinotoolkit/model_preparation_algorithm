@@ -31,7 +31,8 @@ class FocalLossMPA(BasePixelLoss):
 
         self.cls_criterion = focal_loss
 
-        from mpa.utils import logger
+        from mpa.utils.logger import get_logger
+        logger = get_logger()
         logger.info('######################################################################################')
         logger.info('# This Focal loss is implemented based on SoftmaxFocalLoss at class_balanced_loss.py #')
         logger.info('# Differently, label smoothing is not considered.                                    #')

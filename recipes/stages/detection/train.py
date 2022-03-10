@@ -1,6 +1,7 @@
 _base_ = [
     '../_base_/default.py',
     '../_base_/data/coco_ubt.py',
+    # '../_base_/data/data.py',
     '../_base_/logs/tensorboard_logger.py',
     '../_base_/optimizers/sgd.py',
     '../_base_/runners/epoch_runner_cancel.py',
@@ -35,14 +36,17 @@ evaluation = dict(
     interval=1,
     metric='bbox',
     classwise=True,
+    save_best='bbox_mAP'
 )
 
 custom_hooks = [
-    dict(type='EarlyStoppingHook',
+    dict(
+        type='LazyEarlyStoppingHook',
+        start=3,
         patience=5,
         iteration_patience=1000,
         metric='bbox_mAP',
         interval=1,
-        priority=75
+        priority=75,
     ),
 ]

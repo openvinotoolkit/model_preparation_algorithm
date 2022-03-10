@@ -7,7 +7,9 @@ from mmcls.datasets.builder import DATASETS, PIPELINES
 from mmcls.datasets.base_dataset import BaseDataset
 from mmcls.datasets.pipelines import Compose
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @DATASETS.register_module()

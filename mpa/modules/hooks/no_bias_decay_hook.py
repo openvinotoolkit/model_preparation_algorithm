@@ -1,8 +1,10 @@
+import torch.nn as nn
+
 from mmcv.runner import Hook, HOOKS
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
 
-import torch.nn as nn
+logger = get_logger()
 
 
 @HOOKS.register_module()

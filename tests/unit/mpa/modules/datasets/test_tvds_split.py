@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 import pytest
 import numpy as np
 
@@ -121,11 +121,11 @@ class TestTVDatasetSplit(unittest.TestCase):
         ds = TVDatasetSplit(base, include_idx=os.path.join(self.assets_path, 'indices/cifar10-7k.p'))
         self.assertEqual(len(ds), 7000)
 
-        logger_warning = MagicMock()
-        with patch('mpa.utils.logger.warning', logger_warning):
+        mock_warning = Mock()
+        mock_logger = Mock(warning=mock_warning)
+        with patch('mpa.modules.datasets.tvds_split.logger', mock_logger):
             ds = TVDatasetSplit(base, include_idx='path/not/exist.p')
-        logger_warning.assert_called()
-        del logger_warning
+        mock_warning.assert_called()
 
         # test for exclude_idx param
         with pytest.raises(Exception) as e:
@@ -138,10 +138,11 @@ class TestTVDatasetSplit(unittest.TestCase):
         ds = TVDatasetSplit(base, exclude_idx=os.path.join(self.assets_path, 'indices/cifar10-7k.p'))
         self.assertEqual(len(ds), baseset_len - 7000)
 
-        logger_warning = MagicMock()
-        with patch('mpa.utils.logger.warning', logger_warning):
+        mock_warning = Mock()
+        mock_logger = Mock(warning=mock_warning)
+        with patch('mpa.modules.datasets.tvds_split.logger', mock_logger):
             ds = TVDatasetSplit(base, exclude_idx='path/not/exist.p')
-        logger_warning.assert_called()
+        mock_warning.assert_called()
 
         # test num_images param
         with pytest.raises(Exception) as e:

@@ -56,6 +56,7 @@ class CustomSSDHead(SSDHead):
         label_weights = label_weights.reshape(-1)
         if self.bg_loss_weight >= 0.0:
             neg_indices = (labels == self.num_classes)
+            label_weights = label_weights.clone()
             label_weights[neg_indices] = self.bg_loss_weight
 
         loss_cls_all = self.loss_cls(cls_score, labels, label_weights)

@@ -5,13 +5,15 @@ import torch
 import numpy as np
 
 import mmcv
-from mmcv import Config
+from mmcv import Config, ConfigDict
 
+from mpa.utils.config_utils import update_or_add_custom_hook
+from mpa.utils.logger import config_logger, get_logger
 from mpa.utils.config_utils import MPAConfig
-from mpa.utils.logger import config_logger
-from mpa.utils import logger
 
 from .registry import STAGES
+
+logger = get_logger()
 
 
 def _set_random_seed(seed, deterministic=False):
@@ -28,6 +30,7 @@ def _set_random_seed(seed, deterministic=False):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    logger.info(f'Training seed was set to {seed} w/ deterministic={deterministic}.')
     if deterministic:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
@@ -44,7 +47,7 @@ def get_available_types():
 # @STAGES.register_module()
 class Stage(object):
     def __init__(self, name, mode, config, common_cfg={}, index=0, **kwargs):
-        logger.info(f'init stage with: {name}, {mode}, {config}, {common_cfg}, {index}, {kwargs}')
+        logger.debug(f'init stage with: {name}, {mode}, {config}, {common_cfg}, {index}, {kwargs}')
         # the name of 'config' cannot be changed to such as 'config_file'
         # because it is defined as 'config' in recipe file.....
         self.name = name
@@ -125,9 +128,9 @@ class Stage(object):
         # Work directory
         work_dir = cfg.get('work_dir', '')
         work_dir = os.path.join(self.output_prefix, work_dir if work_dir else '', self.output_suffix)
-        mmcv.mkdir_or_exist(os.path.abspath(work_dir))
         cfg.work_dir = os.path.abspath(work_dir)
         logger.info(f'work dir = {cfg.work_dir}')
+        mmcv.mkdir_or_exist(os.path.abspath(work_dir))
 
         if not hasattr(cfg, 'gpu_ids'):
             gpu_ids = os.environ.get('CUDA_VISIBLE_DEVICES', None)
@@ -139,6 +142,12 @@ class Stage(object):
                     raise ValueError(f'not supported type for gpu_ids: {type(gpu_ids)}')
             else:
                 cfg.gpu_ids = range(1)
+
+        # config logger replace hook
+        hook_cfg = ConfigDict(
+            type='LoggerReplaceHook'
+        )
+        update_or_add_custom_hook(cfg, hook_cfg)
 
         self.cfg = cfg
 
@@ -200,7 +209,8 @@ class Stage(object):
                 else:
                     logger.warning(f"type of split '{target}'' should be list or dict but {type(split)}")
 
-        logger.info(f'configure_data() {cfg.data}')
+        logger.info('configure_data()')
+        logger.debug(f'[args] {cfg.data}')
         pipeline_options = cfg.data.pop('pipeline_options', None)
         if pipeline_options is not None and isinstance(pipeline_options, dict):
             configure_split('train')
@@ -208,6 +218,30 @@ class Stage(object):
             if not training:
                 configure_split('test')
             configure_split('unlabeled')
+
+    @staticmethod
+    def configure_hook(cfg, **kwargs):
+        """Update cfg.custom_hooks based on cfg.custom_hook_options
+        """
+        def update_hook(opt, custom_hooks, idx, hook):
+            """Delete of update a custom hook
+            """
+            if isinstance(opt, dict):
+                if opt.get('_delete_', False):
+                    # if option include _delete_=True, remove this hook from custom_hooks
+                    logger.info(f"configure_hook: {hook['type']} is deleted")
+                    del custom_hooks[idx]
+                else:
+                    logger.info(f"configure_hook: {hook['type']} is updated with {opt}")
+                    hook.update(**opt)
+
+        custom_hook_options = cfg.pop('custom_hook_options', {})
+        logger.info(f"configure_hook() {cfg.get('custom_hooks', [])} <- {custom_hook_options}")
+        custom_hooks = cfg.get('custom_hooks', [])
+        for idx, hook in enumerate(custom_hooks):
+            for opt_key, opt in custom_hook_options.items():
+                if hook['type'] == opt_key:
+                    update_hook(opt, custom_hooks, idx, hook)
 
     @staticmethod
     def get_model_meta(cfg):

@@ -1,3 +1,0 @@
-_base_: {{ fileDirname }}/../../ote_example/ote_model.py
-
-#total_epochs: 1

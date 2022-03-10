@@ -1,7 +1,10 @@
 import torch
+import math
 from mmcv.runner import HOOKS, Hook
 from mmcv.parallel import is_module_wrapper
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @HOOKS.register_module()
@@ -19,6 +22,9 @@ class DualModelEMAHook(Hook):
     Args:
         momentum (float): The momentum used for updating ema parameter.
             Defaults to 0.0002.
+        epoch_momentum (float): if > 0, momentum is ignored and re-calculated.
+            momentum = 1 - exp(1 - epoch_momentum, 1/num_iter_per_epoch)
+            Defaults to 0.
         interval (int): Update ema parameter every interval iteration.
             Defaults to 1.
         start_epoch (int): During initial a few epochs, we just copy values
@@ -30,6 +36,7 @@ class DualModelEMAHook(Hook):
     def __init__(
         self,
         momentum=0.0002,
+        epoch_momentum=0.0,
         interval=1,
         start_epoch=5,
         src_model_name='model_s',
@@ -37,7 +44,8 @@ class DualModelEMAHook(Hook):
         **kwargs
     ):
         super().__init__(**kwargs)
-        self.momentum = momentum**interval
+        self.momentum = 1 - (1 - momentum)**interval
+        self.epoch_momentum = epoch_momentum
         self.interval = interval
         self.start_epoch = start_epoch
         self.src_model_name = src_model_name
@@ -60,6 +68,16 @@ class DualModelEMAHook(Hook):
                 # (if it's resuming there will be student weights in checkpoint. No need to copy)
                 self._sync_model()
                 logger.info('Initialized student model by teacher model')
+                logger.info(f'model_s model_t diff: {self._diff_model()}')
+
+    def before_train_epoch(self, runner):
+        if self.epoch_momentum > 0.0:
+            iter_per_epoch = len(runner.data_loader)
+            epoch_decay = 1 - self.epoch_momentum
+            iter_decay = math.pow(epoch_decay, self.interval/iter_per_epoch)
+            self.momentum = 1 - iter_decay
+            logger.info(f'EMA: epoch_decay={epoch_decay} / iter_decay={iter_decay}')
+            self.epoch_momentum = 0.0  # disable re-compute
 
     def after_train_iter(self, runner):
         """Update ema parameter every self.interval iterations."""
@@ -80,7 +98,7 @@ class DualModelEMAHook(Hook):
 
     def after_train_epoch(self, runner):
         if self.enabled:
-            logger.info(f'src dst diff: {self._diff_model()}')
+            logger.info(f'model_s model_t diff: {self._diff_model()}')
 
     def _get_model(self, runner):
         model = runner.model

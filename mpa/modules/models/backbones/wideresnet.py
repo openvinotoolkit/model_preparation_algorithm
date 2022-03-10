@@ -8,7 +8,9 @@ from mmcv.runner import load_checkpoint
 from mmcls.models.builder import BACKBONES
 from mmcls.models.backbones.base_backbone import BaseBackbone
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 def mish(x):

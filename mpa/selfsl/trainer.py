@@ -24,10 +24,11 @@ from mpa.registry import STAGES
 from mpa.stage import Stage
 from mpa.stage import _set_random_seed
 from mpa.utils.convert_keys import convert_keys
-from mpa.utils import logger
 from mpa.utils.logger import get_logger
 
 from .builder import build_backbone, build_trainer, build_dataset, build_dataloader
+
+logger = get_logger()
 
 
 @STAGES.register_module()
@@ -299,9 +300,6 @@ class SelfSLTrainer(Stage):
                      distributed=False,
                      timestamp=None,
                      meta=None):
-
-        logger = get_logger()
-
         if distributed:
             torch.cuda.set_device(gpu)
             dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),

@@ -1,7 +1,8 @@
+import numbers
 import os
 import os.path as osp
-import numbers
 import time
+import glob
 
 import torch
 import torch.multiprocessing as mp
@@ -15,10 +16,12 @@ from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
 from mmdet.utils import collect_env
 
-from mpa.utils.logger import get_logger
 from mpa.registry import STAGES
-from .stage import DetectionStage, configure_anchor
+from .stage import DetectionStage
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @STAGES.register_module()
@@ -39,7 +42,7 @@ class DetectionTrainer(DetectionStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, **kwargs)
-        self.logger.info('train!')
+        logger.info('train!')
 
         # # Work directory
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
@@ -54,11 +57,11 @@ class DetectionTrainer(DetectionStage):
             if len(cfg.gpu_ids) > 1:
                 distributed = True
 
-        self.logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {distributed}')
+        logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {distributed}')
         env_info_dict = collect_env()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
         dash_line = '-' * 60 + '\n'
-        self.logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)
+        logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)
 
         # Data
         datasets = [build_dataset(cfg.data.train)]
@@ -67,7 +70,7 @@ class DetectionTrainer(DetectionStage):
             if cfg.hparams.get('adaptive_anchor', False):
                 num_ratios = cfg.hparams.get('num_anchor_ratios', 5)
                 proposal_ratio = extract_anchor_ratio(datasets[0], num_ratios)
-                configure_anchor(cfg, proposal_ratio)
+                self.configure_anchor(cfg, proposal_ratio)
 
         # Dataset for HPO
         hp_config = kwargs.get('hp_config', None)
@@ -82,7 +85,7 @@ class DetectionTrainer(DetectionStage):
 
         # Target classes
         if 'task_adapt' in cfg:
-            target_classes = cfg.task_adapt.final
+            target_classes = cfg.task_adapt.get('final', [])
         else:
             target_classes = datasets[0].CLASSES
 
@@ -102,13 +105,13 @@ class DetectionTrainer(DetectionStage):
         if distributed:
             if cfg.dist_params.get('linear_scale_lr', False):
                 new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
-                self.logger.info(f'enabled linear scaling rule to the learning rate. \
+                logger.info(f'enabled linear scaling rule to the learning rate. \
                     changed LR from {cfg.optimizer.lr} to {new_lr}')
                 cfg.optimizer.lr = new_lr
 
         # Save config
-        cfg.dump(osp.join(cfg.work_dir, 'config.yaml'))
-        self.logger.info(f'Config:\n{cfg.pretty_text}')
+        cfg.dump(osp.join(cfg.work_dir, 'config.py'))
+        logger.info(f'Config:\n{cfg.pretty_text}')
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
@@ -128,16 +131,17 @@ class DetectionTrainer(DetectionStage):
 
         # Save outputs
         output_ckpt_path = osp.join(cfg.work_dir, 'latest.pth')
-        if osp.exists(osp.join(cfg.work_dir, 'best_segm_mAP.pth')):
-            output_ckpt_path = osp.join(cfg.work_dir, 'best_segm_mAP.pth')
-        elif osp.exists(osp.join(cfg.work_dir, 'best_bbox_mAP.pth')):
-            output_ckpt_path = osp.join(cfg.work_dir, 'best_bbox_mAP.pth')
+        best_ckpt_path = glob.glob(osp.join(cfg.work_dir, 'best_segm_mAP*.pth'))
+        if len(best_ckpt_path) > 0:
+            output_ckpt_path = best_ckpt_path[0]
+        best_ckpt_path = glob.glob(osp.join(cfg.work_dir, 'best_bbox_mAP*.pth'))
+        if len(best_ckpt_path) > 0:
+            output_ckpt_path = best_ckpt_path[0]
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
     def train_worker(gpu, target_classes, datasets, cfg, distributed=False,
                      validate=False, timestamp=None, meta=None):
-        logger = get_logger()
         if distributed:
             torch.cuda.set_device(gpu)
             dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),

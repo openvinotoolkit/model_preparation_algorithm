@@ -11,8 +11,9 @@ from mmcls.datasets.base_dataset import BaseDataset
 from mmcls.datasets.pipelines import Compose
 
 from mpa.modules.datasets.sources.index_list import ImageIndexList
+from mpa.utils.logger import get_logger
 
-from mpa.utils import logger
+logger = get_logger()
 
 
 @DATASETS.register_module()

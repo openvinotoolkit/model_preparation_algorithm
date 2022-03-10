@@ -1,8 +1,12 @@
-from mmcv.runner import HOOKS, Hook
-from mpa.utils import logger
-from mpa.modules.datasets.composed_dataloader import ComposedDL
-from mmdet.datasets import build_dataset, build_dataloader
 from mmcv.runner import get_dist_info
+from mmcv.runner import HOOKS, Hook
+
+from mmdet.datasets import build_dataset, build_dataloader
+
+from mpa.modules.datasets.composed_dataloader import ComposedDL
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @HOOKS.register_module()
@@ -35,7 +39,8 @@ class UnlabeledDataHook(Hook):
 
     def before_epoch(self, runner):
         if self.composed_loader is None:
-            logger.info('In UnlabeledDataHook.before_epoch, creating ComposedDL([labeled, unlabeled])')
+            logger.info('In UnlabeledDataHook.before_epoch, creating ComposedDL'
+                        f'([labeled({len(runner.data_loader)}, unlabeled({len(self.unlabeled_loader)})])')
             self.composed_loader = ComposedDL([runner.data_loader, self.unlabeled_loader])
         # Per-epoch replacement: train-only loader -> train+unlabeled loader
         # (It's similar to local variable in epoch. Need to update every epoch...)

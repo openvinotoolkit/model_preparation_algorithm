@@ -1,12 +1,13 @@
 [run]
 data_file = .reports/.coverage
-source = 
-        mpa/
 branch = true
+source =
+        mpa/
 omit =
         */__init__.py
         */tests/*
         setup.py
+        */experimental/*
 
 [report]
 omit =

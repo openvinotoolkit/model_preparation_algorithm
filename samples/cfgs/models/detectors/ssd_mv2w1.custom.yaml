@@ -2,3 +2,7 @@ _base_: [
   '../backbones/ote_mobilenet_v2_w1.yaml',
   '../../../../recipes/stages/_base_/models/detectors/ssd.custom.py'
 ]
+
+model:
+    backbone:
+        norm_eval: true  # for dual model sync

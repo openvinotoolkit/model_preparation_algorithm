@@ -1,21 +1,22 @@
-import os
-import time
 import torch
 from mmcv import ConfigDict
 from mmseg.utils import get_root_logger
 
 from mpa.stage import Stage
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 class SegStage(Stage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.logger = None
+        # self.logger = None
 
     def configure(self, model_cfg, model_ckpt, data_cfg, training=True, **kwargs):
         """Create MMCV-consumable config from given inputs
         """
-        self.logger.info(f'configure!: training={training}')
+        logger.info(f'configure!: training={training}')
 
         # Recipe + model
         cfg = self.cfg
@@ -41,7 +42,7 @@ class SegStage(Stage):
 
         pretrained = kwargs.get('pretrained', None)
         if pretrained:
-            self.logger.info(f'Overriding cfg.load_from -> {pretrained}')
+            logger.info(f'Overriding cfg.load_from -> {pretrained}')
             cfg.load_from = pretrained  # Overriding by stage input
 
         # Data
@@ -62,19 +63,8 @@ class SegStage(Stage):
 
         return cfg
 
-    def _init_logger(self):
-        ''' override to initalize mmdet logger instead of mpa one.
-        '''
-        if self.logger is None:
-            timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
-            work_dir = os.path.dirname(self.cfg.work_dir)
-            # print(f'workdir for the logger of segmentation tasks: {work_dir}')
-            self.logger = get_root_logger(log_file=os.path.join(work_dir, f'{timestamp}.log'),
-                                          log_level=self.cfg.log_level)
-
     def _get_model_classes(self, cfg):
         """Extract trained classes info from checkpoint file.
-
         MMCV-based models would save class info in ckpt['meta']['CLASSES']
         For other cases, try to get the info from cfg.model.classes (with pop())
         - Which means that model classes should be specified in model-cfg for

@@ -26,3 +26,9 @@ stages:
       task: detection
       mode: eval
       config: {{ fileDirname }}/stages/detection/finetune.py
+
+    - name: infer-only
+      type: DetectionInferrer
+      task: detection
+      mode: infer
+      config: {{ fileDirname }}/stages/detection/finetune.py

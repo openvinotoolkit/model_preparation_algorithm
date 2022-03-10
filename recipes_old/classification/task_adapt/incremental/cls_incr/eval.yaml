@@ -1,7 +1,0 @@
-_base_: [
-    'train.yaml'
-]
-
-evaluation:
-#    metric: ['f1_score']
-    metric: ['accuracy', 'class_accuracy']

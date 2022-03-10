@@ -93,7 +93,8 @@ class DiceLossMPA(nn.Module):
         self._iter = 0
         self._last_loss_weight = 0
 
-        from mpa.utils import logger
+        from mpa.utils.logger import get_logger
+        logger = get_logger()
         logger.info('################################ TODO #################################')
         logger.info('# Some meta cfgs used in BasePixelLoss is not usable in DiceLoss yet. #')
         logger.info('# (reg_weight, scale, raw_sparsity, weight_sparsity)                  #')

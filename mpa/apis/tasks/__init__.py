@@ -1,9 +1,7 @@
 # flake8: noqa
-from .base import MPABaseTask, MPATaskType
-from .classification import MPAClassificationTask
+from .detection import DetectionTrainTask, DetectionInferenceTask
 
 __all__ = [
-    MPABaseTask,
-    MPATaskType,
-    MPAClassificationTask,
+    DetectionInferenceTask,
+    DetectionTrainTask
 ]

@@ -9,7 +9,9 @@ from mmcv.runner import load_checkpoint
 from mmcls.models.utils import make_divisible
 from mmcls.models.builder import BACKBONES
 
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 pretrained_root = (
     "https://github.com/d-li14/mobilenetv3.pytorch/blob/master/pretrained/"

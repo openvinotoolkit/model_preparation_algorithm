@@ -27,3 +27,8 @@ stages:
       mode: eval
       config: {{ fileDirname }}/stages/detection/imbalance.py
 
+    - name: infer-only
+      type: DetectionInferrer
+      task: detection
+      mode: infer
+      config: {{ fileDirname }}/stages/detection/imbalance.py

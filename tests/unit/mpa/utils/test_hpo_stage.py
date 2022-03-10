@@ -1,7 +1,6 @@
 import unittest
 import pytest
 
-# from mmcv.utils import Config
 from mmcv.utils.config import ConfigDict
 
 from mpa.utils.hpo_stage import HpoRunner

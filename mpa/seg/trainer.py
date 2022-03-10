@@ -17,9 +17,11 @@ from .builder import build_dataset
 from mmseg.models import build_segmentor
 from mmseg.utils import collect_env
 
-from mpa.utils.logger import get_logger
 from mpa.registry import STAGES
 from mpa.seg.stage import SegStage
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @STAGES.register_module()
@@ -44,7 +46,7 @@ class SegTrainer(SegStage):
         if cfg.runner.type == 'IterBasedRunner':
             cfg.runner = dict(type=cfg.runner.type, max_iters=cfg.runner.max_iters)
 
-        self.logger.info('train!')
+        logger.info('train!')
 
         # Work directory
         mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
@@ -58,12 +60,11 @@ class SegTrainer(SegStage):
                 cfg.gpu_ids = [cfg.get('gpu_ids')]
             if len(cfg.gpu_ids) > 1:
                 distributed = True
-
-        self.logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {distributed}')
+        logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {distributed}')
         env_info_dict = collect_env()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
         dash_line = '-' * 60 + '\n'
-        self.logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)
+        logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)
 
         # Data
         datasets = [build_dataset(cfg.data.train)]
@@ -99,13 +100,13 @@ class SegTrainer(SegStage):
         if distributed:
             if cfg.dist_params.get('linear_scale_lr', False):
                 new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
-                self.logger.info(f'enabled linear scaling rule to the learning rate. \
+                logger.info(f'enabled linear scaling rule to the learning rate. \
                     changed LR from {cfg.optimizer.lr} to {new_lr}')
                 cfg.optimizer.lr = new_lr
 
         # Save config
         cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
-        self.logger.info(f'Config:\n{cfg.pretty_text}')
+        logger.info(f'Config:\n{cfg.pretty_text}')
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
@@ -126,14 +127,14 @@ class SegTrainer(SegStage):
 
         # Save outputs
         output_ckpt_path = os.path.join(cfg.work_dir, 'best_model.pth'
-                                    if os.path.exists(os.path.join(cfg.work_dir, 'best_model.pth'))
-                                    else 'latest.pth')
+                                        if os.path.exists(os.path.join(cfg.work_dir, 'best_model.pth'))
+                                        else 'latest.pth')
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
     def train_worker(gpu, target_classes, datasets, cfg, distributed=False, validate=False,
                      timestamp=None, meta=None):
-        logger = get_logger()
+        # logger = get_logger()
         if distributed:
             torch.cuda.set_device(gpu)
             dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),

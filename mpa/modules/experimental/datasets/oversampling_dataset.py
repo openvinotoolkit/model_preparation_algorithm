@@ -6,7 +6,9 @@ import pandas as pd
 
 import torch
 from mmseg.datasets import DATASETS, build_dataset
-from mpa.utils import logger
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @DATASETS.register_module()

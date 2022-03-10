@@ -1,14 +1,15 @@
-from mmcv import build_from_cfg
-
-from mpa.stage import Stage
-from mpa.utils import logger
-
-from mpa.registry import STAGES
-
-from multiprocessing import Process
 import os
 import time
 import pickle
+from multiprocessing import Process
+
+from mmcv import build_from_cfg
+
+from mpa.registry import STAGES
+from mpa.stage import Stage
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 def build_train_stage(trainer_stage_config, common_cfg):

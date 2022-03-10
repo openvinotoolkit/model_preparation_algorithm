@@ -1,10 +1,13 @@
+import functools
 from mmdet.models.builder import DETECTORS
 from mmdet.models.detectors.vfnet import VFNet
+
 from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
-import functools
-from mpa.utils import logger
 from mpa.modules.utils.task_adapt import map_class_names
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @DETECTORS.register_module()
@@ -24,6 +27,21 @@ class CustomVFNet(SAMDetectorMixin, L2SPDetectorMixin, VFNet):
                     task_adapt['src_classes']   # chkpt_classes
                 )
             )
+
+    def forward_train(self,
+                      img,
+                      img_metas,
+                      gt_bboxes,
+                      gt_labels,
+                      gt_bboxes_ignore=None,
+                      **kwargs):
+        return super().forward_train(
+              img,
+              img_metas,
+              gt_bboxes,
+              gt_labels,
+              gt_bboxes_ignore=gt_bboxes_ignore
+        )
 
     @staticmethod
     def load_state_dict_pre_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):

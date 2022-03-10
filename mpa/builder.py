@@ -8,17 +8,20 @@ from mmcv import build_from_cfg
 # from collections import defaultdict
 
 from .workflow import Workflow
-from mpa.modules.hooks.workflow_hook import build_workflow_hook
+from mpa.modules.hooks.workflow_hooks import WorkflowHook, build_workflow_hook
 
-from mpa.utils.logger import config_logger
-from mpa.utils import logger
+from mpa.utils.logger import config_logger, get_logger
+from mpa.utils.config_utils import MPAConfig
 
 from mpa.registry import STAGES
 from mpa.stage import get_available_types
 
+logger = get_logger()
+
 
 def __build_stage(config, common_cfg=None, index=0):
-    logger.info(f'called build_stage({config, common_cfg})')
+    logger.info('build_stage()')
+    logger.debug(f'[args] config = {config}, common_cfg = {common_cfg}, index={index}')
     config.type = config.type if 'type' in config.keys() else 'Stage'  # TODO: tmp workaround code for competability
     config.common_cfg = common_cfg
     config.index = index
@@ -26,13 +29,17 @@ def __build_stage(config, common_cfg=None, index=0):
 
 
 def __build_workflow(config):
-    logger.info(f'called build_workflow({config})')
+    logger.info('build_workflow()')
+    logger.debug(f'[args] config = {config}')
 
     whooks = []
     whooks_cfg = config.get('workflow_hooks', [])
     for whook_cfg in whooks_cfg:
-        whook = build_workflow_hook(whook_cfg.copy())
-        whooks.append(whook)
+        if isinstance(whook_cfg, WorkflowHook):
+            whooks.append(whook_cfg)
+        else:
+            whook = build_workflow_hook(whook_cfg.copy())
+            whooks.append(whook)
 
     output_path = config.get('output_path', 'logs')
     folder_name = f"{time.strftime('%Y%m%d_%H%M%S', time.localtime())}"
@@ -48,6 +55,17 @@ def __build_workflow(config):
     log_level = config.get('log_level', 'INFO')
     config_logger(os.path.join(config.output_path, 'app.log'), level=log_level)
 
+    if not hasattr(config, 'gpu_ids'):
+        gpu_ids = os.environ.get('CUDA_VISIBLE_DEVICES', None)
+        logger.info(f'CUDA_VISIBLE_DEVICES = {gpu_ids}')
+        if gpu_ids is not None:
+            if isinstance(gpu_ids, str):
+                config.gpu_ids = range(len(gpu_ids.split(',')))
+            else:
+                raise ValueError(f'not supported type for gpu_ids: {type(gpu_ids)}')
+        else:
+            config.gpu_ids = range(1)
+
     common_cfg = copy.deepcopy(config)
     common_cfg.pop('stages')
     if len(whooks_cfg) > 0:
@@ -57,13 +75,14 @@ def __build_workflow(config):
     return Workflow(stages, whooks)
 
 
-def build(config, mode=None, stage_type=None):
-    logger.info(f'called build_recipe({config})')
+def build(config, mode=None, stage_type=None, common_cfg=None):
+    logger.info('called build_recipe()')
+    logger.debug(f'[args] config = {config}')
 
     if not isinstance(config, Config):
         if isinstance(config, str):
             if os.path.exists(config):
-                config = Config.fromfile(config)
+                config = MPAConfig.fromfile(config)
             else:
                 logger.error(f'cannot find configuration file {config}')
                 raise ValueError(f'cannot find configuration file {config}')
@@ -80,16 +99,14 @@ def build(config, mode=None, stage_type=None):
                 cfg_dict = ConfigDict(
                     dict(
                         type=stage_type,
-                        name='default',
+                        name=f'{stage_type}-{mode}',
                         mode=mode,
                         config=config,
-                        index=0
+                        index=0,
                     )
                 )
             else:
                 msg = f'type {stage_type} is not in {supported_stage_types}'
                 logger.error(msg)
                 raise RuntimeError(msg)
-        else:
-            pass
-        return __build_stage(cfg_dict)
+        return __build_stage(cfg_dict, common_cfg=common_cfg)

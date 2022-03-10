@@ -1,5 +1,0 @@
-_base_:
-    - {{ fileDirname }}/_base_/data_bs128.py
-    - {{ fileDirname }}/_base_/base.py
-    - {{ fileDirname }}/_base_/model_byol.py
-    - {{ fileDirname }}/_base_/optimizer_sgd_ep120.py

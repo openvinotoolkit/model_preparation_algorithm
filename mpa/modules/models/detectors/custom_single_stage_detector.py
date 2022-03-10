@@ -1,10 +1,12 @@
+import functools
 from mmdet.models.builder import DETECTORS
 from mmdet.models.detectors.single_stage import SingleStageDetector
 from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
-import functools
-from mpa.utils import logger
 from mpa.modules.utils.task_adapt import map_class_names
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @DETECTORS.register_module()

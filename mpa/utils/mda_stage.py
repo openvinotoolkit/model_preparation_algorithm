@@ -1,22 +1,28 @@
 import os.path as osp
+
+from torchvision.transforms import ToPILImage, ToTensor, Resize
+
 from mmcv.parallel import MMDataParallel
 from mmcv.runner import wrap_fp16_model
 from mmcls.datasets import build_dataloader as build_dataloader_cls
 from mmcls.datasets import build_dataset as build_dataset_cls
 from mmcls.models import build_classifier
-from ..stage import Stage
-from . import logger
-from ..registry import STAGES
-from mmdet.models import build_detector
+from mmcls.datasets import PIPELINES as PIPELINES_mmcls
 from mmdet.datasets import build_dataloader as build_dataloader_det
 from mmdet.datasets import build_dataset as build_dataset_det
-from ..det.stage import DetectionStage, get_train_data_cfg
-from ..det.inferrer import replace_ImageToTensor
-from ..cls.stage import ClsStage
-from torchvision.transforms import ToPILImage, ToTensor, Resize
-from mmcls.datasets import PIPELINES as PIPELINES_mmcls
 from mmdet.datasets import PIPELINES as PIPELINES_mmdet
+from mmdet.models import build_detector
+
 from mda import MDA
+
+from mpa.cls.stage import ClsStage
+from mpa.det.stage import DetectionStage
+from mpa.det.inferrer import replace_ImageToTensor
+from mpa.registry import STAGES
+from mpa.stage import Stage
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 TASK_STAGE = {'classification': ClsStage, 'detection': DetectionStage}
 
@@ -75,7 +81,7 @@ class MdaRunner(Stage):
             input_source = cfg.get('input_source', 'test')
             print(f'MDA on input source: data.{input_source}')
             if input_source == 'train':
-                src_data_cfg = get_train_data_cfg(cfg)
+                src_data_cfg = DetectionStage.get_train_data_cfg(cfg)
             else:
                 src_data_cfg = cfg.data[input_source]
 

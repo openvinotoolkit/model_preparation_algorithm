@@ -58,4 +58,3 @@ model = dict(
         max_per_img=100
     )
 )
-

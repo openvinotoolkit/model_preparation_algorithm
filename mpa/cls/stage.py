@@ -7,9 +7,11 @@ from mmcv import Config
 from mmcv import build_from_cfg
 
 from mpa.stage import Stage
-from mpa.utils import logger
 from mpa.utils.config_utils import update_or_add_custom_hook
 from mpa.utils.convert_keys import convert_keys
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 CLASS_INC_DATASET = ['ClsDirDataset', 'ClsTVDataset']
 PSEUDO_LABEL_ENABLE_DATASET = ['ClassIncDataset', 'LwfTaskIncDataset', 'ClsTVDataset']

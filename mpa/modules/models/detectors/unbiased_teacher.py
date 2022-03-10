@@ -1,12 +1,15 @@
-from mmdet.models import DETECTORS, build_detector
-from mmdet.models.detectors import BaseDetector
-from .sam_detector_mixin import SAMDetectorMixin
 import torch
 import numpy as np
 import copy
 import functools
 from collections import OrderedDict
-from mpa.utils import logger
+
+from mmdet.models import DETECTORS, build_detector
+from mmdet.models.detectors import BaseDetector
+from .sam_detector_mixin import SAMDetectorMixin
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
 @DETECTORS.register_module()
@@ -94,7 +97,7 @@ class UnbiasedTeacher(SAMDetectorMixin, BaseDetector):
                 postprocess=False
             )
         pseudo_bboxes, pseudo_labels, pseudo_ratio = self.generate_pseudo_labels(teacher_outputs, **kwargs)
-        ps_recall = self.eval_pseudo_label_recall(pseudo_bboxes, kwargs.get('ul_gt_bboxes', []))
+        ps_recall = self.eval_pseudo_label_recall(pseudo_bboxes, ul_args.get('gt_bboxes', []))
         losses.update(ps_recall=ps_recall)
         losses.update(ps_ratio=torch.Tensor([pseudo_ratio]))
 
@@ -141,6 +144,7 @@ class UnbiasedTeacher(SAMDetectorMixin, BaseDetector):
             all_pseudo_labels.append(pseudo_labels)
             num_all_bboxes += teacher_bboxes.shape[0]
             num_all_pseudo += pseudo_bboxes.shape[0]
+        # print(f'{num_all_pseudo} / {num_all_bboxes}')
         pseudo_ratio = float(num_all_pseudo)/num_all_bboxes if num_all_bboxes > 0 else 0.0
         return all_pseudo_bboxes, all_pseudo_labels, pseudo_ratio
 
