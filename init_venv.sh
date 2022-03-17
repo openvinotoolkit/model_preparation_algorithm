@@ -141,8 +141,6 @@ else
   echo "OTE_PATH should be specified to install dependencies"
   exit 1
 fi
-pip install -e external/mda -c ${CONSTRAINTS_FILE} || exit 1
-pip install -e external/hpo -c ${CONSTRAINTS_FILE} || exit 1
 
 deactivate
 

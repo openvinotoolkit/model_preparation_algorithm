@@ -6,7 +6,5 @@ from . import losses
 
 from . import classifiers
 from . import detectors
-from . import selfsl_model
-
 from . import segmentors
 from .scalar_schedulers import *
