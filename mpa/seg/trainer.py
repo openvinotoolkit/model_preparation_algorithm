@@ -1,7 +1,7 @@
 import os
 import time
 import numbers
-
+import glob
 import torch
 import torch.multiprocessing as mp
 import torch.distributed as dist
@@ -126,9 +126,13 @@ class SegTrainer(SegStage):
             )
 
         # Save outputs
-        output_ckpt_path = os.path.join(cfg.work_dir, 'best_model.pth'
-                                        if os.path.exists(os.path.join(cfg.work_dir, 'best_model.pth'))
-                                        else 'latest.pth')
+        output_ckpt_path = os.path.join(cfg.work_dir, 'latest.pth')
+        best_ckpt_path = glob.glob(os.path.join(cfg.work_dir, 'best_mDice_*.pth'))
+        if len(best_ckpt_path) > 0:
+            output_ckpt_path = best_ckpt_path[0]
+        best_ckpt_path = glob.glob(os.path.join(cfg.work_dir, 'best_mIoU_*.pth'))
+        if len(best_ckpt_path) > 0:
+            output_ckpt_path = best_ckpt_path[0]
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
