@@ -6,7 +6,15 @@ logger = get_logger()
 
 
 @DATASETS.register_module()
-class MPADataset(OTEDataset):
+class MPADetDataset(OTEDataset):
+    def __init__(self, old_new_indices=None, **kwargs):
+        if old_new_indices is not None:
+            self.old_new_indices = old_new_indices
+            self.img_indices = dict(old=self.old_new_indices['old'], new=self.old_new_indices['new'])
+        dataset_cfg = kwargs.copy()
+        _ = dataset_cfg.pop('org_type', None)
+        super().__init__(**dataset_cfg)
+
     def get_cat_ids(self, idx):
         """Get category ids by index.
 

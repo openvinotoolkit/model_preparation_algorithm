@@ -46,7 +46,7 @@ class DetectionInferrer(DetectionStage):
         return dict(
             output_file_path=output_file_path,
             outputs=outputs
-            )
+        )
         # TODO: save in json
         """
         class NumpyEncoder(json.JSONEncoder):
@@ -128,8 +128,7 @@ class DetectionInferrer(DetectionStage):
         model = MMDataParallel(model, device_ids=[0])
         detections = single_gpu_test(model, data_loader)
         outputs = dict(
-            config=cfg.pretty_text,
             classes=target_classes,
-            detections=detections
+            detections=detections,
         )
         return outputs

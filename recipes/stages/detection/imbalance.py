@@ -8,3 +8,21 @@ task_adapt = dict(
     op='MERGE',
     efficient_mode=False,
 )
+
+runner = dict(
+    max_epochs=30
+)
+
+evaluation = dict(interval=1, metric='mAP', save_best='mAP')
+
+custom_hooks = [
+    dict(
+        type='LazyEarlyStoppingHook',
+        start=3,
+        patience=5,
+        iteration_patience=1000,
+        metric='mAP',
+        interval=1,
+        priority=75,
+    ),
+]

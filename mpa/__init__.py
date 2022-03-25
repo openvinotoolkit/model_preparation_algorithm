@@ -2,7 +2,6 @@
 import os
 from pathlib import Path
 
-from . import apis
 from . import modules
 from . import cls
 from . import det
