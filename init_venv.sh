@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
 set -v
 set -x
 
@@ -25,11 +28,6 @@ if [[ $PYTHON_VERSION != "3.7" && $PYTHON_VERSION != "3.8" && $PYTHON_VERSION !=
   echo "Wrong version of python: '$PYTHON_VERSION'"
   exit 1
 fi
-
-# if [[ -z $SC_SDK_REPO ]]; then
-#   echo "The environment variable SC_SDK_REPO is not set -- it is required for creating virtual environment"
-#   exit 1
-# fi
 
 cd ${work_dir}
 
@@ -104,11 +102,13 @@ else
   export TORCHVISION_VERSION=${TORCHVISION_VERSION}+cu${CUDA_VERSION_CODE}
 fi
 
-pip install torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html || exit 1
+# Install pytorch
 echo torch==${TORCH_VERSION} >> ${CONSTRAINTS_FILE}
 echo torchvision==${TORCHVISION_VERSION} >> ${CONSTRAINTS_FILE}
+pip install torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html -c ${CONSTRAINTS_FILE} || exit 1
 
-pip install --no-cache-dir mmcv-full==${MMCV_VERSION} || exit 1
+# Install mmcv
+pip install --no-cache-dir mmcv-full==${MMCV_VERSION} -c ${CONSTRAINTS_FILE} || exit 1
 
 # Install other requirements.
 # Install mmpycocotools from source to make sure it is compatible with installed numpy version.
@@ -116,31 +116,28 @@ pip install --no-cache-dir --no-binary=mmpycocotools mmpycocotools || exit 1
 cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
 cat requirements.test.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
 
-# install MPA
-pip install -e . || exit 1
-
-MPA_DIR=`realpath .`
-echo "export MPA_DIR=${MPA_DIR}" >> ${venv_dir}/bin/activate
-
-# install external modules
+# Install external modules
 if [[ ! -z $OTE_PATH ]]; then
   # mmdetection
-  cd $OTE_PATH/external/mmdetection
-  cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
-  pip install -e . || exit 1
+  cd $OTE_PATH/external/mmdetection/submodule
+  cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
+  pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
   cd -
   # mmsegmentation
-  #cd $OTE_PATH/external/mmsegmentation
+  #cd $OTE_PATH/external/mmsegmentation/submodule
   cd external/mmsegmentation  # Temporary due to mmcv version
   cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
   pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
   cd -
-  pip install -e $OTE_PATH/ote_sdk -c ${CONSTRAINTS_FILE} || exit 1
-  pip install -e $OTE_PATH/ote_cli -c ${CONSTRAINTS_FILE} || exit 1
 else
   echo "OTE_PATH should be specified to install dependencies"
   exit 1
 fi
+
+# Install MPA
+pip install -e . || exit 1
+MPA_DIR=`realpath .`
+echo "export MPA_DIR=${MPA_DIR}" >> ${venv_dir}/bin/activate
 
 deactivate
 

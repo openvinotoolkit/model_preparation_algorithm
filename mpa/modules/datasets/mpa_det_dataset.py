@@ -1,5 +1,5 @@
 from mmdet.datasets.builder import DATASETS
-from mmdet.apis.ote.extension.datasets import OTEDataset
+from detection_tasks.extension.datasets import OTEDataset
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
