@@ -114,7 +114,6 @@ pip install --no-cache-dir mmcv-full==${MMCV_VERSION} -c ${CONSTRAINTS_FILE} || 
 # Install mmpycocotools from source to make sure it is compatible with installed numpy version.
 pip install --no-cache-dir --no-binary=mmpycocotools mmpycocotools || exit 1
 cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
-cat requirements.test.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
 
 # Install external modules
 if [[ ! -z $OTE_PATH ]]; then
