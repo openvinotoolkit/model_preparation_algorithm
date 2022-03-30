@@ -28,7 +28,8 @@ class ClsIncrSampler(Sampler):
         self.old_indices = self.dataset.img_indices['old']
 
         if not len(self.new_indices) > 0:
-            raise ValueError("There must be at least one image of new_classes in cls-incr learning")
+            self.new_indices = self.old_indices
+            self.old_indices = []
 
         old_new_ratio = np.sqrt(len(self.old_indices) / len(self.new_indices))
 
