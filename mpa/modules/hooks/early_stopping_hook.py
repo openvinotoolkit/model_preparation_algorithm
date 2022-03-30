@@ -1,5 +1,5 @@
 from mmcv.runner.hooks import HOOKS
-from mmdet.apis.ote.extension.utils.hooks import EarlyStoppingHook
+from detection_tasks.extension.utils.hooks import EarlyStoppingHook
 
 
 @HOOKS.register_module()

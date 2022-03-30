@@ -7,10 +7,8 @@ from . import det_incr_dataset
 from . import multi_cls_dataset
 from . import task_adapt_dataset
 from . import task_adapt_dataset_seg
-from . import torchvision_dataset
-from . import tvds_split
 from . import pseudo_balanced_dataset
 
 from . import pipelines
 from . import samplers
-from . import mpa_dataset
+from . import mpa_det_dataset

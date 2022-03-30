@@ -1,12 +1,7 @@
-# import os
-# import time
-# import torch
 import numpy as np
-# import logging
-from mmcv import ConfigDict
-from mmcv.runner import CheckpointLoader
-from mmdet.datasets import build_dataset
 
+from mmcv import ConfigDict
+from mmdet.datasets import build_dataset
 from mpa.stage import Stage
 from mpa.utils.config_utils import update_or_add_custom_hook
 from mpa.utils.logger import get_logger
@@ -40,7 +35,7 @@ class DetectionStage(Stage):
 
         # Checkpoint
         if model_ckpt:
-            cfg.load_from = model_ckpt
+            cfg.load_from = self.get_model_ckpt(model_ckpt)
         pretrained = kwargs.get('pretrained', None)
         if pretrained:
             logger.info(f'Overriding cfg.load_from -> {pretrained}')
@@ -107,42 +102,6 @@ class DetectionStage(Stage):
             if anchor_cfg.type == 'SSDAnchorGeneratorClustered':
                 cfg.model.bbox_head.anchor_generator.pop('input_size', None)
 
-    @staticmethod
-    def get_model_classes(cfg):
-        """Extract trained classes info from checkpoint file.
-
-        MMCV-based models would save class info in ckpt['meta']['CLASSES']
-        For other cases, try to get the info from cfg.model.classes (with pop())
-        - Which means that model classes should be specified in model-cfg for
-          non-MMCV models (e.g. OMZ models)
-        """
-        classes = []
-        ckpt_path = cfg.get('load_from', None)
-        if ckpt_path:
-            ckpt = CheckpointLoader.load_checkpoint(ckpt_path, map_location='cpu')
-            meta = ckpt.get('meta', {})
-            classes = meta.get('CLASSES', [])
-        if len(classes) == 0:
-            classes = cfg.model.pop('classes', [])
-        return classes
-
-    @staticmethod
-    def get_data_classes(cfg):
-        # TODO: getting from actual dataset
-        cfg = DetectionStage.get_train_data_cfg(cfg)
-        if 'classes' in cfg:
-            return list(cfg.classes)
-        else:
-            # Temporary remedy for OTE dataset
-            return list(cfg.pop('_classes', []))
-
-    @staticmethod
-    def get_train_data_cfg(cfg):
-        if 'dataset' in cfg.data.train:  # Concat|RepeatDataset
-            return cfg.data.train.dataset
-        else:
-            return cfg.data.train
-
     def configure_data(self, cfg, training, **kwargs):
         Stage.configure_data(cfg, training, **kwargs)
         super_type = cfg.data.train.pop('super_type', None)
@@ -208,6 +167,7 @@ class DetectionStage(Stage):
             model_classes = org_model_classes + [cls for cls in data_classes if cls not in org_model_classes]
         else:
             raise KeyError(f'{task_adapt_op} is not supported for task_adapt options!')
+
         if task_adapt_type == 'mpa':
             data_classes = model_classes
         cfg.task_adapt.final = model_classes
@@ -265,11 +225,11 @@ class DetectionStage(Stage):
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
         if task_adapt_type == 'mpa' and cfg.model.bbox_head.type != 'PseudoSSDHead':
             tr_data_cfg = self.get_train_data_cfg(cfg)
-            tr_data_cfg.img_ids_dict = self.get_img_ids_for_incr(cfg, org_model_classes, model_classes)
-            if tr_data_cfg.type not in ['CocoDataset', 'DetIncrCocoDataset']:
-                raise NotImplementedError(f'Pseudo label loading for {tr_data_cfg.type} is not yet supported!')
-            tr_data_cfg.org_type = tr_data_cfg.type
-            tr_data_cfg.type = 'DetIncrCocoDataset'
+            if tr_data_cfg.type != 'MPADetDataset':
+                tr_data_cfg.img_ids_dict = self.get_img_ids_for_incr(cfg, org_model_classes, model_classes)
+                tr_data_cfg.org_type = tr_data_cfg.type
+                tr_data_cfg.type = 'DetIncrCocoDataset'
+            alpha, gamma = 0.25, 2.0
             if cfg.model.bbox_head.type in ['SSDHead', 'CustomSSDHead']:
                 gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
                 cfg.model.bbox_head.type = 'CustomSSDHead'
@@ -282,6 +242,18 @@ class DetectionStage(Stage):
             elif cfg.model.bbox_head.type in ['ATSSHead']:
                 gamma = 3 if cfg['task_adapt'].get('efficient_mode', False) else 4.5
                 cfg.model.bbox_head.loss_cls.gamma = gamma
+            elif cfg.model.bbox_head.type in ['VFNetHead', 'CustomVFNetHead']:
+                alpha = 0.75
+                gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
+            # Ignore Mode
+            if cfg.get('ignore', False):
+                cfg.model.bbox_head.loss_cls = ConfigDict(
+                        type='CrossSigmoidFocalLoss',
+                        use_sigmoid=True,
+                        num_classes=len(model_classes),
+                        alpha=alpha,
+                        gamma=gamma
+                )
             update_or_add_custom_hook(
                 cfg,
                 ConfigDict(
@@ -291,6 +263,9 @@ class DetectionStage(Stage):
                 )
             )
             update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook'))
+        else:
+            src_data_cfg = Stage.get_train_data_cfg(cfg)
+            src_data_cfg.pop('old_new_indices', None)
 
     def configure_regularization(self, cfg):
         if cfg.model.get('l2sp_weight', 0.0) > 0.0:
@@ -316,41 +291,31 @@ class DetectionStage(Stage):
         new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
         old_classes = np.intersect1d(org_model_classes, model_classes).tolist()
 
-        src_data_cfg = DetectionStage.get_train_data_cfg(cfg)
+        src_data_cfg = Stage.get_train_data_cfg(cfg)
+
+        ids_old, ids_new = [], []
         data_cfg = cfg.data.test.copy()
         data_cfg.test_mode = src_data_cfg.get('test_mode', False)
-        data_cfg.ann_file = src_data_cfg.ann_file
-        data_cfg.img_prefix = src_data_cfg.img_prefix
-
+        data_cfg.ann_file = src_data_cfg.get('ann_file', None)
+        data_cfg.img_prefix = src_data_cfg.get('img_prefix', None)
         old_data_cfg = data_cfg.copy()
-        old_data_cfg.classes = old_classes
+        if 'classes' in old_data_cfg:
+            old_data_cfg.classes = old_classes
         old_dataset = build_dataset(old_data_cfg)
-
         ids_old = old_dataset.dataset.img_ids
-
-        rng = np.random.default_rng(54321)
         if len(new_classes) > 0:
             data_cfg.classes = new_classes
             dataset = build_dataset(data_cfg)
             ids_new = dataset.dataset.img_ids
-            ids_inter = np.intersect1d(ids_old, ids_new)
-            if len(ids_inter) > 0:
-                ids_new_ = ids_inter  # Assuming new class annotation is added to existing images
-            else:
-                ids_new_ = ids_new  # Assuming new class annotation is added to new images
-            num_new_samples = cfg.task_adapt.get('num_new_data_samples', 100)
-            sampled_ids_new = rng.permutation(ids_new_)[0:num_new_samples].tolist()
-        else:
-            sampled_ids_new = []
+            ids_old = np.setdiff1d(ids_old, ids_new).tolist()
 
-        ids_old = np.setdiff1d(ids_old, sampled_ids_new).tolist()
-        sampled_ids = ids_old + sampled_ids_new
+        sampled_ids = ids_old + ids_new
         outputs = dict(
             old_classes=old_classes,
             new_classes=new_classes,
             img_ids=sampled_ids,
             img_ids_old=ids_old,
-            img_ids_new=sampled_ids_new,
+            img_ids_new=ids_new,
         )
         return outputs
 

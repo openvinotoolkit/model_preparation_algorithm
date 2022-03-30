@@ -4,6 +4,7 @@ import warnings
 
 from mmdet.apis import export_model
 from mmdet.models import build_detector
+from mmcv.runner import load_checkpoint
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
@@ -26,9 +27,12 @@ class DetectionExporter(DetectionStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
+
         output_path = os.path.join(cfg.work_dir, 'export')
         os.makedirs(output_path, exist_ok=True)
         model = build_detector(cfg.model)
+        if model_ckpt:
+            load_checkpoint(model=model, filename=model_ckpt, map_location='cpu')
 
         try:
             from torch.jit._trace import TracerWarning

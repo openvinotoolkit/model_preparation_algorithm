@@ -1,5 +1,5 @@
-import numpy as np
-import os.path as osp
+# import numpy as np
+# import os.path as osp
 from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 
@@ -32,21 +32,21 @@ class DetectionInferrer(DetectionStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
-        cfg.dump(osp.join(cfg.work_dir, 'config.py'))
-        logger.info(f'Config:\n{cfg.pretty_text}')
-        logger.info('infer!')
+        # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
+        # logger.info(f'Config:\n{cfg.pretty_text}')
+        # logger.info('infer!')
 
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         outputs = self.infer(cfg)
 
         # Save outputs
-        output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
-        np.save(output_file_path, outputs, allow_pickle=True)
+        # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
+        # np.save(output_file_path, outputs, allow_pickle=True)
         return dict(
-            output_file_path=output_file_path,
+            # output_file_path=output_file_path,
             outputs=outputs
-            )
+        )
         # TODO: save in json
         """
         class NumpyEncoder(json.JSONEncoder):
@@ -128,8 +128,7 @@ class DetectionInferrer(DetectionStage):
         model = MMDataParallel(model, device_ids=[0])
         detections = single_gpu_test(model, data_loader)
         outputs = dict(
-            config=cfg.pretty_text,
             classes=target_classes,
-            detections=detections
+            detections=detections,
         )
         return outputs

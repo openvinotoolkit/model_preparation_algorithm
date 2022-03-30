@@ -1,10 +1,12 @@
+from mmdet.core import bbox_overlaps
 from mmdet.models.builder import HEADS
 from mmdet.models.dense_heads.atss_head import ATSSHead
-from mmdet.core import bbox_overlaps
+from mpa.modules.models.heads.cross_dataset_detector_head import \
+    CrossDatasetDetectorHead
 
 
 @HEADS.register_module()
-class CustomATSSHead(ATSSHead):
+class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
     def __init__(
         self,
         *args,
@@ -115,3 +117,29 @@ class CustomATSSHead(ATSSHead):
             cls_score, labels, label_weights, avg_factor=num_total_samples)
 
         return loss_cls, loss_bbox, loss_centerness, centerness_targets.sum()
+
+    def get_targets(self,
+                    anchor_list,
+                    valid_flag_list,
+                    gt_bboxes_list,
+                    img_metas,
+                    gt_bboxes_ignore_list=None,
+                    gt_labels_list=None,
+                    label_channels=1,
+                    unmap_outputs=True):
+        """Get targets for Detection head.
+
+        This method is almost the same as `AnchorHead.get_targets()`. Besides
+        returning the targets as the parent method does, it also returns the
+        anchors as the first element of the returned tuple.
+        However, if the detector's head loss uses CrossSigmoidFocalLoss,
+        the labels_weights_list consists of (binarized label schema * weights) of batch images
+        """
+        return self.get_atss_targets(anchor_list,
+                                     valid_flag_list,
+                                     gt_bboxes_list,
+                                     img_metas,
+                                     gt_bboxes_ignore_list,
+                                     gt_labels_list,
+                                     label_channels,
+                                     unmap_outputs)

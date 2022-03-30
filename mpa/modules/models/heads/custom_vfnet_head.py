@@ -1,12 +1,15 @@
-from mmdet.models.builder import HEADS
-from mmdet.models.dense_heads.vfnet_head import VFNetHead
+import torch
 from mmcv.runner import force_fp32
 from mmdet.core import bbox_overlaps, distance2bbox, reduce_mean
-import torch
+from mmdet.models.builder import HEADS
+from mmdet.models.dense_heads.vfnet_head import VFNetHead
+from mpa.modules.models.heads.cross_dataset_detector_head import \
+    CrossDatasetDetectorHead
+from mpa.modules.models.losses.cross_focal_loss import CrossSigmoidFocalLoss
 
 
 @HEADS.register_module()
-class CustomVFNetHead(VFNetHead):
+class CustomVFNetHead(CrossDatasetDetectorHead, VFNetHead):
     def __init__(self, *args, bg_loss_weight=-1.0, **kwargs):
         super().__init__(*args, **kwargs)
         self.bg_loss_weight = bg_loss_weight
@@ -94,7 +97,6 @@ class CustomVFNetHead(VFNetHead):
             num_pos_avg_per_gpu = max(num_pos_avg_per_gpu, 1.0)
         else:
             num_pos_avg_per_gpu = num_pos
-
         if num_pos > 0:
             pos_bbox_targets = flatten_bbox_targets[pos_inds]
             pos_points = flatten_points[pos_inds]
@@ -142,18 +144,26 @@ class CustomVFNetHead(VFNetHead):
             loss_bbox_refine = pos_bbox_preds_refine.sum() * 0
             if self.use_vfl:
                 cls_iou_targets = torch.zeros_like(flatten_cls_scores)
-
         # Re-weigting BG loss
         if self.bg_loss_weight >= 0.0:
             neg_indices = (flatten_labels == self.num_classes)
             label_weights[neg_indices] = self.bg_loss_weight
 
         if self.use_vfl:
-            loss_cls = self.loss_cls(
-                flatten_cls_scores,
-                cls_iou_targets,
-                weight=label_weights.unsqueeze(-1),
-                avg_factor=num_pos_avg_per_gpu)
+            if isinstance(self.loss_cls, CrossSigmoidFocalLoss):
+                loss_cls = self.loss_cls(
+                    flatten_cls_scores,
+                    cls_iou_targets,
+                    weight=label_weights.unsqueeze(-1),
+                    avg_factor=num_pos_avg_per_gpu,
+                    use_vfl=self.use_vfl,
+                    use_weight=self.use_atss)
+            else:
+                loss_cls = self.loss_cls(
+                    flatten_cls_scores,
+                    cls_iou_targets,
+                    weight=label_weights.unsqueeze(-1),
+                    avg_factor=num_pos_avg_per_gpu)
         else:
             loss_cls = self.loss_cls(
                 flatten_cls_scores,
@@ -165,3 +175,38 @@ class CustomVFNetHead(VFNetHead):
             loss_cls=loss_cls,
             loss_bbox=loss_bbox,
             loss_bbox_rf=loss_bbox_refine)
+
+    def get_targets(self, cls_scores, mlvl_points, gt_bboxes, gt_labels,
+                    img_metas, gt_bboxes_ignore):
+        """A wrapper for computing ATSS and FCOS targets for points in multiple
+        images.
+
+        Args:
+            cls_scores (list[Tensor]): Box iou-aware scores for each scale
+                level with shape (N, num_points * num_classes, H, W).
+            mlvl_points (list[Tensor]): Points of each fpn level, each has
+                shape (num_points, 2).
+            gt_bboxes (list[Tensor]): Ground truth bboxes of each image,
+                each has shape (num_gt, 4).
+            gt_labels (list[Tensor]): Ground truth labels of each box,
+                each has shape (num_gt,).
+            img_metas (list[dict]): Meta information of each image, e.g.,
+                image size, scaling factor, etc.
+            gt_bboxes_ignore (None | Tensor): Ground truth bboxes to be
+                ignored, shape (num_ignored_gts, 4).
+
+        Returns:
+            tuple:
+                labels_list (list[Tensor]): Labels of each level.
+                label_weights (Tensor/None): Label weights of all levels.
+                bbox_targets_list (list[Tensor]): Regression targets of each
+                    level, (l, t, r, b).
+                bbox_weights (Tensor/None): Bbox weights of all levels.
+        """
+        if self.use_atss:
+            return self.vfnet_to_atss_targets(cls_scores, mlvl_points, gt_bboxes,
+                                              gt_labels, img_metas,
+                                              gt_bboxes_ignore)
+        else:
+            self.norm_on_bbox = False
+            return self.get_fcos_targets(mlvl_points, gt_bboxes, gt_labels)

@@ -1,15 +1,16 @@
 import os
-import time
 import random
-import torch
-import numpy as np
+import time
 
 import mmcv
+import numpy as np
+import torch
 from mmcv import Config, ConfigDict
+from mmcv.runner import CheckpointLoader
 
-from mpa.utils.config_utils import update_or_add_custom_hook
+from mpa_tasks.utils.config_utils import read_label_schema  # TODO: remove OTE_SDK or Task dependency
+from mpa.utils.config_utils import MPAConfig, update_or_add_custom_hook
 from mpa.utils.logger import config_logger, get_logger
-from mpa.utils.config_utils import MPAConfig
 
 from .registry import STAGES
 
@@ -248,6 +249,54 @@ class Stage(object):
         ckpt_path = cfg.get('load_from', None)
         meta = {}
         if ckpt_path:
-            ckpt = torch.load(ckpt_path, map_location='cpu')
+            ckpt = CheckpointLoader.load_checkpoint(ckpt_path, map_location='cpu')
             meta = ckpt.get('meta', {})
         return meta
+
+    @staticmethod
+    def get_train_data_cfg(cfg):
+        if 'dataset' in cfg.data.train:  # Concat|RepeatDataset
+            return cfg.data.train.dataset
+        else:
+            return cfg.data.train
+
+    @staticmethod
+    def get_data_classes(cfg):
+        data_classes = []
+        train_cfg = Stage.get_train_data_cfg(cfg)
+        if 'data_classes' in train_cfg:
+            data_classes = list(train_cfg.pop('data_classes', []))
+        elif 'classes' in train_cfg:
+            data_classes = list(train_cfg.classes)
+        return data_classes
+
+    @staticmethod
+    def get_model_classes(cfg):
+        """Extract trained classes info from checkpoint file.
+
+        MMCV-based models would save class info in ckpt['meta']['CLASSES']
+        For other cases, try to get the info from cfg.model.classes (with pop())
+        - Which means that model classes should be specified in model-cfg for
+          non-MMCV models (e.g. OMZ models)
+        """
+        classes = []
+        meta = Stage.get_model_meta(cfg)
+        classes = meta.get('CLASSES', [])
+        if len(classes) == 0:
+            ckpt_path = cfg.get('load_from', None)
+            classes = read_label_schema(ckpt_path)
+        if len(classes) == 0:
+            classes = cfg.model.pop('classes', cfg.pop('model_classes', []))
+        return classes
+
+    @staticmethod
+    def get_model_ckpt(ckpt_path, new_path=None):
+        ckpt = CheckpointLoader.load_checkpoint(ckpt_path, map_location='cpu')
+        if 'model' in ckpt:
+            ckpt = ckpt['model']
+            if not new_path:
+                new_path = ckpt_path[:-3] + 'converted.pth'
+            torch.save(ckpt, new_path)
+            return new_path
+        else:
+            return ckpt_path

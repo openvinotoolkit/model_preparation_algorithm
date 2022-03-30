@@ -22,7 +22,7 @@ model = dict(
              loss_decode=[
                 dict(type='RecallLoss',
                      loss_jitter_prob=0.01,
-                     sampler=dict(type='OHEMPixelSampler', thresh=0.7, min_kept=100000),
+                     # sampler=dict(type='OHEMPixelSampler', thresh=0.7, min_kept=100000),
                      loss_weight=1.0)
              ]),
         dict(type='OCRHead',

@@ -1,9 +1,0 @@
-.git
-./data
-./logs
-.vscode
-.pytest_cache
-.reports/
-./*.egg-info
-./test_log
-./venv

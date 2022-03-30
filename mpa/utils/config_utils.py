@@ -1,17 +1,15 @@
 import os.path as osp
 import platform
-import sys
 import shutil
+import sys
 import tempfile
 import warnings
 from importlib import import_module
 
-from mmcv.utils.misc import import_modules_from_strings
 from mmcv.utils import Config, ConfigDict
-from mmcv.utils.config import BASE_KEY
-from mmcv.utils.config import DEPRECATION_KEY
+from mmcv.utils.config import BASE_KEY, DEPRECATION_KEY
+from mmcv.utils.misc import import_modules_from_strings
 from mmcv.utils.path import check_file_exist
-
 from mpa.utils.logger import get_logger
 
 logger = get_logger()

@@ -1,5 +1,6 @@
 _base_ = [
     './train.py',
+    '../_base_/data/coco_ubt.py',
     '../_base_/models/detectors/detector.py'
 ]
 

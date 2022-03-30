@@ -1,0 +1,3 @@
+[submodule "external/mmsegmentation"]
+	path = external/mmsegmentation
+	url = https://github.com/openvinotoolkit/mmsegmentation.git

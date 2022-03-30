@@ -48,9 +48,6 @@ def build_dataset(cfg, default_args=None):
     elif cfg['type'] == 'RepeatDataset':
         dataset = RepeatDataset(
             build_dataset(cfg['dataset'], default_args), cfg['times'])
-    elif cfg['type'] == 'RepeatDatasetMPA':
-        dataset = RepeatDatasetMPA(
-            build_dataset(cfg['dataset'], default_args), cfg['times'])
     elif isinstance(cfg.get('img_dir'), (list, tuple)) or isinstance(
             cfg.get('split', None), (list, tuple)):
         dataset = _concat_dataset(cfg, default_args)
