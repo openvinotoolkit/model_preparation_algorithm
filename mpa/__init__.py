@@ -20,7 +20,6 @@ class MPAConstants:
     RECIPES_PATH = os.path.join(PACKAGE_ROOT, 'recipes')
     SAMPLES_PATH = os.path.join(PACKAGE_ROOT, 'samples')
     MODELS_PATH = os.path.join(PACKAGE_ROOT, 'models')
-    TESTS_PATH = os.path.join(PACKAGE_ROOT, 'tests')
 
 # print(f'pkg root ======> {MPAConstants.PACKAGE_ROOT}')
 

@@ -6,7 +6,6 @@ from . import mem_inspect_hook
 from . import task_adapt_hook
 from . import workflow_hooks
 from . import sam_optimizer_hook
-from . import selfsl_hook
 from . import model_ema_v2_hook
 from . import no_bias_decay_hook
 from . import semisl_cls_hook
