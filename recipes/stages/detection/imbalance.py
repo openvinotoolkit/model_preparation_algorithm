@@ -1,7 +1,12 @@
 _base_ = [
     './train.py',
+    '../_base_/data/coco_ote.py',
     '../_base_/models/detectors/detector.py'
 ]
+
+data = dict(
+    train=dict(super_type=None),
+)
 
 task_adapt = dict(
     type='mpa',
