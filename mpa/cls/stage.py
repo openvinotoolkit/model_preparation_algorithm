@@ -8,13 +8,13 @@ from mmcv import build_from_cfg
 
 from mpa.stage import Stage
 from mpa.utils.config_utils import update_or_add_custom_hook
-from mpa.utils.convert_keys import convert_keys
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
 
-CLASS_INC_DATASET = ['ClsDirDataset', 'ClsTVDataset']
+CLASS_INC_DATASET = ['MPAClsDataset', 'ClsDirDataset', 'ClsTVDataset']
 PSEUDO_LABEL_ENABLE_DATASET = ['ClassIncDataset', 'LwfTaskIncDataset', 'ClsTVDataset']
+WEIGHT_MIX_CLASSIFIER = ['SAMImageClassifier']
 
 
 class ClsStage(Stage):
@@ -44,7 +44,7 @@ class ClsStage(Stage):
 
         # Checkpoint
         if model_ckpt:
-            cfg.load_from = model_ckpt
+            cfg.load_from = self.get_model_ckpt(model_ckpt)
 
         # OMZ-plugin
         if cfg.model.backbone.type == 'OmzBackboneCls':
@@ -57,10 +57,6 @@ class ClsStage(Stage):
         if pretrained:
             logger.info(f'Overriding cfg.load_from -> {pretrained}')
             cfg.load_from = pretrained  # Overriding by stage input
-
-        if 'OTE' in cfg.model.backbone.type and cfg.get('load_from'):
-            logger.info(f'Keys in OTE model ({cfg.load_from}) are converted -> {cfg.load_from[:-3]}converted.pth')
-            cfg.load_from = convert_keys(cfg.model.backbone.type, cfg.load_from)
 
         # Data
         if data_cfg:
@@ -138,10 +134,25 @@ class ClsStage(Stage):
         adapt_type = cfg['task_adapt'].get('op', 'REPLACE')
 
         model_tasks, dst_classes = None, None
-        if isinstance(cfg.data.train, list):
-            train_data_cfg = cfg.data.train[0]
-        else:
-            train_data_cfg = cfg.data.train
+        model_classes, data_classes = [], []
+        train_data_cfg = Stage.get_train_data_cfg(cfg)
+        if isinstance(train_data_cfg, list):
+            train_data_cfg = train_data_cfg[0]
+
+        model_classes = Stage.get_model_classes(cfg)
+        data_classes = Stage.get_data_classes(cfg)
+        if model_classes:
+            cfg.model.head.num_classes = len(model_classes)
+            model_meta['CLASSES'] = model_classes
+        elif data_classes:
+            cfg.model.head.num_classes = len(data_classes)
+            model_meta['CLASSES'] = data_classes
+
+        if not train_data_cfg.get('new_classes', False):  # when train_data_cfg doesn't have 'new_classes' key
+            if model_classes != data_classes:
+                new_classes = np.setdiff1d(data_classes, model_classes).tolist()
+                train_data_cfg['new_classes'] = new_classes
+
         if training:
             # if Trainer to Stage configure, training = True
             if train_data_cfg.get('tasks'):
@@ -158,10 +169,10 @@ class ClsStage(Stage):
                     cfg.model.head.update({'tasks': train_data_cfg.get('tasks')})
             elif train_data_cfg.get('new_classes'):
                 # Class-Incremental
-                if model_meta.get('classes', False):
+                if model_meta.get('CLASSES', False):
                     dst_classes, old_classes = refine_cls(train_data_cfg, model_meta, adapt_type)
                 else:
-                    raise KeyError(f'can not find classes meta data from {cfg.load_from}.')
+                    raise KeyError(f'can not find CLASSES or classes meta data from {cfg.load_from}.')
             else:
                 raise KeyError(
                     '"new_classes" or "tasks" should be defined for incremental learning w/ current model.'
@@ -171,6 +182,12 @@ class ClsStage(Stage):
                 if train_data_cfg.type not in CLASS_INC_DATASET:  # task incremental is not supported yet
                     raise NotImplementedError(
                         f'Class Incremental Learning for {train_data_cfg.type} is not yet supported!')
+
+                if cfg.model.type in WEIGHT_MIX_CLASSIFIER:
+                    cfg.model.task_adapt = ConfigDict(
+                        src_classes=model_classes,
+                        dst_classes=data_classes,
+                    )
 
                 # Train dataset config update
                 train_data_cfg.new_classes = np.setdiff1d(dst_classes, old_classes).tolist()
@@ -206,8 +223,9 @@ class ClsStage(Stage):
                 else:
                     raise KeyError(f'can not find task meta data from {cfg.load_from}.')
             elif train_data_cfg.get('new_classes'):
-                if model_meta.get('classes', False):
-                    cfg.model.head.num_classes = len(model_meta['classes'])
+                if model_meta.get('CLASSES', False):
+                    dst_classes, _ = refine_cls(train_data_cfg, model_meta, adapt_type)
+                    cfg.model.head.num_classes = len(dst_classes)
                 else:
                     raise KeyError(f'can not find classes meta data from {cfg.load_from}.')
 
@@ -222,7 +240,7 @@ class ClsStage(Stage):
             if train_data_cfg.get('tasks'):
                 train_data_cfg.model_tasks = model_tasks
                 cfg.model.head.old_tasks = old_tasks
-            elif train_data_cfg.get('classes'):
+            elif train_data_cfg.get('CLASSES'):
                 train_data_cfg.dst_classes = dst_classes
                 cfg.data.val.dst_classes = dst_classes
                 cfg.data.test.dst_classes = dst_classes
@@ -263,9 +281,9 @@ def refine_tasks(train_cfg, meta, adapt_type):
 
 
 def refine_cls(train_cfg, meta, adapt_type):
-    # Get 'new_classes' in data.train_cfg & get 'old_classes' pretreained model meta data classes
+    # Get 'new_classes' in data.train_cfg & get 'old_classes' pretreained model meta data CLASSES
     new_classes = train_cfg['new_classes']
-    old_classes = meta['classes']
+    old_classes = meta['CLASSES']
     if adapt_type == 'REPLACE':
         # if 'REPLACE' operation, then old_classes -> new_classes
         if len(new_classes) == 0:

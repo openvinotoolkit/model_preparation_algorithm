@@ -55,7 +55,7 @@ class ModelEmaV2Hook(Hook):
             # Just copy parameters before start epoch
             return
         # EMA
-        runner.ema_model.update(self._get_model(runner))
+        runner.ema_model.update()
 
     def _get_model(self, runner):
         model = runner.model
@@ -88,21 +88,23 @@ class ModelEmaV2(nn.Module):
         # make a copy of the model for accumulating moving average of weights
         self.module = deepcopy(model)
         self.module.eval()
+        self.src_model = model.state_dict()
+        self.dst_model = self.module.state_dict()
         self.decay = decay
         self.device = device  # perform ema on different device from model if set
         if self.device is not None:
             self.module.to(device=device)
 
-    def _update(self, model, update_fn):
+    def _update(self, update_fn):
         with torch.no_grad():
             for ema_v, model_v in zip(
-                self.module.state_dict().values(), model.state_dict().values()
+                self.dst_model.values(), self.src_model.values()
             ):
                 if self.device is not None:
                     model_v = model_v.to(device=self.device)
                 ema_v.copy_(update_fn(ema_v, model_v))
 
-    def update(self, model):
+    def update(self):
         self._update(
-            model, update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m
+            update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m
         )

@@ -77,7 +77,7 @@ class ClsTrainer(ClsStage):
         # Metadata
         meta = dict()
         meta['env_info'] = env_info
-        meta['config'] = cfg.pretty_text
+        # meta['config'] = cfg.pretty_text
         meta['seed'] = cfg.seed
 
         if isinstance(datasets[0], list):
@@ -91,13 +91,13 @@ class ClsTrainer(ClsStage):
             if hasattr(repr_ds, 'tasks'):
                 cfg.checkpoint_config.meta['tasks'] = repr_ds.tasks
             else:
-                cfg.checkpoint_config.meta['classes'] = repr_ds.CLASSES
+                cfg.checkpoint_config.meta['CLASSES'] = repr_ds.CLASSES
             if 'task_adapt' in cfg:
                 if hasattr(self, 'model_tasks'):  # for incremnetal learning
                     cfg.checkpoint_config.meta.update({'tasks': self.model_tasks})
                     # instead of update(self.old_tasks), update using "self.model_tasks"
                 else:
-                    cfg.checkpoint_config.meta.update({'classes': self.model_classes})
+                    cfg.checkpoint_config.meta.update({'CLASSES': self.model_classes})
 
         if distributed:
             if cfg.dist_params.get('linear_scale_lr', False):
@@ -107,8 +107,8 @@ class ClsTrainer(ClsStage):
                 cfg.optimizer.lr = new_lr
 
         # Save config
-        cfg.dump(osp.join(cfg.work_dir, 'config.yaml'))
-        logger.info(f'Config:\n{cfg.pretty_text}')
+        # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
+        # logger.info(f'Config:\n{cfg.pretty_text}')
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')

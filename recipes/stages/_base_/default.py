@@ -10,4 +10,3 @@ deterministic = False
 hparams = dict(dummy=0)
 
 task_adapt = dict(op='REPLACE')
-

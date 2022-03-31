@@ -476,58 +476,42 @@ class EfficientNet(nn.Module):
     num_classes : int, default 1000
         Number of classification classes.
     """
-
-    def __init__(
-        self,
-        channels,
-        init_block_channels,
-        final_block_channels,
-        kernel_sizes,
-        strides_per_stage,
-        expansion_factors,
-        tf_mode=False,
-        bn_eps=1e-5,
-        in_channels=3,
-        in_size=(224, 224),
-        num_classes=1000,
-        dropout_cls=None,
-        pooling_type="avg",
-        bn_eval=False,
-        bn_frozen=False,
-        feature_dim=256,
-        IN_first=False,
-        IN_conv1=False,
-        lr_finder=None,
-        loss="softmax",
-        **kwargs,
-    ):
+    def __init__(self,
+                 channels,
+                 init_block_channels,
+                 final_block_channels,
+                 kernel_sizes,
+                 strides_per_stage,
+                 expansion_factors,
+                 tf_mode=False,
+                 bn_eps=1e-5,
+                 in_channels=3,
+                 in_size=(224, 224),
+                 dropout_cls=None,
+                 pooling_type='avg',
+                 bn_eval=False,
+                 bn_frozen=False,
+                 IN_first=False,
+                 IN_conv1=False,
+                 **kwargs):
 
         super().__init__(**kwargs)
+        self.num_classes = 1000
         self.in_size = in_size
-        self.num_classes = num_classes
         self.input_IN = nn.InstanceNorm2d(3, affine=True) if IN_first else None
         self.bn_eval = bn_eval
         self.bn_frozen = bn_frozen
         self.pooling_type = pooling_type
-        self.lr_finder = lr_finder
-
-        self.loss = loss
-        self.feature_dim = feature_dim
-        assert self.feature_dim is not None and self.feature_dim > 0
-
-        activation = "Swish"
+        self.num_features = self.num_head_features = final_block_channels
+        activation = 'Swish'
         self.features = nn.Sequential()
-        self.features.add_module(
-            "init_block",
-            EffiInitBlock(
-                in_channels=in_channels,
-                out_channels=init_block_channels,
-                bn_eps=bn_eps,
-                activation=activation,
-                tf_mode=tf_mode,
-                IN_conv1=IN_conv1,
-            ),
-        )
+        self.features.add_module("init_block", EffiInitBlock(
+            in_channels=in_channels,
+            out_channels=init_block_channels,
+            bn_eps=bn_eps,
+            activation=activation,
+            tf_mode=tf_mode,
+            IN_conv1=IN_conv1))
         in_channels = init_block_channels
         for i, channels_per_stage in enumerate(channels):
             kernel_sizes_per_stage = kernel_sizes[i]
@@ -538,62 +522,46 @@ class EfficientNet(nn.Module):
                 expansion_factor = expansion_factors_per_stage[j]
                 stride = strides_per_stage[i] if (j == 0) else 1
                 if i == 0:
-                    stage.add_module(
-                        "unit{}".format(j + 1),
-                        EffiDwsConvUnit(
-                            in_channels=in_channels,
-                            out_channels=out_channels,
-                            stride=stride,
-                            bn_eps=bn_eps,
-                            activation=activation,
-                            tf_mode=tf_mode,
-                        ),
-                    )
+                    stage.add_module("unit{}".format(j + 1), EffiDwsConvUnit(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        stride=stride,
+                        bn_eps=bn_eps,
+                        activation=activation,
+                        tf_mode=tf_mode))
                 else:
-                    stage.add_module(
-                        "unit{}".format(j + 1),
-                        EffiInvResUnit(
-                            in_channels=in_channels,
-                            out_channels=out_channels,
-                            kernel_size=kernel_size,
-                            stride=stride,
-                            exp_factor=expansion_factor,
-                            se_factor=4,
-                            bn_eps=bn_eps,
-                            activation=activation,
-                            tf_mode=tf_mode,
-                        ),
-                    )
+                    stage.add_module("unit{}".format(j + 1), EffiInvResUnit(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        exp_factor=expansion_factor,
+                        se_factor=4,
+                        bn_eps=bn_eps,
+                        activation=activation,
+                        tf_mode=tf_mode))
                 in_channels = out_channels
             self.features.add_module("stage{}".format(i + 1), stage)
-
-        if self.loss != "softmax":
-            activation = 'PReLU'
-
-        self.features.add_module(
-            "final_block",
-            conv1x1_block(
-                in_channels=in_channels,
-                out_channels=final_block_channels,
-                bn_eps=bn_eps,
-                activation=activation,
-            ),
-        )
-        in_channels = final_block_channels
+            # activation = activation if self.loss == 'softmax': else lambda: nn.PReLU(init=0.25)
+        self.features.add_module("final_block", conv1x1_block(
+            in_channels=in_channels,
+            out_channels=final_block_channels,
+            bn_eps=bn_eps,
+            activation=activation))
 
         """ Comment out unused part. Only use 'backbone' part in mpa.
         self.output = nn.Sequential()
         if dropout_cls:
-            self.output.add_module("dropout", OTEDropout(**dropout_cls))
-            # self.output.add_module("dropout", nn.Dropout(dropout_cls.get('p', 0.1)))
-        if self.loss == 'softmax':
+            self.output.add_module("dropout", Dropout(**dropout_cls))
+        if self.loss in ['softmax', 'asl']:
             self.output.add_module("fc", nn.Linear(
-                in_features=in_channels,
-                out_features=num_classes))
+                in_features=final_block_channels,
+                out_features=self.num_classes))
         else:
-            # assert self.loss == 'am_softmax'
-            # self.output.add_module("asl", AngleSimpleLinear(in_features=in_channels, out_features=num_classes))
-            raise NotImplementedError(f'{self.loss} loss is not supported now')
+            assert self.loss in ['am_softmax', 'am_binary']
+            self.output.add_module("asl", AngleSimpleLinear(
+                in_features=final_block_channels,
+                out_features=self.num_classes))
         """
 
         self._init_params()

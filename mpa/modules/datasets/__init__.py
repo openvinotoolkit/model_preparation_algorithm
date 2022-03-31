@@ -12,3 +12,4 @@ from . import pseudo_balanced_dataset
 from . import pipelines
 from . import samplers
 from . import mpa_det_dataset
+from . import mpa_cls_dataset

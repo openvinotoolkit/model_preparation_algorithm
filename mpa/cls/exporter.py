@@ -1,5 +1,4 @@
 import os
-from os import path as osp
 import torch.onnx
 from functools import partial
 
@@ -8,9 +7,11 @@ from mmcv.runner import load_checkpoint, wrap_fp16_model
 from mmcls.models import build_classifier
 from mpa.registry import STAGES
 from .stage import ClsStage
-
+from mpa.utils import mo_wrapper
 from mpa.utils.logger import get_logger
-
+import numpy as np
+import torch
+from mmcls.datasets.pipelines import Compose
 logger = get_logger()
 
 
@@ -18,6 +19,24 @@ logger = get_logger()
 class ClsExporter(ClsStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def get_fake_input(self, cfg, orig_img_shape=(128, 128, 3)):
+        pipeline = cfg.data.test.pipeline
+        pipeline = Compose(pipeline)
+        data = dict(img=np.zeros(orig_img_shape, dtype=np.uint8))
+        data = pipeline(data)
+        return data
+
+    def get_norm_values(self, cfg):
+        pipeline = cfg.data.test.pipeline
+        mean_values = [0, 0, 0]
+        scale_values = [1, 1, 1]
+        for pipeline_step in pipeline:
+            if pipeline_step.type == 'Normalize':
+                mean_values = pipeline_step.mean
+                scale_values = pipeline_step.std
+                break
+        return mean_values, scale_values
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         """Run exporter stage
@@ -31,41 +50,61 @@ class ClsExporter(ClsStage):
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
-        # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-        onnx_path = osp.join(cfg.work_dir, "classifier.onnx")
+        output_path = os.path.join(cfg.work_dir, 'export')
+        onnx_path = output_path+'/model.onnx'
+        os.makedirs(output_path, exist_ok=True)
 
         # build the model and load checkpoint
         model = build_classifier(cfg.model)
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             wrap_fp16_model(model)
-        print('load checkpoint from ' + cfg.load_from)
+        logger.info('load checkpoint from ' + cfg.load_from)
         _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
+        if hasattr(model, 'is_export'):
+            model.is_export = True
         model.eval()
-        model.forward = partial(model.forward, return_loss=False)
-        x = torch.zeros((1, 3, 224, 224), dtype=torch.float32)
+        model.forward = partial(model.forward, img_metas={}, return_loss=False)
 
-        torch.onnx.export(model,
-                          x,
-                          onnx_path,
-                          export_params=True,
-                          do_constant_folding=True,
-                          input_names=['input'],
-                          output_names=['output'],
-                          dynamic_axes={'input': {0: 'batch_size'},
-                                        'output': {0: 'batch_size'}})
+        data = self.get_fake_input(cfg)
+        fake_img = data['img'].unsqueeze(0)
 
-        model_name = 'model_fp16'
-        input_shape = '[1,3,224,224]'
+        try:
+            torch.onnx.export(model,
+                              fake_img,
+                              onnx_path,
+                              verbose=False,
+                              export_params=True,
+                              input_names=['data'],
+                              output_names=['output'],
+                              dynamic_axes={},
+                              opset_version=9,
+                              operator_export_type=torch.onnx.OperatorExportTypes.ONNX
+                              )
 
-        mo_args = {
-            'input_model': onnx_path,
-            'data_type': 'FP16',
-            'input_shape': input_shape,
-            'log_level': 'WARNING',
-            'model_name': model_name
+            mean_values, scale_values = self.get_norm_values(cfg)
+            mo_args = {
+                'input_model': onnx_path,
+                'mean_values': mean_values,
+                'scale_values': scale_values,
+                'data_type': 'FP32',
+                'model_name': 'model',
+                'reverse_input_channels': None,
+            }
+
+            ret, msg = mo_wrapper.generate_ir(output_path, output_path, silent=True, **mo_args)
+            os.remove(onnx_path)
+
+        except Exception as ex:
+            return {'outputs': None, 'msg': f'exception {type(ex)}'}
+        bin_file = [f for f in os.listdir(output_path) if f.endswith('.bin')][0]
+        xml_file = [f for f in os.listdir(output_path) if f.endswith('.xml')][0]
+        logger.info('Exporting completed')
+
+        return {
+            'outputs': {
+                'bin': os.path.join(output_path, bin_file),
+                'xml': os.path.join(output_path, xml_file)
+            },
+            'msg': ''
         }
-
-        from mpa.utils import mo_wrapper
-        ret, msg = mo_wrapper.generate_ir(cfg.work_dir, cfg.work_dir, silent=True, **mo_args)
-        os.remove(onnx_path)

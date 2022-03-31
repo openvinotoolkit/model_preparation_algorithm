@@ -273,7 +273,6 @@ class Stage(object):
     @staticmethod
     def get_model_classes(cfg):
         """Extract trained classes info from checkpoint file.
-
         MMCV-based models would save class info in ckpt['meta']['CLASSES']
         For other cases, try to get the info from cfg.model.classes (with pop())
         - Which means that model classes should be specified in model-cfg for
@@ -281,10 +280,14 @@ class Stage(object):
         """
         classes = []
         meta = Stage.get_model_meta(cfg)
+        # for MPA classification legacy compatibility
         classes = meta.get('CLASSES', [])
+        classes = meta.get('classes', classes)
+
         if len(classes) == 0:
             ckpt_path = cfg.get('load_from', None)
-            classes = read_label_schema(ckpt_path)
+            if ckpt_path:
+                classes = read_label_schema(ckpt_path)
         if len(classes) == 0:
             classes = cfg.model.pop('classes', cfg.pop('model_classes', []))
         return classes
