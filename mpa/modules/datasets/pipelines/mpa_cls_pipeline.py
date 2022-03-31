@@ -1,5 +1,5 @@
 from mmcls.datasets import PIPELINES
-from mmdet.apis.ote.extension.utils import LoadImageFromOTEDataset
+from detection_tasks.extension.utils import LoadImageFromOTEDataset
 
 
 @PIPELINES.register_module()

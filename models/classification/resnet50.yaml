@@ -1,0 +1,4 @@
+_base_: _base_/resnet50.py
+
+model:
+    task: classification

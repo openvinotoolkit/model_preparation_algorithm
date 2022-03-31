@@ -1,0 +1,5 @@
+_base_: _base_/densenet_121_omz.py
+
+model:
+    task: classification
+

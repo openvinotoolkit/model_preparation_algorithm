@@ -1,0 +1,5 @@
+_base_: _base_/googlenet_v2_omz.py
+
+model:
+    task: classification
+
