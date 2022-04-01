@@ -27,8 +27,9 @@ class SAMImageClassifier(ImageClassifier):
 
     def __init__(self, task_adapt=None, **kwargs):
         super().__init__(**kwargs)
-        # Hooks for redirect state_dict load/save
         self.is_export = False
+        self.featuremap = None
+        # Hooks for redirect state_dict load/save
         self._register_state_dict_hook(self.state_dict_hook)
         self._register_load_state_dict_pre_hook(
             functools.partial(self.load_state_dict_pre_hook, self)
@@ -156,3 +157,23 @@ class SAMImageClassifier(ImageClassifier):
 
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
+
+    def extract_feat(self, img):
+        """Directly extract features from the backbone + neck
+           Overriding for OpenVINO export with features
+        """
+        x = self.featuremap = self.backbone(img)
+        if self.with_neck:
+            x = self.neck(x)
+        return x
+
+    def simple_test(self, img, img_metas):
+        """Test without augmentation.
+           Overriding for OpenVINO export with features
+        """
+        x = self.extract_feat(img)
+        logits = self.head.simple_test(x)
+        if self.is_export:
+            return logits, self.featuremap, x  # (logits, featuremap, vector)
+        else:
+            return logits

@@ -77,7 +77,7 @@ class ClsStage(Stage):
             cfg.model.head.num_classes = cfg.data.num_classes
 
         if isinstance(cfg.model.head.topk, tuple):
-            cfg.model.head.topk=(1, ) if cfg.model.head.num_classes < 5 else (1,5)
+            cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
 
         # Other hyper-parameters
         if cfg.get('hyperparams', False):
@@ -152,9 +152,8 @@ class ClsStage(Stage):
             model_meta['CLASSES'] = data_classes
 
         if not train_data_cfg.get('new_classes', False):  # when train_data_cfg doesn't have 'new_classes' key
-            if model_classes != data_classes:
-                new_classes = np.setdiff1d(data_classes, model_classes).tolist()
-                train_data_cfg['new_classes'] = new_classes
+            new_classes = np.setdiff1d(data_classes, model_classes).tolist()
+            train_data_cfg['new_classes'] = new_classes
 
         if training:
             # if Trainer to Stage configure, training = True
@@ -170,7 +169,7 @@ class ClsStage(Stage):
                     logger.info("'tasks' in model.head is None. updated with configuration on train data "
                                 f"{train_data_cfg.get('tasks')}")
                     cfg.model.head.update({'tasks': train_data_cfg.get('tasks')})
-            elif train_data_cfg.get('new_classes'):
+            elif 'new_classes' in train_data_cfg:
                 # Class-Incremental
                 if model_meta.get('CLASSES', False):
                     dst_classes, old_classes = refine_cls(train_data_cfg, model_meta, adapt_type)
