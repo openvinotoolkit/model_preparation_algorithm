@@ -9,7 +9,8 @@ from mmseg.models.segmentors.cascade_encoder_decoder import CascadeEncoderDecode
 class ClassIncrSegmentor(CascadeEncoderDecoder):
     """
     """
-    def __init__(self, *args, is_task_adapt=False, task_adapt=None, **kwargs):
+
+    def __init__(self, *args, is_task_adapt=True, task_adapt=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Hook for class-sensitive weight loading

@@ -89,7 +89,7 @@ class SegTrainer(SegStage):
         # Metadata
         meta = dict()
         meta['env_info'] = env_info
-        meta['config'] = cfg.pretty_text
+        # meta['config'] = cfg.pretty_text
         meta['seed'] = cfg.seed
         meta['exp_name'] = cfg.work_dir
         if cfg.checkpoint_config is not None:
@@ -105,8 +105,8 @@ class SegTrainer(SegStage):
                 cfg.optimizer.lr = new_lr
 
         # Save config
-        cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
-        logger.info(f'Config:\n{cfg.pretty_text}')
+        # cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
+        # logger.info(f'Config:\n{cfg.pretty_text}')
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')

@@ -1,19 +1,14 @@
 import os.path as osp
-import numpy as np
+
 import mmcv
 from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
-
 from mmseg.apis import single_gpu_test
 from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
-
-from mpa.modules.utils.task_adapt import class_sensitive_copy_state_dict
-
 from mpa.registry import STAGES
 from mpa.seg.stage import SegStage
-# from .stage import SegStage, get_train_data_cfg
-from .stage import get_train_data_cfg
+from mpa.stage import Stage
 
 
 @STAGES.register_module()
@@ -39,11 +34,16 @@ class SegInferrer(SegStage):
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         outputs = self.infer(cfg)['segmentations']
+        # outputs = np.array(outputs)
 
         # Save outputs
-        output_file_path = osp.join(cfg.work_dir, 'pre_stage_res.npy')
-        np.save(output_file_path, outputs, allow_pickle=True)
-        return dict(pseudo_label_file=output_file_path)
+        # output_file_path = osp.join(cfg.work_dir, 'pre_stage_res.npy')
+        # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
+        # np.save(output_file_path, outputs, allow_pickle=True)/
+        return dict(
+            # output_file_path=output_file_path,
+            outputs=outputs
+        )
 
     def infer(self, cfg):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
@@ -55,7 +55,7 @@ class SegInferrer(SegStage):
         input_source = cfg.get('input_source', 'test')
         self.logger.info(f'Inferring on input source: data.{input_source}')
         if input_source == 'train':
-            src_data_cfg = get_train_data_cfg(cfg)
+            src_data_cfg = Stage.get_train_data_cfg(cfg)
         else:
             src_data_cfg = cfg.data[input_source]
         data_cfg = cfg.data.test.copy()
@@ -63,6 +63,7 @@ class SegInferrer(SegStage):
         # data_cfg.img_prefix = src_data_cfg.img_prefix
         if 'classes' in src_data_cfg:
             data_cfg.classes = src_data_cfg.classes
+            data_cfg.new_classes = []
         self.dataset = build_dataset(data_cfg)
         dataset = self.dataset
 
@@ -100,19 +101,13 @@ class SegInferrer(SegStage):
 
         # Checkpoint
         if cfg.get('load_from', None):
-            checkpoint = load_checkpoint(model, cfg.load_from, map_location='cpu')
-            if 'CLASSES' in checkpoint.get('meta', {}):
-                class_sensitive_copy_state_dict(
-                    src_dict=checkpoint['state_dict'], src_classes=checkpoint['meta']['CLASSES'],
-                    dst_dict=model.state_dict(), dst_classes=model.CLASSES,
-                    model_type=cfg.model.type
-                )
+            _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         # Inference
         model = MMDataParallel(model, device_ids=[0])
-        segmentations = single_gpu_test(model, data_loader)
+        segmentations = single_gpu_test(model, data_loader, output_logits=True)
         outputs = dict(
-            config=cfg.pretty_text,
+            # config=cfg.pretty_text,
             classes=target_classes,
             segmentations=segmentations
         )

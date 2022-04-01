@@ -1,6 +1,6 @@
 import os.path as osp
 import mmcv
-
+import torch
 from mpa.registry import STAGES
 from .inferrer import SegInferrer
 
@@ -29,7 +29,17 @@ class SegEvaluator(SegInferrer):
         eval_kwargs = self.cfg.get('evaluation', {}).copy()
         for key in ['interval', 'tmpdir', 'start', 'gpu_collect']:
             eval_kwargs.pop(key, None)
-        eval_result = self.dataset.evaluate(segmentations, **eval_kwargs)
+
+        # Change soft-prediction to hard-prediction
+        hard_predictions = []
+        for seg in segmentations:
+            soft_prediction = torch.from_numpy(seg)
+            hard_prediction = torch.argmax(soft_prediction, dim=0)
+            if hard_prediction.device:
+                hard_predictions.append(hard_prediction.numpy())
+            else:
+                hard_predictions.append(hard_prediction.cpu().detach().numpy())
+        eval_result = self.dataset.evaluate(hard_predictions, **eval_kwargs)
         self.logger.info(eval_result)
 
         return dict(mAP=eval_result.get('bbox_mAP_50', 0.0))

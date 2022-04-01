@@ -3,7 +3,7 @@ _base_ = './encoder_decoder.ote.py'
 __norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     type='ClassIncrSegmentor',
-    is_task_adapt=False,    # Default setting for IL seg is task_adapt=False.
+    is_task_adapt=True,
     num_stages=2,
     decode_head=[
         dict(type='FCNHead',
@@ -20,10 +20,11 @@ model = dict(
              align_corners=False,
              enable_out_norm=False,
              loss_decode=[
-                dict(type='RecallLoss',
-                     loss_jitter_prob=0.01,
-                     # sampler=dict(type='OHEMPixelSampler', thresh=0.7, min_kept=100000),
-                     loss_weight=1.0)
+                 dict(type='CrossEntropyLoss',
+                      reduction='mean',
+                      loss_jitter_prob=0.01,
+                      sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
+                      loss_weight=1.0)
              ]),
         dict(type='OCRHead',
              in_channels=40,

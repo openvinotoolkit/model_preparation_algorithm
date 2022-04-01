@@ -1,8 +1,8 @@
-import torch
+import numpy as np
 from mmcv import ConfigDict
 from mmseg.utils import get_root_logger
-
 from mpa.stage import Stage
+from mpa.utils.config_utils import update_or_add_custom_hook
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -11,7 +11,6 @@ logger = get_logger()
 class SegStage(Stage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # self.logger = None
 
     def configure(self, model_cfg, model_ckpt, data_cfg, training=True, **kwargs):
         """Create MMCV-consumable config from given inputs
@@ -31,15 +30,14 @@ class SegStage(Stage):
                 raise ValueError(
                     f'Given model_cfg ({model_cfg.filename}) is not supported by segmentation recipe'
                 )
-        self._configure_model(cfg, training, **kwargs)
+        self.configure_model(cfg, training, **kwargs)
 
-        if not cfg.get('task_adapt'):   # if task_adapt dict is empty, just pop to pass task_adapt
+        if not cfg.get('task_adapt'):   # if task_adapt dict is empty(semi-sl), just pop to pass task_adapt
             cfg.pop('task_adapt')
 
         # Checkpoint
         if model_ckpt:
-            cfg.load_from = model_ckpt
-
+            cfg.load_from = self.get_model_ckpt(model_ckpt)
         pretrained = kwargs.get('pretrained', None)
         if pretrained:
             logger.info(f'Overriding cfg.load_from -> {pretrained}')
@@ -49,65 +47,161 @@ class SegStage(Stage):
         if data_cfg:
             cfg.merge_from_dict(data_cfg)
 
-        # if training:
-        #    if cfg.data.get('val', False):
-        #        self.validate = True
+        if training:
+            if cfg.data.get('val', False):
+                self.validate = True
 
         # Task
         if 'task_adapt' in cfg:
-            self._configure_task(cfg, training, **kwargs)
+            self.configure_task(cfg, training, **kwargs)
 
         # Other hyper-parameters
         if 'hyperparams' in cfg:
-            self._configure_hyperparams(cfg, training, **kwargs)
+            self.configure_hyperparams(cfg, training, **kwargs)
 
         return cfg
 
-    def _get_model_classes(self, cfg):
-        """Extract trained classes info from checkpoint file.
-        MMCV-based models would save class info in ckpt['meta']['CLASSES']
-        For other cases, try to get the info from cfg.model.classes (with pop())
-        - Which means that model classes should be specified in model-cfg for
-          non-MMCV models (e.g. OMZ models)
-        """
-        classes = []
-        ckpt_path = cfg.get('load_from', None)
-        if ckpt_path:
-            ckpt = torch.load(ckpt_path, map_location='cpu')
-            meta = ckpt.get('meta', {})
-            classes = meta.get('CLASSES', [])
-        if len(classes) == 0:
-            classes = cfg.model.pop('classes', [])
-        return list(classes)
-
-    def _get_data_classes(self, cfg):
-        # TODO: getting from actual dataset
-        return list(get_train_data_cfg(cfg).get('classes', []))
-
-    def _configure_model(self, cfg, training, **kwargs):
+    def configure_model(self, cfg, training, **kwargs):
         pass
 
-    def _configure_task(self, cfg, training, **kwargs):
+    def configure_task(self, cfg, training, **kwargs):
         """Adjust settings for task adaptation
         """
-        # Current : It doesn't matter if the dataset is TaskAdaptDatasetSeg.
-        # TODO : ONLY TaskAdaptDatasetSeg is allowed in task_adapt.
         self.logger = get_root_logger()
         self.logger.info(f'task config!!!!: training={training}')
+        task_adapt_type = cfg['task_adapt'].get('type', None)
+        task_adapt_op = cfg['task_adapt'].get('op', 'REPLACE')
 
-        adapt_type = cfg['task_adapt'].get('op', 'REPLACE')
-        org_model_classes = self._get_model_classes(cfg)
-        data_classes = self._get_data_classes(cfg)
+        # Task classes
+        org_model_classes, model_classes, data_classes = \
+            self.configure_task_classes(cfg, task_adapt_op)
+
+        # Incremental learning
+        if task_adapt_type == 'mpa':
+            self.configure_task_cls_incr(cfg, task_adapt_type, org_model_classes, model_classes)
+
+    def configure_cross_entropy_loss_with_ignore(self, model_classes):
+        cfg_loss_decode = ConfigDict(
+            type='CrossEntropyLossWithIgnore',
+            model_classes=model_classes,
+            bg_aware=True,
+            reduction='mean',
+            loss_jitter_prob=0.01,
+            sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
+            loss_weight=1.0
+        )
+        return cfg_loss_decode
+
+    def configure_am_softmax_loss_with_ignore(self, model_classes):
+        cfg_loss_decode = ConfigDict(
+            type='AMSoftmaxLossWithIgnore',
+            model_classes=model_classes,
+            bg_aware=True,
+            scale_cfg=ConfigDict(
+                type='PolyScalarScheduler',
+                start_scale=30,
+                end_scale=5,
+                by_epoch=True,
+                num_iters=250,
+                power=1.2
+            ),
+            margin_type='cos',
+            margin=0.5,
+            gamma=0.0,
+            t=1.0,
+            target_loss='ce',
+            pr_product=False,
+            conf_penalty_weight=ConfigDict(
+                type='PolyScalarScheduler',
+                start_scale=0.2,
+                end_scale=0.15,
+                by_epoch=True,
+                num_iters=200,
+                power=1.2
+            ),
+            loss_jitter_prob=0.01,
+            border_reweighting=False,
+            sampler=ConfigDict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
+            loss_weight=1.0
+        )
+        return cfg_loss_decode
+
+    def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
+        new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
+        has_new_class = True if len(new_classes) > 0 else False
+        if has_new_class is False:
+            ValueError('Incremental learning should have at least one new class!')
+
+        # Incremental Learning
+        if cfg.get('ignore', False):
+            if 'decode_head' in cfg.model:
+                decode_head = cfg.model.decode_head
+                if isinstance(decode_head, dict):
+                    if decode_head.type == 'FCNHead':
+                        decode_head.loss_decode = self.configure_cross_entropy_loss_with_ignore(model_classes)
+                    elif decode_head.type == 'OCRHead':
+                        decode_head.loss_decode = self.configure_am_softmax_loss_with_ignore(model_classes)
+                elif isinstance(decode_head, list):
+                    for head in decode_head:
+                        if head.type == 'FCNHead':
+                            head.loss_decode = [self.configure_cross_entropy_loss_with_ignore(model_classes)]
+                        elif head.type == 'OCRHead':
+                            head.loss_decode = [self.configure_am_softmax_loss_with_ignore(model_classes)]
+
+        # Dataset
+        src_data_cfg = Stage.get_train_data_cfg(cfg)
+        for mode in ['train', 'val', 'test']:
+            if src_data_cfg.type == 'MPASegIncrDataset':
+                if cfg.data[mode]['type'] != 'MPASegIncrDataset':
+                    # Wrap original dataset config
+                    org_type = cfg.data[mode]['type']
+                    cfg.data[mode]['type'] = 'MPASegIncrDataset'
+                    cfg.data[mode]['org_type'] = org_type
+            else:
+                if cfg.data[mode]['type'] == 'SegTaskAdaptDataset':
+                    cfg.data[mode]['classes'] = model_classes
+                    if has_new_class:
+                        cfg.data[mode]['new_classes'] = new_classes
+                    cfg.data[mode]['with_background'] = True
+                else:
+                    # Wrap original dataset config
+                    org_type = cfg.data[mode]['type']
+                    cfg.data[mode]['type'] = 'SegTaskAdaptDataset'
+                    cfg.data[mode]['org_type'] = org_type
+                    cfg.data[mode]['classes'] = model_classes
+                    if has_new_class:
+                        cfg.data[mode]['new_classes'] = new_classes
+                    cfg.data[mode]['with_background'] = True
+
+        # Update Task Adapt Hook
+        task_adapt_hook = ConfigDict(
+            type='TaskAdaptHook',
+            src_classes=org_model_classes,
+            dst_classes=model_classes,
+            model_type=cfg.model.type,
+            sampler_flag=has_new_class,
+            efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
+        )
+        update_or_add_custom_hook(cfg, task_adapt_hook)
+
+    def configure_task_classes(self, cfg, task_adapt_op):
+        # Task classes
+        org_model_classes = self.get_model_classes(cfg)
+        data_classes = self.get_data_classes(cfg)
+        if 'background' not in org_model_classes:
+            org_model_classes = ['background'] + org_model_classes
+        if 'background' not in data_classes:
+            data_classes = ['background'] + data_classes
 
         # Model classes
-        if adapt_type == 'REPLACE':
+        if task_adapt_op == 'REPLACE':
             if len(data_classes) == 0:
                 raise ValueError('Data classes should contain at least one class!')
             model_classes = data_classes.copy()
-        elif adapt_type == 'MERGE':
+        elif task_adapt_op == 'MERGE':
             model_classes = org_model_classes + [cls for cls in data_classes if cls not in org_model_classes]
         else:
-            raise KeyError(f'{adapt_type} is not supported for task_adapt options!')
+            raise KeyError(f'{task_adapt_op} is not supported for task_adapt options!')
 
         cfg.task_adapt.final = model_classes
         cfg.model.task_adapt = ConfigDict(
@@ -117,21 +211,16 @@ class SegStage(Stage):
 
         # Model architecture
         if 'decode_head' in cfg.model:
-            for head in cfg.model.decode_head:
-                head.num_classes = len(model_classes)
+            decode_head = cfg.model.decode_head
+            if isinstance(decode_head, dict):
+                decode_head.num_classes = len(model_classes)
+            elif isinstance(decode_head, list):
+                for head in decode_head:
+                    head.num_classes = len(model_classes)
 
-        # Dataset
-        for mode in ['train', 'val', 'test']:
-            if cfg.data[mode]['type'] == 'TaskAdaptDatasetSeg':
-                cfg.data[mode]['model_classes'] = model_classes
-            else:
-                # Wrap original dataset config
-                org_type = cfg.data[mode]['type']
-                cfg.data[mode]['type'] = 'TaskAdaptDatasetSeg'
-                cfg.data[mode]['org_type'] = org_type
-                cfg.data[mode]['model_classes'] = model_classes
+        return org_model_classes, model_classes, data_classes
 
-    def _configure_hyperparams(self, cfg, training, **kwargs):
+    def configure_hyperparams(self, cfg, training, **kwargs):
         hyperparams = kwargs.get('hyperparams', None)
         if hyperparams is not None:
             bs = hyperparams.get('bs', None)
@@ -141,10 +230,3 @@ class SegStage(Stage):
             lr = hyperparams.get('lr', None)
             if lr is not None:
                 cfg.optimizer.lr = lr
-
-
-def get_train_data_cfg(cfg):
-    if 'dataset' in cfg.data.train:  # Concat|RepeatDataset
-        return cfg.data.train.dataset
-    else:
-        return cfg.data.train
