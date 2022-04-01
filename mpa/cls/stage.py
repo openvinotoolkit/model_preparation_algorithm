@@ -76,6 +76,9 @@ class ClsStage(Stage):
                 cfg.data.num_classes = len(cfg.data.train.get('classes', []))
             cfg.model.head.num_classes = cfg.data.num_classes
 
+        if isinstance(cfg.model.head.topk, tuple):
+            cfg.model.head.topk=(1, ) if cfg.model.head.num_classes < 5 else (1,5)
+
         # Other hyper-parameters
         if cfg.get('hyperparams', False):
             self.configure_hyperparams(cfg, training, **kwargs)
