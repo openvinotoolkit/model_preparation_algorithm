@@ -9,8 +9,6 @@ from . import task_adapt_dataset
 from . import seg_incr_cityscapes_dataset
 from . import seg_incr_voc_dataset
 from . import seg_task_adapt_dataset
-from . import torchvision_dataset
-from . import tvds_split
 from . import pseudo_balanced_dataset
 
 from . import pipelines
