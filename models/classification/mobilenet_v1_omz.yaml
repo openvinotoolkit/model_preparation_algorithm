@@ -1,0 +1,5 @@
+_base_: _base_/mobilenet_v1_omz.py
+
+model:
+    task: classification
+

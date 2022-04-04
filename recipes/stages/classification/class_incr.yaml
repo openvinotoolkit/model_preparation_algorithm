@@ -1,6 +1,7 @@
 _base_: [
     './train.yaml',
-    '../_base_/models/classifiers/classifier.py'
+    '../_base_/data/cls_data.py',
+    '../_base_/models/classifiers/classifier.py',
 ]
 
 runner:

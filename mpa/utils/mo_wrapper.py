@@ -72,10 +72,11 @@ MO_ARGS = [
     'scale_values',
     'disable_fusing',
     'transformations_config',
+    'reverse_input_channels'
 ]
 
 
-def generate_ir(output_path, model_path, silent, save_xml=False, **mo_kwargs):
+def generate_ir(output_path, model_path, silent, save_xml=True, **mo_kwargs):
     # parse kwargs for the model optimizer
     mo_args = []
     for key, value in mo_kwargs.items():
@@ -97,7 +98,7 @@ def generate_ir(output_path, model_path, silent, save_xml=False, **mo_kwargs):
 
     # ret = __mo_main_wrapper(mo_args, None)
     # ret = os.system('mo.py ' + ' '.join(mo_args))
-    ret = subprocess.run(['mo.py'] + mo_args, shell=False).returncode
+    ret = subprocess.run(['mo'] + mo_args, shell=False).returncode
     if ret != 0:
         err_msg = 'Failed to run the model optimizer to convert a model'
         return ret, err_msg
@@ -108,16 +109,17 @@ def generate_ir(output_path, model_path, silent, save_xml=False, **mo_kwargs):
 
     print('*** Model optimization completed ***')
     # move bin files to workspace
-    # bin_filename = mo_kwargs['model_name']
-    # output_filename = bin_filename
+    import os
+    bin_filename = mo_kwargs['model_name']
+    output_filename = bin_filename
     # while os.path.exists(os.path.join(output_path, output_filename + '.bin')):
     #    output_filename = output_filename + "_"
-    # if not os.path.exists(output_path):
-    #    os.makedirs(output_path)
-    # os.rename(os.path.join(model_path, bin_filename + '.bin'),
-    #          os.path.join(output_path, output_filename + '.bin'))
-    # if save_xml:
-    #    os.rename(os.path.join(model_path, bin_filename + '.xml'),
-    #              os.path.join(output_path, output_filename + '.xml'))
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    os.rename(os.path.join(model_path, bin_filename + '.bin'),
+              os.path.join(output_path, output_filename + '.bin'))
+    if save_xml:
+        os.rename(os.path.join(model_path, bin_filename + '.xml'),
+                  os.path.join(output_path, output_filename + '.xml'))
 
     return ret, 'Saved outputs into {}'.format(output_path)

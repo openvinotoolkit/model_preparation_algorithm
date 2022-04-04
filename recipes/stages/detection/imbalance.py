@@ -31,3 +31,5 @@ custom_hooks = [
         priority=75,
     ),
 ]
+
+ignore = True
