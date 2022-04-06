@@ -1,5 +1,5 @@
 from mmcls.datasets import PIPELINES
-from detection_tasks.extension.utils import LoadImageFromOTEDataset
+from detection_tasks.extension.utils import LoadImageFromOTEDataset  # TODO: Remove OTE SDK/Task dependency
 
 
 @PIPELINES.register_module()

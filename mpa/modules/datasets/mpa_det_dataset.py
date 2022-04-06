@@ -1,5 +1,5 @@
 from mmdet.datasets.builder import DATASETS
-from detection_tasks.extension.datasets import OTEDataset
+from detection_tasks.extension.datasets import OTEDataset  # TODO: Remove OTE SDK/Task dependency
 from mpa.utils.logger import get_logger
 
 logger = get_logger()

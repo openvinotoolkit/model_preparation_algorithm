@@ -15,7 +15,7 @@ optimizer = dict(
 lr_config = dict(min_lr=1e-06)
 
 evaluation = dict(
-    interval=5,
+    interval=1,
     metric=['mIoU', 'mDice'],
 )
 

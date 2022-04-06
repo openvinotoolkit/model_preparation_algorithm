@@ -22,8 +22,8 @@ def find_version():
 setup(
     name='mpa',
     version=find_version(),
-    url='https://github.com/openvinotoolkit/model_preparation_algorithm',
-    packages=find_packages(include=('mpa', 'recipes', 'samples')),
+    url='https://github.com/intel-innersource/frameworks.ai.algorithms.model-preparation-algorithm',
+    packages=find_packages(include=('mpa', 'recipes', 'samples', 'tools')),
     description='Model Preperation Algorithms',
     long_description=long_description,
     install_requires=get_requirements()
