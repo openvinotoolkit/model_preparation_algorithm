@@ -105,7 +105,7 @@ fi
 # Install pytorch
 echo torch==${TORCH_VERSION} >> ${CONSTRAINTS_FILE}
 echo torchvision==${TORCHVISION_VERSION} >> ${CONSTRAINTS_FILE}
-pip install torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} -f https://download.pytorch.org/whl/lts/${TORCHVISION_VERSION}/torch_lts.html -c ${CONSTRAINTS_FILE} || exit 1
+pip install torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html -c ${CONSTRAINTS_FILE} || exit 1
 
 # Install mmcv
 pip install --no-cache-dir mmcv-full==${MMCV_VERSION} -c ${CONSTRAINTS_FILE} || exit 1
@@ -113,36 +113,29 @@ sed -i "s/force=False/force=True/g" ${venv_dir}/lib/python${PYTHON_VERSION}/site
 
 # Install mmpycocotools from source to make sure it is compatible with installed numpy version.
 pip install --no-cache-dir --no-binary=mmpycocotools mmpycocotools -c ${CONSTRAINTS_FILE} || exit 1
+cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
 
 # Install external modules
-OTE_PATH=external/training_extension
-git submodule update --init --recursive
+if [[ ! -z $OTE_PATH ]]; then
+  # mmdetection
+  cd $OTE_PATH/external/mmdetection/submodule
+  cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
+  pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
+  cd -
+  # mmsegmentation
+  #cd $OTE_PATH/external/mmsegmentation/submodule
+  cd external/mmsegmentation  # Temporary due to mmcv version
+  cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
+  pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
+  cd -
+else
+  echo "OTE_PATH should be specified to install dependencies"
+  exit 1
+fi
 
-# Install OTE SDK
-pip install -e ${OTE_PATH}/ote_sdk/ -c ${CONSTRAINTS_FILE} || exit 1  # TODO: Remove OTE SDK/Task dependency
-
-# Install base classification algo backend
-pip install -e ${OTE_PATH}/external/deep-object-reid/submodule  -c ${CONSTRAINTS_FILE} || exit 1  # TODO: Remove torchreid dependency
-pip install -e ${OTE_PATH}/external/deep-object-reid -c ${CONSTRAINTS_FILE} || exit 1  # TODO: Remove OTE SDK/Task dependency
-
-# Install base detection algo backend & task
-pip install -e ${OTE_PATH}/external/mmdetection/submodule  -c ${CONSTRAINTS_FILE} || exit 1
-pip install -e ${OTE_PATH}/external/mmdetection -c ${CONSTRAINTS_FILE} || exit 1  # TODO: Remove OTE SDK/Task dependency
-
-# Install base segmentation algo backend
-##pip install -e ${OTE_PATH}/external/mmsegmentation/submodule -c ${CONSTRAINTS_FILE} || exit 1
-rm -rf ./external/mmsegmentation/configs/ote  # To disable model template scan
-pip install -e ./external/mmsegmentation -c ${CONSTRAINTS_FILE} || exit 1  # Temporary due to mmcv version mismatch
-pip install -e ${OTE_PATH}/external/mmsegmentation -c ${CONSTRAINTS_FILE} || exit 1  # TODO: Remove OTE SDK/Task dependency
-
-# Install other external modules
-pip install -e external/mda -c ${CONSTRAINTS_FILE} || exit 1
-pip install -e external/hpo -c ${CONSTRAINTS_FILE} || exit 1
-
-# Install MPA algo backend
+# Install MPA
 pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
-pip install -e ${OTE_PATH}/external/model-preparation-algorithm -c ${CONSTRAINTS_FILE} || exit 1  # TODO: Remove OTE SDK/Task dependency
-MPA_DIR=`realpath submodule`
+MPA_DIR=`realpath .`
 echo "export MPA_DIR=${MPA_DIR}" >> ${venv_dir}/bin/activate
 
 deactivate
