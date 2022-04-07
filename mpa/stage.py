@@ -1,6 +1,7 @@
 import os
 import random
 import time
+import os.path as osp
 
 import mmcv
 import numpy as np
@@ -8,7 +9,6 @@ import torch
 from mmcv import Config, ConfigDict
 from mmcv.runner import CheckpointLoader
 
-from mpa_tasks.utils.config_utils import read_label_schema  # TODO: Remove OTE SDK/Task dependency
 from mpa.utils.config_utils import MPAConfig, update_or_add_custom_hook
 from mpa.utils.logger import config_logger, get_logger
 
@@ -287,7 +287,7 @@ class Stage(object):
         if len(classes) == 0:
             ckpt_path = cfg.get('load_from', None)
             if ckpt_path:
-                classes = read_label_schema(ckpt_path)
+                classes = Stage.read_label_schema(ckpt_path)
         if len(classes) == 0:
             classes = cfg.model.pop('classes', cfg.pop('model_classes', []))
         return classes
@@ -303,3 +303,20 @@ class Stage(object):
             return new_path
         else:
             return ckpt_path
+
+    @staticmethod
+    def read_label_schema(ckpt_path, name_only=True, file_name='label_schema.json'):
+        serialized_label_schema = []
+        if any(ckpt_path.endswith(extension) for extension in (".xml", ".bin", ".pth")):
+            label_schema_path = osp.join(osp.dirname(ckpt_path), file_name)
+            if osp.exists(label_schema_path):
+                with open(label_schema_path, encoding="UTF-8") as read_file:
+                    serialized_label_schema = json.load(read_file)
+        if serialized_label_schema:
+            if name_only:
+                all_classes = [labels['name'] for labels in serialized_label_schema['all_labels'].values()]
+            else:
+                all_classes = serialized_label_schema
+        else:
+            all_classes = []
+        return all_classes
