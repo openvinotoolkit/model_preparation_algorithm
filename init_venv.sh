@@ -67,7 +67,7 @@ if [ -e "$CUDA_HOME" ]; then
   fi
 fi
 
-# install PyTorch and MMCV.
+# Install PyTorch and MMCV.
 export TORCH_VERSION=1.8.2
 export TORCHVISION_VERSION=0.9.2
 export MMCV_VERSION=1.3.14
@@ -109,10 +109,10 @@ pip install torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} -f https
 
 # Install mmcv
 pip install --no-cache-dir mmcv-full==${MMCV_VERSION} -c ${CONSTRAINTS_FILE} || exit 1
+sed -i "s/force=False/force=True/g" ${venv_dir}/lib/python${PYTHON_VERSION}/site-packages/mmcv/utils/registry.py  # Patch: remedy for MMCV registry collision from mmdet/mmseg
 
-# Install other requirements.
 # Install mmpycocotools from source to make sure it is compatible with installed numpy version.
-pip install --no-cache-dir --no-binary=mmpycocotools mmpycocotools || exit 1
+pip install --no-cache-dir --no-binary=mmpycocotools mmpycocotools -c ${CONSTRAINTS_FILE} || exit 1
 cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache || exit 1
 
 # Install external modules
@@ -134,7 +134,7 @@ else
 fi
 
 # Install MPA
-pip install -e . || exit 1
+pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
 MPA_DIR=`realpath .`
 echo "export MPA_DIR=${MPA_DIR}" >> ${venv_dir}/bin/activate
 

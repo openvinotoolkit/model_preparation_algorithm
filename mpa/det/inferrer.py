@@ -127,8 +127,20 @@ class DetectionInferrer(DetectionStage):
         # Inference
         model = MMDataParallel(model, device_ids=[0])
         detections = single_gpu_test(model, data_loader)
+
+        eval_cfg = cfg.evaluation.copy()
+        eval_cfg.pop('interval', None)
+        eval_cfg.pop('save_best', None)
+
+        metric = dataset.evaluate(
+            detections,
+            logger='silent',
+            **eval_cfg
+        )[cfg.evaluation.metric]
+
         outputs = dict(
             classes=target_classes,
             detections=detections,
+            metric=metric,
         )
         return outputs

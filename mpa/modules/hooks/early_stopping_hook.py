@@ -1,5 +1,5 @@
 from mmcv.runner.hooks import HOOKS
-from detection_tasks.extension.utils.hooks import EarlyStoppingHook
+from detection_tasks.extension.utils.hooks import EarlyStoppingHook  # TODO: Remove OTE SDK/Task dependency
 
 
 @HOOKS.register_module()

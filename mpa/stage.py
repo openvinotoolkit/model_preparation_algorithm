@@ -8,7 +8,7 @@ import torch
 from mmcv import Config, ConfigDict
 from mmcv.runner import CheckpointLoader
 
-from mpa_tasks.utils.config_utils import read_label_schema  # TODO: need to remove OTE_SDK/Task related dependencies
+from mpa_tasks.utils.config_utils import read_label_schema  # TODO: Remove OTE SDK/Task dependency
 from mpa.utils.config_utils import MPAConfig, update_or_add_custom_hook
 from mpa.utils.logger import config_logger, get_logger
 
