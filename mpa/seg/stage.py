@@ -39,7 +39,7 @@ class SegStage(Stage):
         if model_ckpt:
             cfg.load_from = self.get_model_ckpt(model_ckpt)
         pretrained = kwargs.get('pretrained', None)
-        if pretrained:
+        if pretrained and isinstance(pretrained, str):
             logger.info(f'Overriding cfg.load_from -> {pretrained}')
             cfg.load_from = pretrained  # Overriding by stage input
 
