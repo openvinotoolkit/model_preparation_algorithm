@@ -44,7 +44,10 @@ related NN *model* architecures.
 ### TL Tasks
 * Classification
 * Detection
-* Semantic segmentation
+* Segmentation
+    * (WIP) Instance segmentation
+    * Semantic segmentation
+    * (TBD) Panoptic segmentation
 > Train / Infer / Evaluate / Export operations are supported for each task
 
 ### TL Methods

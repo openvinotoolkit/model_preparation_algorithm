@@ -1,9 +1,5 @@
 model:
-    # pretrained: models/classification/ckpt/im_ote_mnetv3_large.pth
     backbone:
         type: OTEMobileNetV3
         mode: small
         width_mult: 1.0
-    # head:
-    #     in_channels: 576
-    #     # hid_channels: 1024

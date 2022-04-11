@@ -44,7 +44,6 @@ class ClassIncrSegmentor(CascadeEncoderDecoder):
             'decode_head.0.conv_seg.weight',
             'decode_head.0.conv_seg.bias',
             'decode_head.1.conv_seg.weight',
-            'decode_head.1.conv_seg.bias',
         ]
         for model_name in param_names:
             chkpt_name = prefix + model_name

@@ -55,61 +55,76 @@ class SAMImageClassifier(ImageClassifier):
     def state_dict_hook(module, state_dict, *args, **kwargs):
         """Redirect model as output state_dict for OTE model compatibility
         """
-        logger.info('----------------- SAMImageClassifier.state_dict_hook() called')
-        if type(module.backbone).__name__ == 'OTEMobileNetV3':
-            output = OrderedDict()
-            for k, v in state_dict.items():
-                if k.startswith('head.classifier'):
-                    k = k.replace('head.', '')
-                    if k.startswith('classifier.3'):
-                        k = k.replace('classifier.3', 'classifier.4')
-                elif k.startswith('backbone'):
-                    k = k.replace('backbone.', '')
-                output[k] = v
-            return output
+        backbone_type = type(module.backbone).__name__
+        if backbone_type not in ['OTEMobileNetV3', 'OTEEfficientNet', 'OTEEfficientNetV2']:
+            return
 
-        elif type(module.backbone).__name__ == 'OTEEfficientNet':
-            output = OrderedDict()
+        output = OrderedDict()
+        if backbone_type == 'OTEMobileNetV3':
+            for k, v in state_dict.items():
+                if k.startswith('backbone'):
+                    k = k.replace('backbone.', '')
+                elif k.startswith('head'):
+                    k = k.replace('head.', '')
+                    if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
+                        k = k.replace('3', '4')
+                output[k] = v
+
+        elif backbone_type == 'OTEEfficientNet':
+            for k, v in state_dict.items():
+                if k.startswith('backbone'):
+                    k = k.replace('backbone.', '')
+                elif k.startswith('head'):
+                    k = k.replace('head', 'output')
+                output[k] = v
+
+        elif backbone_type == 'OTEEfficientNetV2':
             for k, v in state_dict.items():
                 if k.startswith('backbone'):
                     k = k.replace('backbone.', '')
                 elif k == 'head.fc.weight':
-                    k = k.replace('head.fc', 'output.asl')
+                    k = k.replace('head.fc', 'model.classifier')
                     if not module.is_export:
                         v = v.t()
                 output[k] = v
-            return output
+
+        return output
 
     @staticmethod
     def load_state_dict_pre_hook(module, state_dict, *args, **kwargs):
         """Redirect input state_dict to model for OTE model compatibility
         """
-        logger.info('----------------- SAMImageClassifier.load_state_dict_pre_hook() called')
-        if type(module.backbone).__name__ == 'OTEMobileNetV3':
+        backbone_type = type(module.backbone).__name__
+        if backbone_type not in ['OTEMobileNetV3', 'OTEEfficientNet', 'OTEEfficientNetV2']:
+            return
+
+        if backbone_type == 'OTEMobileNetV3':
             for k in list(state_dict.keys()):
                 v = state_dict.pop(k)
-                if k.startswith('classifier.') or k.startswith('head.classifier'):
-                    k = k.replace('head.', '')
-                    if k.startswith('classifier.4'):
-                        k = k.replace('classifier.4', 'classifier.3')
-                        state_dict['head.'+k] = v
-                    else:
-                        state_dict['head.'+k] = v
-                elif not k.startswith('backbone.') and not k.startswith('head.'):
-                    state_dict['backbone.'+k] = v
-                else:
-                    state_dict[k] = v
+                if k.startswith('classifier.'):
+                    k = 'head.'+k.replace('4', '3') if '4' in k else 'head.'+k
+                elif not k.startswith('backbone.'):
+                    k = 'backbone.'+k
+                state_dict[k] = v
 
-        elif type(module.backbone).__name__ == 'OTEEfficientNet':
+        elif backbone_type == 'OTEEfficientNet':
             for k in list(state_dict.keys()):
                 v = state_dict.pop(k)
                 if k.startswith('features.') and 'activ' not in k:
-                    state_dict['backbone.'+k] = v
-                elif k == 'output.asl.weight':
-                    k = k.replace('output.asl', 'head.fc')
-                    state_dict[k] = v.t()
-                else:
-                    state_dict[k] = v
+                    k = 'backbone.'+k
+                elif k.startswith('output.'):
+                    k = k.replace('output', 'head')
+                state_dict[k] = v
+
+        elif backbone_type == 'OTEEfficientNetV2':
+            for k in list(state_dict.keys()):
+                v = state_dict.pop(k)
+                if k.startswith('model.classifier'):
+                    k = k.replace('model.classifier', 'head.fc')
+                    v = v.t()
+                elif k.startswith('model'):
+                    k = 'backbone.'+k
+                state_dict[k] = v
         else:
             logger.info('conversion is not required.')
 
@@ -117,16 +132,17 @@ class SAMImageClassifier(ImageClassifier):
     def load_state_dict_mixing_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):
         """Modify input state_dict according to class name matching before weight loading
         """
-        logger.info(f'----------------- SAMImageClassifier.load_state_dict_pre_hook() called w/ prefix: {prefix}')
+        backbone_type = type(model.backbone).__name__
+        if backbone_type not in ['OTEMobileNetV3', 'OTEEfficientNet', 'OTEEfficientNetV2']:
+            return
 
         # Dst to src mapping index
         model_classes = list(model_classes)
         chkpt_classes = list(chkpt_classes)
         model2chkpt = map_class_names(model_classes, chkpt_classes)
         logger.info(f'{chkpt_classes} -> {model_classes} ({model2chkpt})')
-
         model_dict = model.state_dict()
-        backbone_type = type(model.backbone).__name__
+
         if backbone_type == 'OTEMobileNetV3':
             param_names = [
                 'classifier.4.weight',
@@ -134,16 +150,29 @@ class SAMImageClassifier(ImageClassifier):
             ]
         elif backbone_type == 'OTEEfficientNet':
             param_names = [
-                'output.asl.weight',
+                'output.fc.weight',
             ]
+            if 'head.fc.bias' in chkpt_dict.keys():
+                param_names.append('output.fc.bias')
+        elif backbone_type == 'OTEEfficientNetV2':
+            param_names = [
+                'model.classifier.weight',
+            ]
+            if 'head.fc.bias' in chkpt_dict.keys():
+                param_names.append('head.fc.bias')
 
         for model_name in param_names:
+            model_param = model_dict[model_name].clone()
             if backbone_type == 'OTEMobileNetV3':
                 chkpt_name = 'head.'+model_name.replace('4', '3')
-                model_param = model_dict[model_name].clone()
-            elif backbone_type == 'OTEEfficientNet':
-                chkpt_name = 'head.fc.weight'
-                model_param = model_dict[model_name].clone().t()
+            elif backbone_type in 'OTEEfficientNet':
+                chkpt_name = model_name.replace('output', 'head')
+            elif backbone_type in 'OTEEfficientNetV2':
+                if model_name.endswith('bias'):
+                    chkpt_name = model_name
+                else:
+                    chkpt_name = model_name.replace('model.classifier', 'head.fc')
+                    model_param = model_param.t()
 
             if model_name not in model_dict or chkpt_name not in chkpt_dict:
                 logger.info(f'Skipping weight copy: {chkpt_name}')

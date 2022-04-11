@@ -3,7 +3,6 @@ import torch
 import numpy as np
 
 from mmcv import ConfigDict
-from mmcv import Config
 from mmcv import build_from_cfg
 
 from mpa.stage import Stage
@@ -24,12 +23,7 @@ class ClsStage(Stage):
         logger.info(f'configure: training={training}')
 
         # Recipe + model
-        cfg = Config(
-            self.cfg._cfg_dict,
-            self.cfg.text,
-            self.cfg.filename
-        )
-
+        cfg = self.cfg
         if model_cfg:
             if hasattr(cfg, 'model'):
                 cfg.merge_from_dict(model_cfg._cfg_dict)
@@ -54,9 +48,9 @@ class ClsStage(Stage):
             cfg.model.backbone.model_path = ir_path
 
         pretrained = kwargs.get('pretrained', None)
-        if pretrained:
+        if pretrained and isinstance(pretrained, str):
             logger.info(f'Overriding cfg.load_from -> {pretrained}')
-            cfg.load_from = pretrained  # Overriding by stage input
+            cfg.load_from = pretrained
 
         # Data
         if data_cfg:

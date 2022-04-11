@@ -1,9 +1,5 @@
 _base_: ./ote_mobilenet_v3_small.yaml
 
 model:
-    pretrained: models/classification/ckpt/im_ote_mnetv3_large.pth
     backbone:
         mode: large
-    # head:
-    #     in_channels: 960
-    #     # hid_channels: 1280

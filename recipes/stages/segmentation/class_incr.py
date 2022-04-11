@@ -51,7 +51,8 @@ checkpoint_config = dict(
 
 evaluation = dict(
     interval=1,
-    metric=['mIoU'],
+    metric=['mDice', 'mIoU'],
+    show_log=True
 )
 
 seed = 42
