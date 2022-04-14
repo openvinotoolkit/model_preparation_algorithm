@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmcls.datasets.builder import DATASETS
 from .multi_cls_dataset import MultiClsDataset
 from .cls_csv_dataset import CSVDatasetCls

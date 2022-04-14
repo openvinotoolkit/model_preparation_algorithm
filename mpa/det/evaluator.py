@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import os.path as osp
 import json
 from mpa.registry import STAGES

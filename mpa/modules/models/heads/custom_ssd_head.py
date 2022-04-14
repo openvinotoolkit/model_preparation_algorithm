@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.losses import smooth_l1_loss
 from mmdet.models.dense_heads.ssd_head import SSDHead

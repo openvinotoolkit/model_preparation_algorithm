@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmdet.models.builder import HEADS
 from mmdet.models.dense_heads.retina_head import RetinaHead
 

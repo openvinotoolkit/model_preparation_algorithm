@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmdet.datasets import DATASETS, CocoDataset
 
 import numpy as np

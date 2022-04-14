@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 # flake8: noqa
 from . import sam_detector_mixin
 from . import l2sp_detector_mixin

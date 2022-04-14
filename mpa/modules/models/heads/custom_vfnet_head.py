@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import torch
 from mmcv.runner import force_fp32
 from mmdet.core import bbox_overlaps, distance2bbox, reduce_mean

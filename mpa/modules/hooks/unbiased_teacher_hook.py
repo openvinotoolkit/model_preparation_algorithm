@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from .model_ema_hook import DualModelEMAHook
 from mmcv.runner import HOOKS
 from mpa.utils.logger import get_logger

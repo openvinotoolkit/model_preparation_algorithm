@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmdet.datasets import PIPELINES, DATASETS, build_dataset
 # import torch
 import numpy as np

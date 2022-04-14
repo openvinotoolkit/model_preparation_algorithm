@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmcls.models.builder import CLASSIFIERS
 from mmcls.models.classifiers.base import BaseClassifier
 from mmcls.models.classifiers.image import ImageClassifier
