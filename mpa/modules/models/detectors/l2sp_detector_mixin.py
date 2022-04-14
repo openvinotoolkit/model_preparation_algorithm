@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmdet.models.detectors import BaseDetector
 from mpa.modules.models.losses.l2sp_loss import L2SPLoss
 

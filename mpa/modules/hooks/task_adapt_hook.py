@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmcv.runner import HOOKS, Hook
 from torch.utils.data import DataLoader
 

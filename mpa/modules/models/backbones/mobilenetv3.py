@@ -1,3 +1,10 @@
+# Copyright (c) 2018-2022 Kaiyang Zhou
+# SPDX-License-Identifier: MIT
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import math
 import os
 

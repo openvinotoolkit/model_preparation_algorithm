@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import functools
 from mmdet.models.builder import DETECTORS
 from mmdet.models.detectors.atss import ATSS

@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmdet.datasets import PIPELINES
 from mmcv.utils import build_from_cfg
 

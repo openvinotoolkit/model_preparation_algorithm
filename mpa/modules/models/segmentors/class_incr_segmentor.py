@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import functools
 from mmseg.utils import get_root_logger
 from mpa.modules.utils.task_adapt import map_class_names

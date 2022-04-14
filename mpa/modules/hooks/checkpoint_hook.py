@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 # Copyright (c) Open-MMLab. All rights reserved.
 import os
 
