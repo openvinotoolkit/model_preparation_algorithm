@@ -123,10 +123,11 @@ if [[ ! -z $OTE_PATH ]]; then
   pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
   cd -
   # mmsegmentation
-  #cd $OTE_PATH/external/mmsegmentation/submodule
-  cd external/mmsegmentation  # Temporary due to mmcv version
+  cd $OTE_PATH/external/mmsegmentation/submodule
+  sed -i "s/mmcv-full==1.3.1$/mmcv-full==1.3.14/g" requirements/runtime.txt  # Patch: remedy for MMCV version mismatch
   cat requirements.txt | xargs -n 1 -L 1 pip install --no-cache -c ${CONSTRAINTS_FILE} || exit 1
   pip install -e . -c ${CONSTRAINTS_FILE} || exit 1
+  sed -i "s/mmcv-full==1.3.14/mmcv-full==1.3.1/g" requirements/runtime.txt
   cd -
 else
   echo "OTE_PATH should be specified to install dependencies"
