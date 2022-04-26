@@ -73,10 +73,15 @@ class ClsInferrer(ClsStage):
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             wrap_fp16_model(model)
-        logger.info('load checkpoint from ' + cfg.load_from)
-        _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
+        if cfg.load_from is not None:
+            logger.info('load checkpoint from ' + cfg.load_from)
+            _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         model = MMDataParallel(model, device_ids=[0])
+
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
+        ClsStage.set_inference_progress_callback(model, cfg)
+
         if cfg.get('task_adapt', False) and not hasattr(self, 'eval') and self.extract_prob:
             old_prob, feats = prob_extractor(model.module, data_loader)
             data_infos = self.dataset.data_infos

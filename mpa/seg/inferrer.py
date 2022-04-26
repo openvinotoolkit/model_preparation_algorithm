@@ -109,6 +109,10 @@ class SegInferrer(SegStage):
 
         # Inference
         model = MMDataParallel(model, device_ids=[0])
+
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
+        SegStage.set_inference_progress_callback(model, cfg)
+
         segmentations = single_gpu_test(model, data_loader, output_logits=True)
         outputs = dict(
             # config=cfg.pretty_text,

@@ -130,6 +130,10 @@ class DetectionInferrer(DetectionStage):
 
         # Inference
         model = MMDataParallel(model, device_ids=[0])
+
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
+        DetectionStage.set_inference_progress_callback(model, cfg)
+
         detections = single_gpu_test(model, data_loader)
 
         eval_cfg = cfg.evaluation.copy()
