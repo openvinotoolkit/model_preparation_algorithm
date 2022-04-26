@@ -261,7 +261,10 @@ class Stage(object):
     @staticmethod
     def get_train_data_cfg(cfg):
         if 'dataset' in cfg.data.train:  # Concat|RepeatDataset
-            return cfg.data.train.dataset
+            dataset = cfg.data.train.dataset
+            while hasattr(dataset, 'dataset'):
+                dataset = dataset.dataset
+            return dataset
         else:
             return cfg.data.train
 
@@ -325,3 +328,19 @@ class Stage(object):
         else:
             all_classes = []
         return all_classes
+
+    @staticmethod
+    def set_inference_progress_callback(model, cfg):
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
+        time_monitor = None
+        if cfg.get('custom_hooks', None):
+            time_monitor = [hook.time_monitor for hook in cfg.custom_hooks if hook.type == 'OTEProgressHook']
+            time_monitor = time_monitor[0] if time_monitor else None
+        if time_monitor is not None:
+            def pre_hook(module, input):
+                time_monitor.on_test_batch_begin(None, None)
+
+            def hook(module, input, output):
+                time_monitor.on_test_batch_end(None, None)
+            model.register_forward_pre_hook(pre_hook)
+            model.register_forward_hook(hook)
