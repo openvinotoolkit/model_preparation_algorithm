@@ -261,7 +261,9 @@ class Stage(object):
     @staticmethod
     def get_train_data_cfg(cfg):
         if 'dataset' in cfg.data.train:  # Concat|RepeatDataset
-            dataset, _ = Stage.get_dataset_without_wrapping(cfg.data.train)
+            dataset = cfg.data.train.dataset
+            while hasattr(dataset, 'dataset'):
+                dataset = dataset.dataset
             return dataset
         else:
             return cfg.data.train
@@ -326,16 +328,6 @@ class Stage(object):
         else:
             all_classes = []
         return all_classes
-
-    @staticmethod
-    def get_dataset_without_wrapping(data_cfg):
-        times = 1
-        target_dataset = data_cfg
-        while hasattr(target_dataset, 'dataset'):
-            if hasattr(target_dataset, 'times'):
-                times = target_dataset.times
-            target_dataset = target_dataset.dataset
-        return target_dataset, times
 
     @staticmethod
     def set_inference_progress_callback(model, cfg):
