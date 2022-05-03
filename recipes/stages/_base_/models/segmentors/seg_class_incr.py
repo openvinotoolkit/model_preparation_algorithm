@@ -67,5 +67,9 @@ model = dict(
                       sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
                       loss_weight=1.0)
              ])
-    ]
+    ],
+    test_cfg=dict(
+        mode='whole',
+        output_scale=10.0,
+    ),
 )
