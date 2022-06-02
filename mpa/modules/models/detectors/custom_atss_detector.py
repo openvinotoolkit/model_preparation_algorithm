@@ -38,6 +38,9 @@ class CustomATSS(SAMDetectorMixin, L2SPDetectorMixin, ATSS):
                       gt_labels,
                       gt_bboxes_ignore=None,
                       **kwargs):
+        ignored_labels = kwargs.pop('ignored_labels', None)
+        for i, img_meta in enumerate(img_metas):
+            img_meta['ignored_labels'] = ignored_labels[i]
         return super().forward_train(
               img,
               img_metas,

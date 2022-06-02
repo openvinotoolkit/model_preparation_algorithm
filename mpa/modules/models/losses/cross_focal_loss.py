@@ -2,16 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import numpy as np
 import torch
 import torch.nn as nn
 from mmdet.models import LOSSES
 from mmdet.models.losses.focal_loss import sigmoid_focal_loss
 from mmdet.models.losses.varifocal_loss import varifocal_loss
-
-
-def int_to_binary_label_list(t, num_classes):
-    return [int(d) for d in str(bin(t))[2:].zfill(num_classes)]
 
 
 def cross_sigmoid_focal_loss(inputs,
@@ -23,7 +18,7 @@ def cross_sigmoid_focal_loss(inputs,
                              reduction="mean",
                              avg_factor=None,
                              use_vfl=False,
-                             use_weight=True):
+                             ignored_masks=None):
     """
     Arguments:
        - inputs: inputs Tensor (N * C)
@@ -35,31 +30,11 @@ def cross_sigmoid_focal_loss(inputs,
        - reduction: default = mean
        - avg_factor: average factors
     """
-    assert num_classes > 0
-    assert inputs.shape == targets.shape if use_vfl else weight.shape == targets.shape
     cross_mask = inputs.new_ones(inputs.shape, dtype=torch.int8)
-    neg_mask = targets.sum(axis=1) == 0 if use_vfl else targets == num_classes
-    label_schema = torch.unique(weight)
-    neg_idx = neg_mask.nonzero(as_tuple=True)[0]
-
-    # Create a cross_mask using the binary label scheme of weights and targets
-    for schema in label_schema:
-        cur_schema = torch.tensor(int_to_binary_label_list(int(schema), num_classes)[::-1], dtype=torch.int8)
-        cand_idx = weight == float(schema)
-        if use_vfl:
-            cand_idx = cand_idx.nonzero(as_tuple=True)[0]
-            cand_idx = torch.tensor(np.intersect1d(neg_idx.cpu().numpy(), cand_idx.cpu().numpy()))
-        else:
-            cand_idx *= neg_mask
-            cand_idx = torch.nonzero(cand_idx, as_tuple=True)
-        if torch.cuda.is_available():
-            cur_schema = cur_schema.cuda()
-        cross_mask[cand_idx] = cur_schema
-
-    if use_weight:
-        weight = torch.where(weight > 0, 1.0, 0.0)
-    else:
-        weight = None
+    if ignored_masks is not None:
+        neg_mask = targets.sum(axis=1) == 0 if use_vfl else targets == num_classes
+        neg_idx = neg_mask.nonzero(as_tuple=True)[0]
+        cross_mask[neg_idx] = ignored_masks[neg_idx].type(torch.int8)
 
     if use_vfl:
         loss = varifocal_loss(inputs, targets,
@@ -114,7 +89,7 @@ class CrossSigmoidFocalLoss(nn.Module):
                 reduction_override=None,
                 avg_factor=None,
                 use_vfl=False,
-                use_weight=True,
+                ignored_masks=None,
                 **kwargs):
         assert reduction_override in (None, 'none', 'mean', 'sum')
         reduction = (
@@ -129,6 +104,6 @@ class CrossSigmoidFocalLoss(nn.Module):
             reduction=reduction,
             avg_factor=avg_factor,
             use_vfl=use_vfl,
-            use_weight=use_weight
+            ignored_masks=ignored_masks
             )
         return loss_cls
