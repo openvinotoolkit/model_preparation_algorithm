@@ -222,9 +222,10 @@ class CrossDatasetDetectorHead(BaseDenseHead):
     def get_ignored_masks(self, img_metas, all_labels):
         ignored_masks = []
         for i, meta in enumerate(img_metas):
-            if 'ignored_labels' in meta:
-                mask = meta['ignored_labels']
-                if mask.shape[0] > 0:
-                    mask = mask.expand(len(all_labels[i]), mask.shape[1])
-                ignored_masks.append(mask)
+            mask = torch.Tensor([1 for _ in range(self.num_classes)])
+            if 'ignored_labels' in meta and meta['ignored_labels']:
+                mask[meta['ignored_labels']] = 0
+            mask = mask.repeat(len(all_labels[i]), 1)
+            mask = mask.cuda() if torch.cuda.is_available() else mask
+            ignored_masks.append(mask)
         return ignored_masks
