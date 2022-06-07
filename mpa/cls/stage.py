@@ -74,7 +74,10 @@ class ClsStage(Stage):
                 cfg.data.num_classes = len(cfg.data.train.get('classes', []))
             cfg.model.head.num_classes = cfg.data.num_classes
 
-        if isinstance(cfg.model.head.topk, tuple):
+        if 'Multi' in cfg.model.head.get('type', False) and cfg.model.head.get('topk', False):
+            cfg.model.head.pop('topk')
+        
+        if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
             cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
 
         # Other hyper-parameters
@@ -196,12 +199,14 @@ class ClsStage(Stage):
                 # model configuration update
                 cfg.model.head.num_classes = len(dst_classes)
                 gamma = 2 if cfg['task_adapt'].get('efficient_mode', False) else 3
-                cfg.model.head.loss = ConfigDict(
-                    type='SoftmaxFocalLoss',
-                    loss_weight=1.0,
-                    gamma=gamma,
-                    reduction='none',
-                )
+                
+                if 'Multi' not in cfg.model.head.type:
+                    cfg.model.head.loss = ConfigDict(
+                        type='SoftmaxFocalLoss',
+                        loss_weight=1.0,
+                        gamma=gamma,
+                        reduction='none',
+                    )
                 # if op='REPLACE' & no new_classes (REMOVE), then sampler_flag = False
                 sampler_flag = True if len(train_data_cfg.new_classes) > 0 else False
 
