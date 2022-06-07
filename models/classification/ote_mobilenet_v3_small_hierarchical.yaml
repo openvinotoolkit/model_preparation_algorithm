@@ -1,0 +1,11 @@
+_base_: _base_/ote_mobilenet_v3.py
+
+model:
+    type: SAMImageClassifier
+    task: classification
+    head:
+        type: MultiLabelLinearClsHead
+        in_channels: 720
+        hid_channels: 1280
+        loss:
+            type: AsymmetricLoss

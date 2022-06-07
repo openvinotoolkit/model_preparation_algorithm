@@ -1,0 +1,11 @@
+_base_: _base_/ote_efficientnet.py
+
+model:
+    type: SAMImageClassifier
+    task: classification
+    backbone:
+        version: b0
+    head:
+        type: MultiLabelLinearClsHead  # TODO: change to MultiTaskHead
+        loss:
+            type: AsymmetricLoss
