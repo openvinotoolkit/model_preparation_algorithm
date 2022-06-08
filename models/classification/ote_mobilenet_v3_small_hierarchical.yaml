@@ -4,7 +4,7 @@ model:
     type: SAMImageClassifier
     task: classification
     head:
-        type: MultiLabelLinearClsHead
+        type: MultiLabelLinearClsHead  # TODO: support hierarchical classification
         in_channels: 720
         hid_channels: 1280
         loss:

@@ -6,6 +6,6 @@ model:
     backbone:
         version: s_21k
     head:
-        type: MultiLabelLinearClsHead  # TODO: change to MultiTaskHead
+        type: MultiLabelLinearClsHead  # TODO: support hierarchical classification
         loss:
             type: AsymmetricLoss

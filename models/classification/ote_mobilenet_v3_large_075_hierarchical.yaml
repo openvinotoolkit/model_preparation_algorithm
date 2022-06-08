@@ -7,7 +7,7 @@ model:
         mode: large
         width_mult: 0.75
     head:
-        type: MultiLabelLinearClsHead
+        type: MultiLabelLinearClsHead  # TODO: support hierarchical classification
         in_channels: 720
         hid_channels: 1280
         loss:
