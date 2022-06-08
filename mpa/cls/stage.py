@@ -76,7 +76,7 @@ class ClsStage(Stage):
 
         if 'Multi' in cfg.model.head.get('type', False) and cfg.model.head.get('topk', False):
             cfg.model.head.pop('topk')
-        
+
         if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
             cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
 
@@ -199,7 +199,7 @@ class ClsStage(Stage):
                 # model configuration update
                 cfg.model.head.num_classes = len(dst_classes)
                 gamma = 2 if cfg['task_adapt'].get('efficient_mode', False) else 3
-                
+
                 if 'Multi' not in cfg.model.head.type:
                     cfg.model.head.loss = ConfigDict(
                         type='SoftmaxFocalLoss',
