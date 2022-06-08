@@ -111,6 +111,7 @@ class SegTrainer(SegStage):
         # Save config
         # cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
+        print(cfg.lr_config)
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
