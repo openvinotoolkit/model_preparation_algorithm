@@ -12,4 +12,6 @@ from . import custom_vfnet_head
 from . import custom_atss_head
 from . import custom_retina_head
 from . import custom_ssd_head
+from . import custom_fcn_head
+from . import custom_ocr_head
 from . import cross_dataset_detector_head
