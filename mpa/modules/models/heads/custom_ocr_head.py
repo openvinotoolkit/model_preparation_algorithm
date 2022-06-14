@@ -9,15 +9,13 @@ from mmseg.models.builder import HEADS
 from mmseg.models.losses import accuracy
 from mmseg.models.decode_heads.ocr_head import OCRHead
 from mmseg.core import add_prefix
-from mpa.modules.utils.mask_utils import get_ignored_labels_per_batch
+from mpa.modules.utils.mask_utils import get_valid_labels_per_batch
+
 
 @HEADS.register_module()
 class CustomOCRHead(OCRHead):
     """Custom Object-Contextual Representations for Semantic Segmentation.
     """
-
-    def __init__(self, **kwargs):
-        super(CustomOCRHead, self).__init__(**kwargs)
 
     def forward_train(self, inputs, prev_output, img_metas, gt_semantic_seg, train_cfg, pixel_weights=None):
         """Forward function for training.
@@ -27,7 +25,7 @@ class CustomOCRHead(OCRHead):
             img_metas (list[dict]): List of image info dict where each dict
                 has: 'img_shape', 'scale_factor', 'flip', and may also contain
                 'filename', 'ori_shape', 'pad_shape', 'img_norm_cfg',
-                and 'ignored_labels'.
+                and 'valid_labels'.
                 For details on the values of these keys see
                 `mmseg/datasets/pipelines/formatting.py:Collect`.
             gt_semantic_seg (Tensor): Semantic segmentation masks
@@ -39,8 +37,8 @@ class CustomOCRHead(OCRHead):
             dict[str, Tensor]: a dictionary of loss components
         """
         seg_logits = self.forward(inputs, prev_output)
-        ignored_labels = get_ignored_labels_per_batch(img_metas, self.num_classes)
-        losses = self.losses(seg_logits, gt_semantic_seg, ignored_labels, train_cfg, pixel_weights)
+        valid_labels = get_valid_labels_per_batch(img_metas, self.num_classes)
+        losses = self.losses(seg_logits, gt_semantic_seg, valid_labels, train_cfg, pixel_weights)
 
         return losses, seg_logits
 

@@ -37,7 +37,7 @@ class CrossEntropyLossWithIgnore(MPABasePixelLoss):
     def name(self):
         return 'ce_with_ignore'
 
-    def _calculate(self, cls_score, label, ignored_labels, scale):
+    def _calculate(self, cls_score, label, valid_labels, scale):
         if cls_score.shape[0] == 0:
             return torch.tensor(0.0)
 
@@ -46,8 +46,8 @@ class CrossEntropyLossWithIgnore(MPABasePixelLoss):
         probs_all = F.softmax(scale * cls_score, dim=1)
         losses_l = []
         for i in range(batch_size): 
-            probs_gathered = probs_all[i, ignored_labels[i] == 1]
-            probs_nomatch = probs_all[i, ignored_labels[i] == 0]
+            probs_gathered = probs_all[i, valid_labels[i] == 1]
+            probs_nomatch = probs_all[i, valid_labels[i] == 0]
             probs_gathered = torch.unsqueeze(probs_gathered, 0)
             probs_nomatch = torch.unsqueeze(probs_nomatch, 0)
 
