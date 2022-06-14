@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# import numpy as np
-# import os.path as osp
-from mmcv.parallel import MMDataParallel
+import torch
+from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 
-from mmdet.apis import single_gpu_test
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.models import build_detector
+from mmdet.parallel import MMDataCPU
 
 from mpa.registry import STAGES
 from .stage import DetectionStage
@@ -32,6 +31,7 @@ class DetectionInferrer(DetectionStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
+        eval = kwargs.get('eval', False)
         if mode not in self.mode:
             return {}
 
@@ -42,7 +42,7 @@ class DetectionInferrer(DetectionStage):
 
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
-        outputs = self.infer(cfg)
+        outputs = self.infer(cfg, eval=eval)
 
         # Save outputs
         # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
@@ -65,7 +65,7 @@ class DetectionInferrer(DetectionStage):
         print(json_dump)
         """
 
-    def infer(self, cfg):
+    def infer(self, cfg, dump_features=False, eval=False):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
@@ -128,27 +128,52 @@ class DetectionInferrer(DetectionStage):
         if cfg.get('load_from', None):
             load_checkpoint(model, cfg.load_from, map_location='cpu')
 
-        # Inference
-        model = MMDataParallel(model, device_ids=[0])
+        if torch.cuda.is_available():
+            eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
+                                        device_ids=cfg.gpu_ids)
+        else:
+            eval_model = MMDataCPU(model)
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         DetectionStage.set_inference_progress_callback(model, cfg)
 
-        detections = single_gpu_test(model, data_loader)
+        # detections = single_gpu_test(model, data_loader)
+        eval_predictions = []
+        feature_vectors = []
 
-        eval_cfg = cfg.evaluation.copy()
-        eval_cfg.pop('interval', None)
-        eval_cfg.pop('save_best', None)
+        def dump_features_hook(mod, inp, out):
+            with torch.no_grad():
+                feature_map = out[-1]
+                feature_vector = torch.nn.functional.adaptive_avg_pool2d(feature_map, (1, 1))
+                assert feature_vector.size(0) == 1
+            feature_vectors.append(feature_vector.view(-1).detach().cpu().numpy())
 
-        metric = dataset.evaluate(
-            detections,
-            logger='silent',
-            **eval_cfg
-        )[cfg.evaluation.metric]
+        def dummy_dump_features_hook(mod, inp, out):
+            feature_vectors.append(None)
+
+        hook = dump_features_hook if dump_features else dummy_dump_features_hook
+        # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
+        if is_module_wrapper(model):
+            model = model.module
+        with model.backbone.register_forward_hook(hook):
+            for data in data_loader:
+                with torch.no_grad():
+                    result = eval_model(return_loss=False, rescale=True, **data)
+                eval_predictions.extend(result)
+
+        for key in [
+                'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',
+                'rule', 'dynamic_intervals'
+        ]:
+            cfg.evaluation.pop(key, None)
+
+        metric = None
+        if eval:
+            metric = dataset.evaluate(eval_predictions, **cfg.evaluation)[cfg.evaluation.metric]
 
         outputs = dict(
             classes=target_classes,
-            detections=detections,
+            detections=eval_predictions,
             metric=metric,
         )
         return outputs
