@@ -169,7 +169,6 @@ class CustomVFNetHead(CrossDatasetDetectorHead, VFNetHead):
                     weight=label_weights,
                     avg_factor=num_pos_avg_per_gpu,
                     use_vfl=self.use_vfl,
-                    use_weight=self.use_atss,
                     ignored_masks=flatten_ignored_masks)
             else:
                 loss_cls = self.loss_cls(
