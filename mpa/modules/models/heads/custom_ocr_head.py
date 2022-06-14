@@ -9,7 +9,7 @@ from mmseg.models.builder import HEADS
 from mmseg.models.losses import accuracy
 from mmseg.models.decode_heads.ocr_head import OCRHead
 from mmseg.core import add_prefix
-from mpa.modules.utils.mask_utils import get_valid_labels_per_batch
+from mpa.modules.utils.seg_utils import get_valid_labels_per_batch
 
 
 @HEADS.register_module()
