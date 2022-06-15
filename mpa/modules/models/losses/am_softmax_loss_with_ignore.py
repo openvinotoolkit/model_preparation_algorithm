@@ -41,12 +41,12 @@ class AMSoftmaxLossWithIgnore(MPABasePixelLoss):
     def _one_hot_mask(target, num_classes):
         return F.one_hot(target.detach(), num_classes).permute(0, 3, 1, 2).bool()
 
-    def _calculate(self, cos_theta, target, valid_labels, scale):
+    def _calculate(self, cos_theta, target, valid_label_mask, scale):
         batch_size = target.shape[0]
         for i in range(batch_size):
-            nomatch = cos_theta[i, valid_labels[i] == 0]
+            nomatch = cos_theta[i, valid_label_mask[i] == 0]
             cos_theta[i, 0] += nomatch.sum(dim=0)
-            cos_theta[i, valid_labels[i] == 0] = 0
+            cos_theta[i, valid_label_mask[i] == 0] = 0
 
         if self.margin_type == 'cos':
             phi_theta = cos_theta - self.m

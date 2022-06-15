@@ -13,7 +13,7 @@ class MPABasePixelLoss(BasePixelLoss):
                  **kwargs):
         super(MPABasePixelLoss, self).__init__(**kwargs)
 
-    def _forward(self, output, labels, valid_labels, avg_factor=None, pixel_weights=None, reduction_override=None):
+    def _forward(self, output, labels, valid_label_mask, avg_factor=None, pixel_weights=None, reduction_override=None):
         assert reduction_override in (None, 'none', 'mean', 'sum')
         reduction = (reduction_override if reduction_override else self.reduction)
 
@@ -29,7 +29,7 @@ class MPABasePixelLoss(BasePixelLoss):
         valid_labels = torch.clamp(labels, 0, num_classes - 1)
         valid_mask = labels != self.ignore_index
 
-        losses, updated_output = self._calculate(output, _labels, valid_labels, self._last_scale)
+        losses, updated_output = self._calculate(output, _labels, valid_label_mask, self._last_scale)
 
         if self.with_regularization:
             self._last_reg_weight = self._reg_weight_scheduler(self.iter, self.epoch_size)

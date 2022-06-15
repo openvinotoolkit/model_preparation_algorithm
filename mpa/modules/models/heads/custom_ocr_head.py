@@ -9,7 +9,7 @@ from mmseg.models.builder import HEADS
 from mmseg.models.losses import accuracy
 from mmseg.models.decode_heads.ocr_head import OCRHead
 from mmseg.core import add_prefix
-from mpa.modules.utils.seg_utils import get_valid_labels_per_batch
+from mpa.modules.utils.seg_utils import get_valid_label_mask_per_batch
 
 
 @HEADS.register_module()
@@ -37,8 +37,8 @@ class CustomOCRHead(OCRHead):
             dict[str, Tensor]: a dictionary of loss components
         """
         seg_logits = self.forward(inputs, prev_output)
-        valid_labels = get_valid_labels_per_batch(img_metas, self.num_classes)
-        losses = self.losses(seg_logits, gt_semantic_seg, valid_labels, train_cfg, pixel_weights)
+        valid_label_mask = get_valid_label_mask_per_batch(img_metas, self.num_classes)
+        losses = self.losses(seg_logits, gt_semantic_seg, valid_label_mask, train_cfg, pixel_weights)
 
         return losses, seg_logits
 
