@@ -84,7 +84,7 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
             return None
 
         (anchor_list, labels_list, label_weights_list, bbox_targets_list,
-         bbox_weights_list, ignored_masks, num_total_pos, num_total_neg) = cls_reg_targets
+         bbox_weights_list, valid_label_mask, num_total_pos, num_total_neg) = cls_reg_targets
 
         num_total_samples = reduce_mean(
             torch.tensor(num_total_pos, dtype=torch.float,
@@ -101,7 +101,7 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
                 labels_list,
                 label_weights_list,
                 bbox_targets_list,
-                ignored_masks,
+                valid_label_mask,
                 num_total_samples=num_total_samples)
 
         bbox_avg_factor = sum(bbox_avg_factor)
@@ -115,7 +115,7 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
             loss_centerness=loss_centerness)
 
     def loss_single(self, anchors, cls_score, bbox_pred, centerness, labels,
-                    label_weights, bbox_targets, ignored_masks, num_total_samples):
+                    label_weights, bbox_targets, valid_label_mask, num_total_samples):
         """Compute loss of a single scale level.
 
         Args:
@@ -146,7 +146,7 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
         bbox_targets = bbox_targets.reshape(-1, 4)
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
-        ignored_masks = ignored_masks.reshape(-1, self.cls_out_channels)
+        valid_label_mask = valid_label_mask.reshape(-1, self.cls_out_channels)
 
         # FG cat_id: [0, num_classes -1], BG cat_id: num_classes
         bg_class_ind = self.num_classes
@@ -204,7 +204,7 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
         # classification loss
         if isinstance(self.loss_cls, CrossSigmoidFocalLoss):
             loss_cls = self.loss_cls(
-                cls_score, labels, label_weights, avg_factor=num_total_samples, ignored_masks=ignored_masks)
+                cls_score, labels, label_weights, avg_factor=num_total_samples, valid_label_mask=valid_label_mask)
         else:
             loss_cls = self.loss_cls(
                 cls_score, labels, label_weights, avg_factor=num_total_samples)

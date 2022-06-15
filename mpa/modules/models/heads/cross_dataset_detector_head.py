@@ -67,9 +67,9 @@ class CrossDatasetDetectorHead(BaseDenseHead):
         # split targets to a list w.r.t. multiple levels
         anchors_list = images_to_levels(all_anchors, num_level_anchors)
         labels_list = images_to_levels(all_labels, num_level_anchors)
-        ignored_masks = self.get_ignored_masks(img_metas=img_metas, all_labels=all_labels)
-        if len(ignored_masks) > 0:
-            ignored_masks = images_to_levels(ignored_masks, num_level_anchors)
+        valid_label_mask = self.get_valid_label_mask(img_metas=img_metas, all_labels=all_labels)
+        if len(valid_label_mask) > 0:
+            valid_label_mask = images_to_levels(valid_label_mask, num_level_anchors)
 
         label_weights_list = images_to_levels(all_label_weights,
                                               num_level_anchors)
@@ -78,7 +78,7 @@ class CrossDatasetDetectorHead(BaseDenseHead):
         bbox_weights_list = images_to_levels(all_bbox_weights,
                                              num_level_anchors)
         return (anchors_list, labels_list, label_weights_list,
-                bbox_targets_list, bbox_weights_list, ignored_masks,
+                bbox_targets_list, bbox_weights_list, valid_label_mask,
                 num_total_pos, num_total_neg)
 
     def get_fcos_targets(self, points, gt_bboxes_list, gt_labels_list, img_metas):
@@ -123,7 +123,7 @@ class CrossDatasetDetectorHead(BaseDenseHead):
             num_points_per_lvl=num_points)
 
         # split to per img, per level
-        ignored_masks = self.get_ignored_masks(img_metas=img_metas, all_labels=labels_list)
+        valid_label_mask = self.get_valid_label_mask(img_metas=img_metas, all_labels=labels_list)
         labels_list = [labels.split(num_points, 0) for labels in labels_list]
         bbox_targets_list = [
             bbox_targets.split(num_points, 0)
@@ -143,7 +143,7 @@ class CrossDatasetDetectorHead(BaseDenseHead):
             concat_lvl_bbox_targets.append(bbox_targets)
 
         label_weights, bbox_weights = None, None
-        return concat_lvl_labels, label_weights, concat_lvl_bbox_targets, bbox_weights, ignored_masks
+        return concat_lvl_labels, label_weights, concat_lvl_bbox_targets, bbox_weights, valid_label_mask
 
     def vfnet_to_atss_targets(self,
                               cls_scores,
@@ -197,7 +197,7 @@ class CrossDatasetDetectorHead(BaseDenseHead):
             return None
 
         (anchor_list, labels_list, label_weights_list, bbox_targets_list,
-         bbox_weights_list, ignored_masks, num_total_pos, num_total_neg) = cls_reg_targets
+         bbox_weights_list, valid_label_mask, num_total_pos, num_total_neg) = cls_reg_targets
 
         bbox_targets_list = [
             bbox_targets.reshape(-1, 4) for bbox_targets in bbox_targets_list
@@ -217,15 +217,15 @@ class CrossDatasetDetectorHead(BaseDenseHead):
         ]
         label_weights = torch.cat(label_weights_list)
         bbox_weights = torch.cat(bbox_weights_list)
-        return labels_list, label_weights, bbox_targets_list, bbox_weights, ignored_masks
+        return labels_list, label_weights, bbox_targets_list, bbox_weights, valid_label_mask
 
-    def get_ignored_masks(self, img_metas, all_labels):
-        ignored_masks = []
+    def get_valid_label_mask(self, img_metas, all_labels):
+        valid_label_mask = []
         for i, meta in enumerate(img_metas):
             mask = torch.Tensor([1 for _ in range(self.num_classes)])
             if 'ignored_labels' in meta and meta['ignored_labels']:
                 mask[meta['ignored_labels']] = 0
             mask = mask.repeat(len(all_labels[i]), 1)
             mask = mask.cuda() if torch.cuda.is_available() else mask
-            ignored_masks.append(mask)
-        return ignored_masks
+            valid_label_mask.append(mask)
+        return valid_label_mask

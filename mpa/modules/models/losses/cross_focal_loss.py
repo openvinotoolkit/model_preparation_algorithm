@@ -18,7 +18,7 @@ def cross_sigmoid_focal_loss(inputs,
                              reduction="mean",
                              avg_factor=None,
                              use_vfl=False,
-                             ignored_masks=None):
+                             valid_label_mask=None):
     """
     Arguments:
        - inputs: inputs Tensor (N * C)
@@ -31,10 +31,10 @@ def cross_sigmoid_focal_loss(inputs,
        - avg_factor: average factors
     """
     cross_mask = inputs.new_ones(inputs.shape, dtype=torch.int8)
-    if ignored_masks is not None:
+    if valid_label_mask is not None:
         neg_mask = targets.sum(axis=1) == 0 if use_vfl else targets == num_classes
         neg_idx = neg_mask.nonzero(as_tuple=True)[0]
-        cross_mask[neg_idx] = ignored_masks[neg_idx].type(torch.int8)
+        cross_mask[neg_idx] = valid_label_mask[neg_idx].type(torch.int8)
 
     if use_vfl:
         loss = varifocal_loss(inputs, targets,
@@ -89,7 +89,7 @@ class CrossSigmoidFocalLoss(nn.Module):
                 reduction_override=None,
                 avg_factor=None,
                 use_vfl=False,
-                ignored_masks=None,
+                valid_label_mask=None,
                 **kwargs):
         assert reduction_override in (None, 'none', 'mean', 'sum')
         reduction = (
@@ -104,6 +104,6 @@ class CrossSigmoidFocalLoss(nn.Module):
             reduction=reduction,
             avg_factor=avg_factor,
             use_vfl=use_vfl,
-            ignored_masks=ignored_masks
+            valid_label_mask=valid_label_mask
             )
         return loss_cls
