@@ -24,7 +24,7 @@ class CustomFCNHead(FCNHead):
             img_metas (list[dict]): List of image info dict where each dict
                 has: 'img_shape', 'scale_factor', 'flip', and may also contain
                 'filename', 'ori_shape', 'pad_shape', 'img_norm_cfg',
-                and 'valid_labels'.
+                and 'ignored_labels'.
                 For details on the values of these keys see
                 `mmseg/datasets/pipelines/formatting.py:Collect`.
             gt_semantic_seg (Tensor): Semantic segmentation masks
@@ -45,7 +45,7 @@ class CustomFCNHead(FCNHead):
             return losses, seg_logits
 
     @force_fp32(apply_to=('seg_logit', ))
-    def losses(self, seg_logit, seg_label, ignored_masks, train_cfg, pixel_weights=None):
+    def losses(self, seg_logit, seg_label, valid_label_mask, train_cfg, pixel_weights=None):
         """Compute segmentation loss."""
 
         loss = dict()
@@ -63,7 +63,7 @@ class CustomFCNHead(FCNHead):
             loss_value, loss_meta = loss_module(
                 seg_logit,
                 seg_label,
-                ignored_masks,
+                valid_label_mask,
                 pixel_weights=pixel_weights
             )
 
