@@ -87,8 +87,6 @@ class SegStage(Stage):
     def configure_cross_entropy_loss_with_ignore(self, model_classes):
         cfg_loss_decode = ConfigDict(
             type='CrossEntropyLossWithIgnore',
-            model_classes=model_classes,
-            bg_aware=True,
             reduction='mean',
             loss_jitter_prob=0.01,
             sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
@@ -99,8 +97,6 @@ class SegStage(Stage):
     def configure_am_softmax_loss_with_ignore(self, model_classes):
         cfg_loss_decode = ConfigDict(
             type='AMSoftmaxLossWithIgnore',
-            model_classes=model_classes,
-            bg_aware=True,
             scale_cfg=ConfigDict(
                 type='PolyScalarScheduler',
                 start_scale=30,
@@ -142,14 +138,18 @@ class SegStage(Stage):
                 decode_head = cfg.model.decode_head
                 if isinstance(decode_head, dict):
                     if decode_head.type == 'FCNHead':
+                        decode_head.type = 'CustomFCNHead'
                         decode_head.loss_decode = self.configure_cross_entropy_loss_with_ignore(model_classes)
                     elif decode_head.type == 'OCRHead':
+                        decode_head.type = 'CustomOCRHead'
                         decode_head.loss_decode = self.configure_am_softmax_loss_with_ignore(model_classes)
                 elif isinstance(decode_head, list):
                     for head in decode_head:
                         if head.type == 'FCNHead':
+                            head.type = 'CustomFCNHead'
                             head.loss_decode = [self.configure_cross_entropy_loss_with_ignore(model_classes)]
                         elif head.type == 'OCRHead':
+                            head.type = 'CustomOCRHead'
                             head.loss_decode = [self.configure_am_softmax_loss_with_ignore(model_classes)]
 
         # Dataset
