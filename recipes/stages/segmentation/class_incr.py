@@ -55,7 +55,8 @@ evaluation = dict(
     show_log=True
 )
 
-seed = 42
+seed = 46
+deterministic= True
 
 task_adapt = dict(
     type='mpa',

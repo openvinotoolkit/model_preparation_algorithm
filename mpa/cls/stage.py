@@ -1,7 +1,3 @@
-# Copyright (C) 2022 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
-
 import copy
 import torch
 import numpy as np
@@ -150,8 +146,7 @@ class ClsStage(Stage):
             model_meta['CLASSES'] = data_classes
 
         if not train_data_cfg.get('new_classes', False):  # when train_data_cfg doesn't have 'new_classes' key
-            new_classes = np.setdiff1d(data_classes, model_classes).tolist()
-            train_data_cfg['new_classes'] = new_classes
+            train_data_cfg['new_classes'] = data_classes
 
         if training:
             # if Trainer to Stage configure, training = True
@@ -195,7 +190,7 @@ class ClsStage(Stage):
 
                 # model configuration update
                 cfg.model.head.num_classes = len(dst_classes)
-                gamma = 2 if cfg['task_adapt'].get('efficient_mode', False) else 3
+                gamma = 2 if cfg['task_adapt'].get('efficient_mode', True) else 3
                 cfg.model.head.loss = ConfigDict(
                     type='SoftmaxFocalLoss',
                     loss_weight=1.0,
@@ -211,8 +206,9 @@ class ClsStage(Stage):
                     src_classes=old_classes,
                     dst_classes=dst_classes,
                     model_type=cfg.model.type,
-                    sampler_flag=sampler_flag,
-                    efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
+                    sampler_flag=cfg['task_adapt'].get('sampler_flag', True),
+                    sampler_type=cfg['task_adapt'].get('sampler_type', 'balanced'),
+                    efficient_mode=cfg['task_adapt'].get('efficient_mode', True)
                 )
                 update_or_add_custom_hook(cfg, task_adapt_hook)
 

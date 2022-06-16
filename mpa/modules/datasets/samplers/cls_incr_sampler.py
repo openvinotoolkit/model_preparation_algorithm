@@ -4,7 +4,9 @@
 
 import numpy as np
 from torch.utils.data.sampler import Sampler
+from mpa.utils.logger import get_logger
 
+logger = get_logger()
 
 class ClsIncrSampler(Sampler):
     """Sampler for Class-Incremental Task
@@ -20,6 +22,7 @@ class ClsIncrSampler(Sampler):
         efficient_mode (bool): Flag about using efficient mode
     """
     def __init__(self, dataset, samples_per_gpu, efficient_mode=False):
+        logger.info("THIS IS CLS_INCR_SAMPLER\n\n")
         self.samples_per_gpu = samples_per_gpu
         self.repeat = 1
         if hasattr(dataset, 'times'):
@@ -60,6 +63,8 @@ class ClsIncrSampler(Sampler):
         indices = np.concatenate(
             [indices, np.random.choice(indices, num_extra)])
         indices = indices.astype(np.int64).tolist()
+
+        logger.info(f'indices len is {len(indices)}')
         return iter(indices)
 
     def __len__(self):

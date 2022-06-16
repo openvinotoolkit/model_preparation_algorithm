@@ -183,7 +183,8 @@ class SegStage(Stage):
             src_classes=org_model_classes,
             dst_classes=model_classes,
             model_type=cfg.model.type,
-            sampler_flag=has_new_class,
+            sampler_flag=cfg['task_adapt'].get('sampler_flag', True),
+            sampler_type=cfg['task_adapt'].get('sampler_type', 'cls_incr'),
             efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
         )
         update_or_add_custom_hook(cfg, task_adapt_hook)

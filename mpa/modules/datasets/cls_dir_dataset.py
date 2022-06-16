@@ -1,7 +1,3 @@
-# Copyright (C) 2022 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
-
 import os
 import copy
 import numpy as np
@@ -71,10 +67,9 @@ class ClsDirDataset(BaseDataset):
         logger.info(f'- Classes: {self.CLASSES}')
         if self.new_classes:
             logger.info(f'- New Classes: {self.new_classes}')
-            old_data_length = len(self.img_indices['old'])
-            new_data_length = len(self.img_indices['new'])
-            logger.info(f'- # of old classes images: {old_data_length}')
-            logger.info(f'- # of New classes images: {new_data_length}')
+        for k in self.img_indices.keys():
+            cls_data_length = len(self.img_indices[k])
+            logger.info(f'- # of {k} images: {cls_data_length}')
         logger.info(f'- # of images: {len(self)}')
 
     def _read_dir(self):
@@ -111,6 +106,7 @@ class ClsDirDataset(BaseDataset):
     def load_annotations(self):
         img_path_list, img_class_list, img_prefix_list = self._read_dir()
         data_infos = []
+        self.img_indices = {cls_name: list() for cls_name in self.CLASSES}
         for i, (img_path, img_cls, img_prefix) in enumerate(zip(img_path_list, img_class_list, img_prefix_list)):
             if self.use_labels:
                 gt_label = np.array(self.class_to_idx[img_cls])
@@ -118,10 +114,7 @@ class ClsDirDataset(BaseDataset):
                 gt_label = np.array([-1])
             info = {'img_prefix': img_prefix, 'img_info': {'filename': img_path}, 'gt_label': gt_label}
             data_infos.append(info)
-            if img_cls in self.new_classes:
-                self.img_indices['new'].append(i)
-            else:
-                self.img_indices['old'].append(i)
+            self.img_indices[img_cls].append(i)
         return data_infos
 
     def get_classes_from_dir(self, root):
