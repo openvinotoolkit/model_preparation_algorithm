@@ -11,8 +11,8 @@ import torch
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import build_optimizer, build_runner
 
-# from mmseg.core import DistEvalHook, EvalHook
-from mmdet.core import DistEvalHook, EvalHook
+from mmseg.core import DistEvalHook, EvalHook
+# from mmdet.core import DistEvalHook, EvalHook
 # from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_params_manager
 from mmseg.datasets import build_dataloader
