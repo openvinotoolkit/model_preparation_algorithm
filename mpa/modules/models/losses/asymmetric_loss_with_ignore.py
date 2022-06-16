@@ -9,7 +9,7 @@ from mmcls.models.builder import LOSSES
 from mmcls.models.losses.utils import weight_reduce_loss
 
 
-def asymmetric_loss(pred,
+def asymmetric_loss_with_ignore(pred,
                     target,
                     valid_label_mask=None,
                     weight=None,
@@ -54,7 +54,7 @@ def asymmetric_loss(pred,
     asymmetric_weight = (1 - pt).pow(gamma_pos * target + gamma_neg *
                                      (1 - target))
     loss = -torch.log(pt.clamp(min=eps)) * asymmetric_weight
-    
+
     if valid_label_mask is not None:
         loss = loss * valid_label_mask
 
@@ -106,7 +106,7 @@ class AsymmetricLossWithIgnore(nn.Module):
         assert reduction_override in (None, 'none', 'mean', 'sum')
         reduction = (
             reduction_override if reduction_override else self.reduction)
-        loss_cls = self.loss_weight * asymmetric_loss(
+        loss_cls = self.loss_weight * asymmetric_loss_with_ignore(
             pred,
             target,
             valid_label_mask,
