@@ -54,11 +54,9 @@ def asymmetric_loss(pred,
     asymmetric_weight = (1 - pt).pow(gamma_pos * target + gamma_neg *
                                      (1 - target))
     loss = -torch.log(pt.clamp(min=eps)) * asymmetric_weight
-    before = loss.mean()
+    
     if valid_label_mask is not None:
         loss = loss * valid_label_mask
-    after = loss.mean()
-    print(f'before: {before*1000} | after: {after*1000}')
 
     if weight is not None:
         assert weight.dim() == 1
