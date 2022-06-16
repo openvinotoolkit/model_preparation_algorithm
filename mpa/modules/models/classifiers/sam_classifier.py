@@ -77,7 +77,7 @@ class SAMImageClassifier(ImageClassifier):
 
         losses = dict()
 
-        if kwargs.get('img_metas', False):
+        if kwargs.get('img_metas', False) and 'ignored_labels' in kwargs['img_metas'][-1]:
             loss = self.head.forward_train(x, gt_label, **kwargs)
         else:
             loss = self.head.forward_train(x, gt_label)

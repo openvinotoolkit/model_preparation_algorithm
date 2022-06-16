@@ -8,5 +8,3 @@ model:
         width_mult: 0.75
     head:
         in_channels: 720
-        hid_channels: 1280
-
