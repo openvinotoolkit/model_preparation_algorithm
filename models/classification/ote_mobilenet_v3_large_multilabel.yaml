@@ -6,8 +6,8 @@ model:
     backbone:
         mode: large
     head:
-        type: MultiLabelLinearClsHead
-        in_channels: 720
+        type: MultiLabelNonLinearClsHead
+        in_channels: 960
         hid_channels: 1280
         loss:
             type: AsymmetricLoss
