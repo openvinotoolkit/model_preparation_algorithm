@@ -26,4 +26,3 @@ stages:
     task: classification
     mode: eval
     config: {{ fileDirname }}/stages/classification/class_incr.yaml
-    

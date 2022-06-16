@@ -263,7 +263,6 @@ class DetectionStage(Stage):
                 ConfigDict(
                     type='TaskAdaptHook',
                     sampler_flag=True,
-                    sampler_type=cfg['task_adapt'].get('sampler_type', 'balanced'),
                     efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
                 )
             )
