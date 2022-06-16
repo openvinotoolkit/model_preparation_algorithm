@@ -55,7 +55,7 @@ class CustomVFNetHead(CrossDatasetDetectorHead, VFNetHead):
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         all_level_points = self.get_points(featmap_sizes, bbox_preds[0].dtype,
                                            bbox_preds[0].device)
-        labels, label_weights, bbox_targets, bbox_weights = self.get_targets(
+        labels, label_weights, bbox_targets, bbox_weights, valid_label_mask = self.get_targets(
             cls_scores, all_level_points, gt_bboxes, gt_labels, img_metas,
             gt_bboxes_ignore)
 
@@ -80,6 +80,12 @@ class CustomVFNetHead(CrossDatasetDetectorHead, VFNetHead):
         flatten_bbox_preds_refine = torch.cat(flatten_bbox_preds_refine)
         flatten_labels = torch.cat(labels)
         flatten_bbox_targets = torch.cat(bbox_targets)
+
+        valid_label_mask = [
+            valid_mask.reshape(-1, self.cls_out_channels).contiguous()
+            for valid_mask in valid_label_mask
+        ]
+        flatten_valid_label_mask = torch.cat(valid_label_mask)
         # repeat points to align with bbox_preds
         flatten_points = torch.cat(
             [points.repeat(num_imgs, 1) for points in all_level_points])
@@ -154,19 +160,21 @@ class CustomVFNetHead(CrossDatasetDetectorHead, VFNetHead):
             label_weights[neg_indices] = self.bg_loss_weight
 
         if self.use_vfl:
+            if label_weights is not None:
+                label_weights = label_weights.unsqueeze(-1)
             if isinstance(self.loss_cls, CrossSigmoidFocalLoss):
                 loss_cls = self.loss_cls(
                     flatten_cls_scores,
                     cls_iou_targets,
-                    weight=label_weights.unsqueeze(-1),
+                    weight=label_weights,
                     avg_factor=num_pos_avg_per_gpu,
                     use_vfl=self.use_vfl,
-                    use_weight=self.use_atss)
+                    valid_label_mask=flatten_valid_label_mask)
             else:
                 loss_cls = self.loss_cls(
                     flatten_cls_scores,
                     cls_iou_targets,
-                    weight=label_weights.unsqueeze(-1),
+                    weight=label_weights,
                     avg_factor=num_pos_avg_per_gpu)
         else:
             loss_cls = self.loss_cls(
@@ -213,4 +221,4 @@ class CustomVFNetHead(CrossDatasetDetectorHead, VFNetHead):
                                               gt_bboxes_ignore)
         else:
             self.norm_on_bbox = False
-            return self.get_fcos_targets(mlvl_points, gt_bboxes, gt_labels)
+            return self.get_fcos_targets(mlvl_points, gt_bboxes, gt_labels, img_metas)
