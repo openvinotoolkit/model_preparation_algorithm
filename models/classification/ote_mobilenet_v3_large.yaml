@@ -7,3 +7,4 @@ model:
         mode: large
     head:
         in_channels: 960
+        hid_channels: 1280

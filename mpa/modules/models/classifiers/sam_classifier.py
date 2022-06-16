@@ -33,6 +33,7 @@ class SAMImageClassifier(ImageClassifier):
         super().__init__(**kwargs)
         self.is_export = False
         self.featuremap = None
+        self.multilabel = True if 'MultiLabel' in type(self.head).__name__ else False
         # Hooks for redirect state_dict load/save
         self._register_state_dict_hook(self.state_dict_hook)
         self._register_load_state_dict_pre_hook(
@@ -96,14 +97,26 @@ class SAMImageClassifier(ImageClassifier):
 
         output = OrderedDict()
         if backbone_type == 'OTEMobileNetV3':
-            for k, v in state_dict.items():
-                if k.startswith('backbone'):
-                    k = k.replace('backbone.', '')
-                elif k.startswith('head'):
-                    k = k.replace('head.', '')
-                    if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
-                        k = k.replace('3', '4')
-                output[k] = v
+            if module.multilabel:
+                for k, v in state_dict.items():
+                    if k.startswith('backbone.'):
+                        k = k.replace('backbone.', '')
+                    elif k.startswith('head'):
+                        k = k.replace('head.', '')
+                        if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
+                            k = k.replace('3', '4')
+                            if '4.weight' in k:
+                                v = v.t()
+                    output[k] = v
+            else:
+                for k, v in state_dict.items():
+                    if k.startswith('backbone'):
+                        k = k.replace('backbone.', '')
+                    elif k.startswith('head'):
+                        k = k.replace('head.', '')
+                        if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
+                            k = k.replace('3', '4')
+                    output[k] = v
 
         elif backbone_type == 'OTEEfficientNet':
             for k, v in state_dict.items():
@@ -111,6 +124,9 @@ class SAMImageClassifier(ImageClassifier):
                     k = k.replace('backbone.', '')
                 elif k.startswith('head'):
                     k = k.replace('head', 'output')
+                    if module.multilabel:
+                        k = k.replace('fc', 'asl')
+                        v = v.t()
                 output[k] = v
 
         elif backbone_type == 'OTEEfficientNetV2':
@@ -134,13 +150,24 @@ class SAMImageClassifier(ImageClassifier):
             return
 
         if backbone_type == 'OTEMobileNetV3':
-            for k in list(state_dict.keys()):
-                v = state_dict.pop(k)
-                if k.startswith('classifier.'):
-                    k = 'head.'+k.replace('4', '3') if '4' in k else 'head.'+k
-                elif not k.startswith('backbone.'):
-                    k = 'backbone.'+k
-                state_dict[k] = v
+            if module.multilabel:
+                for k in list(state_dict.keys()):
+                    v = state_dict.pop(k)
+                    if k.startswith('classifier.'):
+                        k = 'head.'+k.replace('4', '3') if '4' in k else 'head.'+k
+                        if '3.weight' in k:
+                            v = v.t()
+                    else:
+                        k = 'backbone.'+k
+                    state_dict[k] = v
+            else:
+                for k in list(state_dict.keys()):
+                    v = state_dict.pop(k)
+                    if k.startswith('classifier.'):
+                        k = 'head.'+k.replace('4', '3') if '4' in k else 'head.'+k
+                    elif not k.startswith('backbone.'):
+                        k = 'backbone.'+k
+                    state_dict[k] = v
 
         elif backbone_type == 'OTEEfficientNet':
             for k in list(state_dict.keys()):
@@ -149,6 +176,9 @@ class SAMImageClassifier(ImageClassifier):
                     k = 'backbone.'+k
                 elif k.startswith('output.'):
                     k = k.replace('output', 'head')
+                    if module.multilabel:
+                        k = k.replace('asl', 'fc')
+                        v = v.t()
                 state_dict[k] = v
 
         elif backbone_type == 'OTEEfficientNetV2':
@@ -179,16 +209,19 @@ class SAMImageClassifier(ImageClassifier):
         model_dict = model.state_dict()
 
         if backbone_type == 'OTEMobileNetV3':
-            param_names = [
-                'classifier.4.weight',
-                'classifier.4.bias',
-            ]
+            if model.multilabel:
+                param_names = ['classifier.4.weight']
+            else:
+                param_names = ['classifier.4.weight', 'classifier.4.bias']
+
         elif backbone_type == 'OTEEfficientNet':
-            param_names = [
-                'output.fc.weight',
-            ]
+            if model.multilabel:
+                param_names = ['output.asl.weight']
+            else:
+                param_names = ['output.fc.weight']
             if 'head.fc.bias' in chkpt_dict.keys():
                 param_names.append('output.fc.bias')
+
         elif backbone_type == 'OTEEfficientNetV2':
             param_names = [
                 'model.classifier.weight',
@@ -199,9 +232,18 @@ class SAMImageClassifier(ImageClassifier):
         for model_name in param_names:
             model_param = model_dict[model_name].clone()
             if backbone_type == 'OTEMobileNetV3':
-                chkpt_name = 'head.'+model_name.replace('4', '3')
+                if model.multilabel:
+                    chkpt_name = 'head.'+model_name.replace('4', '3')
+                    model_param = model_param.t()
+                else:
+                    chkpt_name = 'head.'+model_name.replace('4', '3')
             elif backbone_type in 'OTEEfficientNet':
-                chkpt_name = model_name.replace('output', 'head')
+                if model.multilabel:
+                    chkpt_name = model_name.replace('output.asl.', 'head.fc.')
+                    model_param = model_param.t()
+                else:
+                    chkpt_name = model_name.replace('output', 'head')
+
             elif backbone_type in 'OTEEfficientNetV2':
                 if model_name.endswith('bias'):
                     chkpt_name = model_name

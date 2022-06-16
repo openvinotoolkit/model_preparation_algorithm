@@ -28,7 +28,9 @@ import mpa.modules.models.backbones.wideresnet
 import mpa.modules.models.classifiers
 import mpa.modules.models.heads.cls_incremental_head
 import mpa.modules.models.heads.multi_classifier_head
+import mpa.modules.models.heads.non_linear_cls_head
 import mpa.modules.models.heads.custom_multi_label_linear_cls_head
+import mpa.modules.models.heads.custom_multi_label_non_linear_cls_head
 import mpa.modules.models.heads.semisl_cls_head
 import mpa.modules.models.heads.task_incremental_classifier_head
 import mpa.modules.models.losses.class_balanced_losses
