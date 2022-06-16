@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import copy
 import torch
 import numpy as np
@@ -146,7 +150,8 @@ class ClsStage(Stage):
             model_meta['CLASSES'] = data_classes
 
         if not train_data_cfg.get('new_classes', False):  # when train_data_cfg doesn't have 'new_classes' key
-            train_data_cfg['new_classes'] = data_classes
+            new_classes = np.setdiff1d(data_classes, model_classes).tolist()
+            train_data_cfg['new_classes'] = new_classes
 
         if training:
             # if Trainer to Stage configure, training = True
@@ -206,7 +211,7 @@ class ClsStage(Stage):
                     src_classes=old_classes,
                     dst_classes=dst_classes,
                     model_type=cfg.model.type,
-                    sampler_flag=cfg['task_adapt'].get('sampler_flag', True),
+                    sampler_flag=sampler_flag,
                     sampler_type=cfg['task_adapt'].get('sampler_type', 'balanced'),
                     efficient_mode=cfg['task_adapt'].get('efficient_mode', True)
                 )

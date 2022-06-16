@@ -16,10 +16,9 @@ class BalancedSampler(Sampler):
     Args:
         dataset (Dataset): A built-up dataset
         samples_per_gpu (int): batch size of Sampling
-        reduce (bool): Flag about using efficient mode
+        efficient_mode (bool): Flag about using efficient mode
     """
-    def __init__(self, dataset, batch_size, reduce=True):
-        logger.info("THIS IS BALANCED\n\n")
+    def __init__(self, dataset, batch_size, efficient_mode=True):
         self.batch_size = batch_size
         self.repeat = 1
         if hasattr(dataset, 'times'):
@@ -29,21 +28,18 @@ class BalancedSampler(Sampler):
         else:
             self.dataset = dataset
         self.img_indices = self.dataset.img_indices
-        #self.num_cls = self.dataset.num_classes
         self.num_cls = len(self.img_indices.keys())
-        logger.info(f"Img_indices key status : {self.img_indices.keys()}")
         self.data_length = len(self.dataset)
 
-        if reduce:
+        if efficient_mode:
             # Reduce the # of sampling (sampling data for a single epoch)
             self.num_tail = min([len(cls_indices) for cls_indices in self.img_indices.values()])
             base = 1 - (1/self.num_tail)
-            logger.info(self.num_tail)
-            logger.info(base)
+            if base == 0:
+                raise ValueError('Required more than one sample per class')
             self.num_trials = int(math.log(0.001, base))
             if int(self.data_length / self.num_cls) < self.num_trials:
                 self.num_trials = int(self.data_length / self.num_cls)
-                logger.info(f'Computed trial exceeds data_length!')
         else:
             self.num_trials = int(self.data_length / self.num_cls)
         self.compute_sampler_length()
@@ -61,9 +57,7 @@ class BalancedSampler(Sampler):
                 indices.append(indice)
 
         indices = np.concatenate(indices)
-
         indices = indices.astype(np.int64).tolist()
-        logger.info(f'indices len is {len(indices)}')
 
         return iter(indices)
 

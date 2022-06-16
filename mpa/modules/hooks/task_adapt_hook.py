@@ -1,5 +1,10 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 from mmcv.runner import HOOKS, Hook
 from torch.utils.data import DataLoader
+
 from mpa.modules.datasets.samplers.cls_incr_sampler import ClsIncrSampler
 from mpa.modules.datasets.samplers.balanced_sampler import BalancedSampler
 from mpa.utils.logger import get_logger
@@ -24,7 +29,7 @@ class TaskAdaptHook(Hook):
                  dst_classes,
                  model_type='FasterRCNN',
                  sampler_flag=False,
-                 sampler_type='cls_incr',
+                 sampler_type='balanced',
                  efficient_mode=False):
         self.src_classes = src_classes
         self.dst_classes = dst_classes
@@ -46,12 +51,8 @@ class TaskAdaptHook(Hook):
             collate_fn = runner.data_loader.collate_fn
             worker_init_fn = runner.data_loader.worker_init_fn
 
-            #for exp
-            #self.efficient_mode = True
-            #self.sampler_type = 'balanced'
-
             if self.sampler_type == 'balanced':
-                sampler = BalancedSampler(dataset, batch_size, reduce=self.efficient_mode)
+                sampler = BalancedSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
             else:
                 sampler = ClsIncrSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
             runner.data_loader = DataLoader(
