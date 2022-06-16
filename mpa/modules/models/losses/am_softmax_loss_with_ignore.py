@@ -9,7 +9,6 @@ import torch.nn.functional as F
 from mmseg.core import build_classification_loss, focal_loss
 from mmseg.models.builder import LOSSES
 from .mpa_pixel_base import MPABasePixelLoss
-from mpa.modules.utils.task_adapt import map_class_names
 
 
 @LOSSES.register_module()
@@ -17,7 +16,7 @@ class AMSoftmaxLossWithIgnore(MPABasePixelLoss):
     """Computes the AM-Softmax loss with cos or arc margin"""
     margin_types = ['cos', 'arc']
 
-    def __init__(self, model_classes, bg_aware=True, margin_type='cos',
+    def __init__(self, margin_type='cos',
                  margin=0.5, gamma=0.0, t=1.0, target_loss='ce', **kwargs):
         super(AMSoftmaxLossWithIgnore, self).__init__(**kwargs)
 
@@ -32,12 +31,7 @@ class AMSoftmaxLossWithIgnore(MPABasePixelLoss):
         self.th = np.cos(np.pi - self.m)
         assert t >= 1
         self.t = t
-        self.model_classes = model_classes.copy()
-        self.bg_aware = bg_aware
         self.target_loss = build_classification_loss(target_loss)
-        if bg_aware:
-            model_classes_without_bg = [c for c in self.model_classes if c != 'background']
-            self.model_classes = ['background'] + model_classes_without_bg
 
     @property
     def name(self):
@@ -47,22 +41,12 @@ class AMSoftmaxLossWithIgnore(MPABasePixelLoss):
     def _one_hot_mask(target, num_classes):
         return F.one_hot(target.detach(), num_classes).permute(0, 3, 1, 2).bool()
 
-    def _calculate(self, cos_theta, target, scale):
-        model2data_batch = []
+    def _calculate(self, cos_theta, target, valid_label_mask, scale):
         batch_size = target.shape[0]
         for i in range(batch_size):
-            gt = np.unique(target[i])
-            label_schema = []
-            for idx in gt:
-                label_schema.append(self.model_classes[idx])
-            model2data = map_class_names(self.model_classes, label_schema)
-            model2data_batch.append(model2data)
-        model2data = torch.tensor(model2data_batch)
-
-        for i in range(batch_size):
-            nomatch = cos_theta[i, model2data[i] < 0]
+            nomatch = cos_theta[i, valid_label_mask[i] == 0]
             cos_theta[i, 0] += nomatch.sum(dim=0)
-            cos_theta[i, model2data[i] < 0] = 0
+            cos_theta[i, valid_label_mask[i] == 0] = 0
 
         if self.margin_type == 'cos':
             phi_theta = cos_theta - self.m
