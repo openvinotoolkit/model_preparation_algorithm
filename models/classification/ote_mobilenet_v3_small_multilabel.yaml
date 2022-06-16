@@ -4,9 +4,8 @@ model:
     type: SAMImageClassifier
     task: classification
     head:
-        type: MultiLabelNonLinearClsHead
+        type: CustomMultiLabelLinearClsHead
         in_channels: 576
-        hid_channels: 1024
         loss:
-            type: AsymmetricLoss
+            type: AsymmetricLossWithIgnore
 

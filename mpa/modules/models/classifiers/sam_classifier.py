@@ -55,6 +55,37 @@ class SAMImageClassifier(ImageClassifier):
 
         return super().train_step(data, optimizer)
 
+    def forward_train(self, img, gt_label, **kwargs):
+        """Forward computation during training.
+
+        Args:
+            img (Tensor): of shape (N, C, H, W) encoding input images.
+                Typically these should be mean centered and std scaled.
+
+            gt_label (Tensor): It should be of shape (N, 1) encoding the
+                ground-truth label of input images for single label task. It
+                shoulf be of shape (N, C) encoding the ground-truth label
+                of input images for multi-labels task.
+
+        Returns:
+            dict[str, Tensor]: a dictionary of loss components
+        """
+        if self.mixup is not None:
+            img, gt_label = self.mixup(img, gt_label)
+
+        x = self.extract_feat(img)
+
+        losses = dict()
+
+        if kwargs.get('img_metas', False):
+            loss = self.head.forward_train(x, gt_label, **kwargs)
+        else:
+            loss = self.head.forward_train(x, gt_label)
+        
+        losses.update(loss)
+
+        return losses
+
     @staticmethod
     def state_dict_hook(module, state_dict, *args, **kwargs):
         """Redirect model as output state_dict for OTE model compatibility

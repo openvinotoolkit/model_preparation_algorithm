@@ -6,6 +6,6 @@ model:
     backbone:
         version: s_21k
     head:
-        type: MultiLabelLinearClsHead
+        type: CustomMultiLabelLinearClsHead
         loss:
-            type: AsymmetricLoss
+            type: AsymmetricLossWithIgnore

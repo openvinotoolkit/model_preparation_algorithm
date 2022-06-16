@@ -7,8 +7,7 @@ model:
         mode: large
         width_mult: 0.75
     head:
-        type: MultiLabelNonLinearClsHead
+        type: CustomMultiLabelLinearClsHead
         in_channels: 720
-        hid_channels: 1280
         loss:
-            type: AsymmetricLoss
+            type: AsymmetricLossWithIgnore
