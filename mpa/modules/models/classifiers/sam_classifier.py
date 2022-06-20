@@ -104,7 +104,7 @@ class SAMImageClassifier(ImageClassifier):
                     k = k.replace('head.', '')
                     if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
                         k = k.replace('3', '4')
-                        if module.multilabel:
+                        if module.multilabel and not module.is_export:
                             v = v.t()
                 output[k] = v
 
@@ -114,7 +114,7 @@ class SAMImageClassifier(ImageClassifier):
                     k = k.replace('backbone.', '')
                 elif k.startswith('head'):
                     k = k.replace('head', 'output')
-                    if module.multilabel:
+                    if module.multilabel and not module.is_export:
                         k = k.replace('fc', 'asl')
                         v = v.t()
                 output[k] = v

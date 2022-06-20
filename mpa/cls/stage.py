@@ -74,11 +74,11 @@ class ClsStage(Stage):
                 cfg.data.num_classes = len(cfg.data.train.get('classes', []))
             cfg.model.head.num_classes = cfg.data.num_classes
 
-        if 'Multi' in cfg.model.head.get('type', False) and cfg.model.head.get('topk', False):
-            cfg.model.head.pop('topk')
-
         if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
-            cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
+            if cfg.get('multilabel', False):
+                cfg.model.head.pop('topk')
+            else:
+                cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
 
         # Other hyper-parameters
         if cfg.get('hyperparams', False):
@@ -200,7 +200,7 @@ class ClsStage(Stage):
                 cfg.model.head.num_classes = len(dst_classes)
                 gamma = 2 if cfg['task_adapt'].get('efficient_mode', False) else 3
 
-                if 'Multi' not in cfg.model.head.type:
+                if not cfg.get('multilabel', False):
                     cfg.model.head.loss = ConfigDict(
                         type='SoftmaxFocalLoss',
                         loss_weight=1.0,
