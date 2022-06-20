@@ -43,7 +43,7 @@ class BalancedSampler(Sampler):
         else:
             self.num_trials = int(self.data_length / self.num_cls)
         self.compute_sampler_length()
-        logger.info(f"This sampler will select balanced samples {self.num_trials} times, sampler length is {self.sampler_length}")
+        logger.info(f"This sampler will select balanced samples {self.num_trials} times")
 
     def compute_sampler_length(self):
         self.sampler_length = self.num_trials * self.num_cls * self.repeat
