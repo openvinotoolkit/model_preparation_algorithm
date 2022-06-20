@@ -26,7 +26,7 @@ task_adapt = dict(
 )
 
 runner = dict(
-    max_epochs=30
+    max_epochs=300
 )
 
-ignore = False
+ignore = True

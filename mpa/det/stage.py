@@ -250,19 +250,7 @@ class DetectionStage(Stage):
             elif bbox_head.type in ['VFNetHead', 'CustomVFNetHead']:
                 alpha = 0.75
                 gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
-            # elif bbox_head.type in ['Shared2FCBBoxHead']:
-            #     bbox_head.loss_cls = ConfigDict(
-            #         type='FocalLoss',
-            #         loss_weight=1.0,
-            #         gamma=gamma,
-            #         reduction='none',
-            #     )
-            #     cfg.model.rpn_head.loss_cls = ConfigDict(
-            #         type='FocalLoss',
-            #         loss_weight=1.0,
-            #         gamma=gamma,
-            #         reduction='none',
-            #     )
+
             # Ignore Mode
             if cfg.get('ignore', False):
                 bbox_head.loss_cls = ConfigDict(

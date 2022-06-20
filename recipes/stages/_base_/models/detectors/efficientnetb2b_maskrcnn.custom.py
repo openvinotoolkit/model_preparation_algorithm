@@ -4,4 +4,7 @@ _base_ = [
 
 model = dict(
     type='CustomMaskRCNN',
+    roi_head=dict(
+        type='CustomRoIHead',
+    )
 )
