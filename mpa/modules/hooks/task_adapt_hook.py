@@ -51,10 +51,8 @@ class TaskAdaptHook(Hook):
             collate_fn = runner.data_loader.collate_fn
             worker_init_fn = runner.data_loader.worker_init_fn
             if self.sampler_type == 'balanced':
-                logger.info(f"sampler type is {self.sampler_type}")
                 sampler = BalancedSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
             else:
-                logger.info(f"sampler type is {self.sampler_type}")
                 sampler = ClsIncrSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
             runner.data_loader = DataLoader(
                 dataset,
