@@ -97,26 +97,16 @@ class SAMImageClassifier(ImageClassifier):
 
         output = OrderedDict()
         if backbone_type == 'OTEMobileNetV3':
-            if module.multilabel:
-                for k, v in state_dict.items():
-                    if k.startswith('backbone.'):
-                        k = k.replace('backbone.', '')
-                    elif k.startswith('head'):
-                        k = k.replace('head.', '')
-                        if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
-                            k = k.replace('3', '4')
-                            if '4.weight' in k:
-                                v = v.t()
-                    output[k] = v
-            else:
-                for k, v in state_dict.items():
-                    if k.startswith('backbone'):
-                        k = k.replace('backbone.', '')
-                    elif k.startswith('head'):
-                        k = k.replace('head.', '')
-                        if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
-                            k = k.replace('3', '4')
-                    output[k] = v
+            for k, v in state_dict.items():
+                if k.startswith('backbone'):
+                    k = k.replace('backbone.', '')
+                elif k.startswith('head'):
+                    k = k.replace('head.', '')
+                    if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
+                        k = k.replace('3', '4')
+                        if module.multilabel:
+                            v = v.t()
+                output[k] = v
 
         elif backbone_type == 'OTEEfficientNet':
             for k, v in state_dict.items():
@@ -150,24 +140,18 @@ class SAMImageClassifier(ImageClassifier):
             return
 
         if backbone_type == 'OTEMobileNetV3':
-            if module.multilabel:
-                for k in list(state_dict.keys()):
-                    v = state_dict.pop(k)
-                    if k.startswith('classifier.'):
-                        k = 'head.'+k.replace('4', '3') if '4' in k else 'head.'+k
-                        if '3.weight' in k:
+            for k in list(state_dict.keys()):
+                v = state_dict.pop(k)
+                if k.startswith('classifier.'):
+                    if '4' in k:
+                        k = 'head.'+k.replace('4', '3')
+                        if module.multilabel:
                             v = v.t()
                     else:
-                        k = 'backbone.'+k
-                    state_dict[k] = v
-            else:
-                for k in list(state_dict.keys()):
-                    v = state_dict.pop(k)
-                    if k.startswith('classifier.'):
-                        k = 'head.'+k.replace('4', '3') if '4' in k else 'head.'+k
-                    elif not k.startswith('backbone.'):
-                        k = 'backbone.'+k
-                    state_dict[k] = v
+                        k = 'head.'+k
+                elif not k.startswith('backbone.'):
+                    k = 'backbone.'+k
+                state_dict[k] = v
 
         elif backbone_type == 'OTEEfficientNet':
             for k in list(state_dict.keys()):
@@ -232,11 +216,9 @@ class SAMImageClassifier(ImageClassifier):
         for model_name in param_names:
             model_param = model_dict[model_name].clone()
             if backbone_type == 'OTEMobileNetV3':
+                chkpt_name = 'head.'+model_name.replace('4', '3')
                 if model.multilabel:
-                    chkpt_name = 'head.'+model_name.replace('4', '3')
                     model_param = model_param.t()
-                else:
-                    chkpt_name = 'head.'+model_name.replace('4', '3')
             elif backbone_type in 'OTEEfficientNet':
                 if model.multilabel:
                     chkpt_name = model_name.replace('output.asl.', 'head.fc.')
