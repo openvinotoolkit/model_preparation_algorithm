@@ -5,6 +5,7 @@
 from mmcv.runner import HOOKS, Hook
 from torch.utils.data import DataLoader
 
+from mpa.modules.datasets.samplers.cls_incr_sampler import ClsIncrSampler
 from mpa.modules.datasets.samplers.balanced_sampler import BalancedSampler
 from mpa.utils.logger import get_logger
 
@@ -28,11 +29,13 @@ class TaskAdaptHook(Hook):
                  dst_classes,
                  model_type='FasterRCNN',
                  sampler_flag=False,
+                 sampler_type='cls_incr',
                  efficient_mode=False):
         self.src_classes = src_classes
         self.dst_classes = dst_classes
         self.model_type = model_type
         self.sampler_flag = sampler_flag
+        self.sampler_type = sampler_type
         self.efficient_mode = efficient_mode
 
         logger.info(f'Task Adaptation: {self.src_classes} => {self.dst_classes}')
@@ -47,7 +50,12 @@ class TaskAdaptHook(Hook):
             num_workers = runner.data_loader.num_workers
             collate_fn = runner.data_loader.collate_fn
             worker_init_fn = runner.data_loader.worker_init_fn
-            sampler = BalancedSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
+            if self.sampler_type == 'balanced':
+                logger.info(f"sampler type is {self.sampler_type}")
+                sampler = BalancedSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
+            else:
+                logger.info(f"sampler type is {self.sampler_type}")
+                sampler = ClsIncrSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
             runner.data_loader = DataLoader(
                 dataset,
                 batch_size=batch_size,

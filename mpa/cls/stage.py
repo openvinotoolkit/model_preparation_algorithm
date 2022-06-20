@@ -212,6 +212,7 @@ class ClsStage(Stage):
                     dst_classes=dst_classes,
                     model_type=cfg.model.type,
                     sampler_flag=sampler_flag,
+                    sampler_type='balanced',
                     efficient_mode=cfg['task_adapt'].get('efficient_mode', True)
                 )
                 update_or_add_custom_hook(cfg, task_adapt_hook)
