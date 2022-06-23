@@ -88,9 +88,12 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
     def forward_train(self, x, gt_label, **kwargs):
         img_metas = kwargs.get('img_metas', False)
         gt_label = gt_label.type_as(x)
-        valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
         cls_score = self.classifier(x)
-        losses = self.loss(cls_score, gt_label, valid_label_mask=valid_label_mask)
+        if img_metas:
+            valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
+            losses = self.loss(cls_score, gt_label, valid_label_mask=valid_label_mask)
+        else:
+            losses = self.loss(cls_score, gt_label)
         return losses
 
     def simple_test(self, img):
