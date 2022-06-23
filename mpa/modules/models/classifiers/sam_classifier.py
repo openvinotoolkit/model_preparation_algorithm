@@ -30,10 +30,11 @@ class SAMImageClassifier(ImageClassifier):
     """SAM-enabled ImageClassifier"""
 
     def __init__(self, task_adapt=None, **kwargs):
+        if 'multilabel' in kwargs:
+            self.multilabel = kwargs.pop('multilabel')
         super().__init__(**kwargs)
         self.is_export = False
         self.featuremap = None
-        self.multilabel = True if 'MultiLabel' in type(self.head).__name__ else False
         # Hooks for redirect state_dict load/save
         self._register_state_dict_hook(self.state_dict_hook)
         self._register_load_state_dict_pre_hook(
@@ -203,8 +204,8 @@ class SAMImageClassifier(ImageClassifier):
                 param_names = ['output.asl.weight']
             else:
                 param_names = ['output.fc.weight']
-            if 'head.fc.bias' in chkpt_dict.keys():
-                param_names.append('output.fc.bias')
+                if 'head.fc.bias' in chkpt_dict.keys():
+                    param_names.append('output.fc.bias')
 
         elif backbone_type == 'OTEEfficientNetV2':
             param_names = [
