@@ -195,7 +195,7 @@ class ClsStage(Stage):
 
                 # model configuration update
                 cfg.model.head.num_classes = len(dst_classes)
-                gamma = 2 if cfg['task_adapt'].get('efficient_mode', False) else 3
+                gamma = 2 if cfg['task_adapt'].get('efficient_mode', True) else 3
                 cfg.model.head.loss = ConfigDict(
                     type='SoftmaxFocalLoss',
                     loss_weight=1.0,
@@ -212,7 +212,8 @@ class ClsStage(Stage):
                     dst_classes=dst_classes,
                     model_type=cfg.model.type,
                     sampler_flag=sampler_flag,
-                    efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
+                    sampler_type='balanced',
+                    efficient_mode=cfg['task_adapt'].get('efficient_mode', True)
                 )
                 update_or_add_custom_hook(cfg, task_adapt_hook)
 
