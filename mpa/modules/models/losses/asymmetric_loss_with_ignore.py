@@ -10,14 +10,14 @@ from mmcls.models.losses.utils import weight_reduce_loss
 
 
 def asymmetric_loss_with_ignore(pred,
-                    target,
-                    valid_label_mask=None,
-                    weight=None,
-                    gamma_pos=1.0,
-                    gamma_neg=4.0,
-                    clip=0.05,
-                    reduction='none',
-                    avg_factor=None):
+                                target,
+                                valid_label_mask=None,
+                                weight=None,
+                                gamma_pos=1.0,
+                                gamma_neg=4.0,
+                                clip=0.05,
+                                reduction='none',
+                                avg_factor=None):
     """asymmetric loss
     Please refer to the `paper <https://arxiv.org/abs/2009.14119>`_ for
     details.

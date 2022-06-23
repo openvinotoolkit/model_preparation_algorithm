@@ -83,7 +83,7 @@ class SAMImageClassifier(ImageClassifier):
             loss = self.head.forward_train(x, gt_label, **kwargs)
         else:
             loss = self.head.forward_train(x, gt_label)
-        
+
         losses.update(loss)
 
         return losses
@@ -103,7 +103,7 @@ class SAMImageClassifier(ImageClassifier):
                     k = k.replace('backbone.', '')
                 elif k.startswith('head'):
                     k = k.replace('head.', '')
-                    if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
+                    if '3' in k:  # MPA uses "classifier.3", OTE uses "classifier.4". Convert for OTE compatibility.
                         k = k.replace('3', '4')
                         if module.multilabel and not module.is_export:
                             v = v.t()
