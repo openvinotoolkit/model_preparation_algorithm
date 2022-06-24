@@ -123,5 +123,5 @@ model = dict(
             max_per_img=100,
             mask_thr_binary=0.5)))
 load_from = 'https://download.openmmlab.com/mmdetection/\
-    v2.0/mask_rcnn/mask_rcnn_r50_fpn_mstrain-poly_3x_coco/\
-    mask_rcnn_r50_fpn_mstrain-poly_3x_coco_20210524_201154-21b550bb.pth'
+v2.0/mask_rcnn/mask_rcnn_r50_fpn_mstrain-poly_3x_coco/\
+mask_rcnn_r50_fpn_mstrain-poly_3x_coco_20210524_201154-21b550bb.pth'

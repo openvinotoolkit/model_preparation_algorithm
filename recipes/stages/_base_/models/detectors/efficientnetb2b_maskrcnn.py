@@ -117,6 +117,6 @@ model = dict(
             max_per_img=500,
             mask_thr_binary=0.5)))
 load_from = 'https://storage.openvinotoolkit.org/repositories/\
-    openvino_training_extensions/models/instance_segmentation/\
-    v2/efficientnet_b2b-mask_rcnn-576x576.pth'
+openvino_training_extensions/models/instance_segmentation/\
+v2/efficientnet_b2b-mask_rcnn-576x576.pth'
 fp16 = dict(loss_scale=512.)

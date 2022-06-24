@@ -29,4 +29,12 @@ runner = dict(
     max_epochs=300
 )
 
+optimizer_config = dict(
+    _delete_=True,
+    grad_clip=dict(
+        max_norm=35,
+        norm_type=2
+    )
+)
+
 ignore = True
