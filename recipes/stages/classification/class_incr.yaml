@@ -23,6 +23,9 @@ task_adapt:
     type: 'mpa'
     op: 'MERGE'
 
+seed: 5
+deterministic: true
+
 custom_hooks:
 - type: NoBiasDecayHook
 - type: ModelEmaV2Hook
