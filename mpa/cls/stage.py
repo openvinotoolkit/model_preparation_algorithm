@@ -76,7 +76,8 @@ class ClsStage(Stage):
 
         if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
             cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
-            if cfg.model.get('multilabel', False): cfg.model.head.pop('topk', None)
+            if cfg.model.get('multilabel', False):
+                cfg.model.head.pop('topk', None)
 
         # Other hyper-parameters
         if cfg.get('hyperparams', False):
@@ -196,15 +197,22 @@ class ClsStage(Stage):
 
                 # model configuration update
                 cfg.model.head.num_classes = len(dst_classes)
-                gamma = 2 if cfg['task_adapt'].get('efficient_mode', True) else 3
 
                 if not cfg.model.get('multilabel', False):
+                    efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
+                    gamma = 2 if efficient_mode else 3
+
                     cfg.model.head.loss = ConfigDict(
                         type='SoftmaxFocalLoss',
                         loss_weight=1.0,
                         gamma=gamma,
                         reduction='none',
                     )
+                    sampler_type = 'balanced'
+                else:
+                    efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
+                    sampler_type = 'cls_incr'
+
                 # if op='REPLACE' & no new_classes (REMOVE), then sampler_flag = False
                 sampler_flag = True if len(train_data_cfg.new_classes) > 0 else False
 
@@ -215,8 +223,8 @@ class ClsStage(Stage):
                     dst_classes=dst_classes,
                     model_type=cfg.model.type,
                     sampler_flag=sampler_flag,
-                    sampler_type='balanced',
-                    efficient_mode=cfg['task_adapt'].get('efficient_mode', True)
+                    sampler_type=sampler_type,
+                    efficient_mode=efficient_mode
                 )
                 update_or_add_custom_hook(cfg, task_adapt_hook)
 
