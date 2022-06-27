@@ -75,10 +75,8 @@ class ClsStage(Stage):
             cfg.model.head.num_classes = cfg.data.num_classes
 
         if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
-            if cfg.model.get('multilabel', False):
-                cfg.model.head.pop('topk')
-            else:
-                cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
+            cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
+            if cfg.model.get('multilabel', False): cfg.model.head.pop('topk', None)
 
         # Other hyper-parameters
         if cfg.get('hyperparams', False):
