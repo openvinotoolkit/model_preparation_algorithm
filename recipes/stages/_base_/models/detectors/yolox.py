@@ -26,4 +26,6 @@ model = dict(
     test_cfg=dict(
         score_thr=0.01,
         nms=dict(type='nms', iou_threshold=0.65),
-        max_per_img=100))
+        max_per_img=100)
+)
+load_from = 'https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/object_detection/v2/yolox_tiny_8x8.pth'

@@ -52,7 +52,7 @@ class DetectionStage(Stage):
                 cfg.data.train.dataset.ote_dataset = cfg.data.train.ote_dataset
                 cfg.data.train.dataset.labels = cfg.data.train.labels
                 cfg.data.train.dataset.data_classes = cfg.data.train.data_classes
-                cfg.data.train.dataset.old_new_indices = cfg.data.train.old_new_indices
+                cfg.data.train.dataset.new_classes = cfg.data.train.new_classes
         self.configure_data(cfg, training, **kwargs)
 
         # Task
