@@ -1,0 +1,39 @@
+model:
+    backbone:
+        type: LiteHRNet 
+        norm_cfg:
+            type: SyncBN
+            requires_grad: true
+        norm_eval: false
+        extra:
+            stem:
+                stem_channels: 60
+                out_channels: 60
+                expand_ratio: 1
+                strides: !!python/tuple [2, 1]
+                extra_stride: false
+                input_norm: false
+            num_stages: 4
+            stages_spec:
+                weighting_module_version: v1
+                num_modules: !!python/tuple [2, 4, 4, 2]
+                num_branches: !!python/tuple [2, 3, 4, 5]
+                num_blocks: !!python/tuple [2, 2, 2, 2]
+                module_type: !!python/tuple ['LITE', 'LITE', 'LITE', 'LITE']
+                with_fuse: !!python/tuple [true, true, true, true]
+                reduce_ratios: !!python/tuple [2, 4, 8, 8]
+                num_channels: !!python/tuple [!!python/tuple [18, 60], !!python/tuple [18, 60, 80], !!python/tuple [18, 60, 80, 160], !!python/tuple [18, 60, 80, 160, 320]]
+            out_modules:
+                conv:
+                    enable: false
+                    channels: 320
+                position_att:
+                    enable: false
+                    key_channels: 128
+                    value_channels: 320
+                    psp_size: !!python/tuple [1, 3, 6, 8]
+                local_att:
+                    enable: false
+            out_aggregator:
+                enable: false
+            add_input: false

@@ -1,0 +1,4 @@
+_base_: _base_/ocr_litehrnet_x_mod3.py
+
+model:
+    task: segmentation

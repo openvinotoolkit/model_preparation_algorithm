@@ -59,7 +59,7 @@ seed = 42
 
 task_adapt = dict(
     type='mpa',
-    op='MERGE',
+    op= 'REPLACE',
 )
 
 ignore = True
