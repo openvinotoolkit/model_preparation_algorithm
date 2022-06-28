@@ -10,7 +10,7 @@ data = dict(
 
 task_adapt = dict(
     type='mpa',
-    op='MERGE',
+    op='REPLACE',
     efficient_mode=False,
 )
 
