@@ -4,6 +4,7 @@
 
 import numpy as np
 from torch.utils.data.sampler import Sampler
+from mpa.modules.utils.task_adapt import get_dataset_without_wrapping
 
 
 class ClsIncrSampler(Sampler):
@@ -21,15 +22,15 @@ class ClsIncrSampler(Sampler):
     """
     def __init__(self, dataset, samples_per_gpu, efficient_mode=False):
         self.samples_per_gpu = samples_per_gpu
-        self.repeat = 1
-        if hasattr(dataset, 'times'):
-            self.repeat = dataset.times
-        if hasattr(dataset, 'dataset'):
-            self.dataset = dataset.dataset
+
+        # Dataset Wrapping remove & repeat for RepeatDataset
+        self.dataset, self.repeat = get_dataset_without_wrapping(dataset)
+
+        if hasattr(self.dataset, 'img_indices'):
+            self.new_indices = self.dataset.img_indices['new']
+            self.old_indices = self.dataset.img_indices['old']
         else:
-            self.dataset = dataset
-        self.new_indices = self.dataset.img_indices['new']
-        self.old_indices = self.dataset.img_indices['old']
+            raise TypeError(f'{self.dataset} type does not have img_indices')
 
         if not len(self.new_indices) > 0:
             self.new_indices = self.old_indices

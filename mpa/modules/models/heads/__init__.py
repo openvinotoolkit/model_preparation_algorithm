@@ -3,3 +3,4 @@
 #
 
 # flake8: noqa
+from . import custom_yolox_head

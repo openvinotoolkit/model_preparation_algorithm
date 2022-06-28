@@ -39,20 +39,19 @@ class TaskAdaptHook(Hook):
         logger.info(f'- Efficient Mode: {self.efficient_mode}')
 
     def before_epoch(self, runner):
-        if self.sampler_flag:
-            dataset = runner.data_loader.dataset
-            if hasattr(dataset, 'dataset'):
-                dataset = dataset.dataset
-            batch_size = runner.data_loader.batch_size
-            num_workers = runner.data_loader.num_workers
-            collate_fn = runner.data_loader.collate_fn
-            worker_init_fn = runner.data_loader.worker_init_fn
-            sampler = ClsIncrSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
-            runner.data_loader = DataLoader(
-                dataset,
-                batch_size=batch_size,
-                sampler=sampler,
-                num_workers=num_workers,
-                collate_fn=collate_fn,
-                pin_memory=False,
-                worker_init_fn=worker_init_fn)
+        if not self.sampler_flag:
+            return
+        dataset = runner.data_loader.dataset
+        batch_size = runner.data_loader.batch_size
+        num_workers = runner.data_loader.num_workers
+        collate_fn = runner.data_loader.collate_fn
+        worker_init_fn = runner.data_loader.worker_init_fn
+        sampler = ClsIncrSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
+        runner.data_loader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            sampler=sampler,
+            num_workers=num_workers,
+            collate_fn=collate_fn,
+            pin_memory=False,
+            worker_init_fn=worker_init_fn)

@@ -48,6 +48,11 @@ class DetectionStage(Stage):
         # Data
         if data_cfg:
             cfg.merge_from_dict(data_cfg)
+            if 'dataset' in cfg.data.train:
+                cfg.data.train.dataset.ote_dataset = cfg.data.train.ote_dataset
+                cfg.data.train.dataset.labels = cfg.data.train.labels
+                cfg.data.train.dataset.data_classes = cfg.data.train.data_classes
+                cfg.data.train.dataset.old_new_indices = cfg.data.train.old_new_indices
         self.configure_data(cfg, training, **kwargs)
 
         # Task
@@ -249,6 +254,13 @@ class DetectionStage(Stage):
             elif cfg.model.bbox_head.type in ['VFNetHead', 'CustomVFNetHead']:
                 alpha = 0.75
                 gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
+            elif cfg.model.bbox_head.type in ['YOLOXHead', 'CustomYOLOXHead']:
+                if cfg.data.train.type == 'MultiImageMixDataset':
+                    cfg.data.train.pop('ann_file', None)
+                    cfg.data.train.pop('img_prefix', None)
+                    cfg.data.train['labels'] = cfg.data.train.pop('labels', None)
+                    self.add_yolox_hooks(cfg)
+                cfg.ignore = False  # YOLOX does not yet support ignore mode
             # Ignore Mode
             if cfg.get('ignore', False):
                 cfg.model.bbox_head.loss_cls = ConfigDict(
@@ -333,3 +345,27 @@ class DetectionStage(Stage):
             lr = hyperparams.get('lr', None)
             if lr is not None:
                 cfg.optimizer.lr = lr
+
+    @staticmethod
+    def add_yolox_hooks(cfg):
+        update_or_add_custom_hook(
+            cfg,
+            dict(
+                type='YOLOXModeSwitchHook',
+                num_last_epochs=15,
+                priority=48))
+        update_or_add_custom_hook(
+            cfg,
+            dict(
+                type='SyncRandomSizeHook',
+                ratio_range=(10, 20),
+                img_scale=(640, 640),
+                interval=1,
+                priority=48))
+        update_or_add_custom_hook(
+            cfg,
+            dict(
+                type='SyncNormHook',
+                num_last_epochs=15,
+                interval=1,
+                priority=48))
