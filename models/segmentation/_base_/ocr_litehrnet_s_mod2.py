@@ -202,7 +202,7 @@ optimizer = dict(
     weight_decay=0.0
 )
 
-learning policy
+# learning policy
 lr_config = dict(
     _delete_=True,
     policy='customstep',
