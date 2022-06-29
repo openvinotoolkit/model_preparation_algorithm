@@ -25,5 +25,6 @@ import mpa.modules.models.heads.custom_atss_head
 import mpa.modules.models.heads.custom_retina_head
 import mpa.modules.models.heads.custom_ssd_head
 import mpa.modules.models.heads.custom_vfnet_head
+import mpa.modules.models.heads.custom_roi_head
 import mpa.modules.models.losses.cross_focal_loss
 import mpa.modules.models.losses.l2sp_loss

@@ -73,20 +73,6 @@ class DetectionStage(Stage):
             cfg.model.arch_type = cfg.model.type
             cfg.model.type = super_type
 
-        if not training:
-            # BBox head for pseudo label output
-            if 'roi_head' in cfg.model:
-                # For Faster-RCNNs
-                bbox_head_cfg = cfg.model.roi_head.bbox_head
-            else:
-                # For other architectures
-                bbox_head_cfg = cfg.model.bbox_head
-
-            if bbox_head_cfg.type in ['Shared2FCBBoxHead', 'PseudoShared2FCBBoxHead']:
-                bbox_head_cfg.type = 'PseudoShared2FCBBoxHead'
-            elif bbox_head_cfg.type in ['SSDHead', 'PseudoSSDHead']:
-                bbox_head_cfg.type = 'PseudoSSDHead'
-
         # OMZ-plugin
         if cfg.model.backbone.type == 'OmzBackboneDet':
             ir_path = kwargs.get('ir_path')
@@ -144,7 +130,8 @@ class DetectionStage(Stage):
             self.configure_task_data_pipeline(cfg, model_classes, data_classes)
 
         # Evaluation dataset
-        self.configure_task_eval_dataset(cfg, model_classes)
+        if cfg.get('task', 'detection') == 'detection':
+            self.configure_task_eval_dataset(cfg, model_classes)
 
         # Training hook for task adaptation
         self.configure_task_adapt_hook(cfg, org_model_classes, model_classes)
@@ -165,8 +152,9 @@ class DetectionStage(Stage):
         # Model classes
         if task_adapt_op == 'REPLACE':
             if len(data_classes) == 0:
-                raise ValueError('Data classes should contain at least one class!')
-            model_classes = data_classes.copy()
+                model_classes = org_model_classes.copy()
+            else:
+                model_classes = data_classes.copy()
         elif task_adapt_op == 'MERGE':
             model_classes = org_model_classes + [cls for cls in data_classes if cls not in org_model_classes]
         else:
@@ -181,12 +169,22 @@ class DetectionStage(Stage):
         )
 
         # Model architecture
+        head_names = ('mask_head', 'bbox_head', 'segm_head')
+        num_classes = len(model_classes)
         if 'roi_head' in cfg.model:
             # For Faster-RCNNs
-            cfg.model.roi_head.bbox_head.num_classes = len(model_classes)
+            for head_name in head_names:
+                if head_name in cfg.model.roi_head:
+                    if isinstance(cfg.model.roi_head[head_name], list):
+                        for head in cfg.model.roi_head[head_name]:
+                            head.num_classes = num_classes
+                    else:
+                        cfg.model.roi_head[head_name].num_classes = num_classes
         else:
             # For other architectures (including SSD)
-            cfg.model.bbox_head.num_classes = len(model_classes)
+            for head_name in head_names:
+                if head_name in cfg.model:
+                    cfg.model[head_name].num_classes = num_classes
 
         return org_model_classes, model_classes, data_classes
 
@@ -227,31 +225,36 @@ class DetectionStage(Stage):
         update_or_add_custom_hook(cfg, task_adapt_hook)
 
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
-        if task_adapt_type == 'mpa' and cfg.model.bbox_head.type != 'PseudoSSDHead':
+        if cfg.get('task', 'detection') == 'detection':
+            bbox_head = cfg.model.bbox_head
+        else:
+            bbox_head = cfg.model.roi_head.bbox_head
+        if task_adapt_type == 'mpa':
             tr_data_cfg = self.get_train_data_cfg(cfg)
             if tr_data_cfg.type != 'MPADetDataset':
                 tr_data_cfg.img_ids_dict = self.get_img_ids_for_incr(cfg, org_model_classes, model_classes)
                 tr_data_cfg.org_type = tr_data_cfg.type
                 tr_data_cfg.type = 'DetIncrCocoDataset'
             alpha, gamma = 0.25, 2.0
-            if cfg.model.bbox_head.type in ['SSDHead', 'CustomSSDHead']:
+            if bbox_head.type in ['SSDHead', 'CustomSSDHead']:
                 gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
-                cfg.model.bbox_head.type = 'CustomSSDHead'
-                cfg.model.bbox_head.loss_cls = ConfigDict(
+                bbox_head.type = 'CustomSSDHead'
+                bbox_head.loss_cls = ConfigDict(
                     type='FocalLoss',
                     loss_weight=1.0,
                     gamma=gamma,
                     reduction='none',
                 )
-            elif cfg.model.bbox_head.type in ['ATSSHead']:
+            elif bbox_head.type in ['ATSSHead']:
                 gamma = 3 if cfg['task_adapt'].get('efficient_mode', False) else 4.5
-                cfg.model.bbox_head.loss_cls.gamma = gamma
-            elif cfg.model.bbox_head.type in ['VFNetHead', 'CustomVFNetHead']:
+                bbox_head.loss_cls.gamma = gamma
+            elif bbox_head.type in ['VFNetHead', 'CustomVFNetHead']:
                 alpha = 0.75
                 gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
+
             # Ignore Mode
             if cfg.get('ignore', False):
-                cfg.model.bbox_head.loss_cls = ConfigDict(
+                bbox_head.loss_cls = ConfigDict(
                         type='CrossSigmoidFocalLoss',
                         use_sigmoid=True,
                         num_classes=len(model_classes),
