@@ -1,8 +1,3 @@
-# pre-trained params settings
-# ignore_keys = [r'^backbone\.increase_modules\.', r'^backbone\.increase_modules\.',
-#                r'^backbone\.downsample_modules\.', r'^backbone\.final_layer\.',
-#                r'^head\.']
-
 #__norm_cfg = dict(type='SyncBN', requires_grad=True)
 __norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
@@ -83,14 +78,6 @@ model = dict(
                       loss_jitter_prob=0.01,
                       sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
                       loss_weight=4.0),
-                #  dict(type='GeneralizedDiceLoss',
-                #       smooth=1.0,
-                #       gamma=5.0,
-                #       alpha=0.5,
-                #       beta=0.5,
-                #       focal_gamma=1.0,
-                #       loss_jitter_prob=0.01,
-                #       loss_weight=4.0),
              ]),
         dict(type='OCRHead',
              in_channels=[60, 120, 240],
@@ -138,41 +125,6 @@ model = dict(
                       loss_weight=1.0),
              ]),
     ],
-    # auxiliary_head=[
-    #     dict(type='FCNHead',
-    #          in_channels=[60, 120, 240],
-    #          in_index=[0, 1, 2],
-    #          input_transform='multiple_select',
-    #          channels=60,
-    #          kernel_size=1,
-    #          num_convs=0,
-    #          concat_input=False,
-    #          dropout_ratio=-1,
-    #          num_classes=2,
-    #          norm_cfg=__norm_cfg,
-    #          align_corners=False,
-    #          enable_aggregator=True,
-    #          aggregator_merge_norm=None,
-    #          aggregator_use_concat=False,
-    #          enable_out_norm=False,
-    #          enable_loss_equalizer=True,
-    #          loss_target='gt_class_borders',
-    #          loss_decode=[
-    #              dict(type='CrossEntropyLoss',
-    #                   use_sigmoid=False,
-    #                   loss_jitter_prob=0.01,
-    #                   sampler=dict(type='MaxPoolingPixelSampler', ratio=0.1, p=1.7),
-    #                   loss_weight=5.0),
-    #              dict(type='GeneralizedDiceLoss',
-    #                   smooth=1.0,
-    #                   gamma=5.0,
-    #                   alpha=0.5,
-    #                   beta=0.5,
-    #                   focal_gamma=1.0,
-    #                   loss_jitter_prob=0.01,
-    #                   loss_weight=5.0),
-    #          ]),
-    #],
     train_cfg=dict(
         mix_loss=dict(
             enable=False,
@@ -221,3 +173,7 @@ lr_config = dict(
 params_config = dict(
     iters=0,
 )
+
+dist_params = dict(
+    _delete_=True,
+    backend='nccl')

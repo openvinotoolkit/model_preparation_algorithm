@@ -1,3 +1,4 @@
+#__norm_cfg = dict(type='SyncBN', requires_grad=True)
 __norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     type='ClassIncrSegmentor',
@@ -6,7 +7,7 @@ model = dict(
     pretrained=None,
     backbone=dict(
         type='LiteHRNet',
-        norm_cfg=__norm_cfg,
+        norm_cfg=norm_cfg,
         norm_eval=False,
         extra=dict(
             stem=dict(
@@ -47,24 +48,25 @@ model = dict(
                 )
             ),
             out_aggregator=dict(
-                enable=True
+                enable=False
             ),
             add_input=False
         )
     ),
     decode_head=[
         dict(type='FCNHead',
-             in_channels=40,
-             in_index=0,
+             in_channels=[40, 80, 160, 320],
+             in_index=[0, 1, 2, 3],
+             input_transform='multiple_select',
              channels=40,
-             input_transform=None,
              kernel_size=1,
              num_convs=0,
              concat_input=False,
              dropout_ratio=-1,
              num_classes=2,
-             norm_cfg=__norm_cfg,
+             norm_cfg=norm_cfg,
              align_corners=False,
+             enable_aggregator=True,
              enable_out_norm=False,
              loss_decode=[
                  dict(type='CrossEntropyLoss',
@@ -74,16 +76,17 @@ model = dict(
                       loss_weight=1.0),
              ]),
         dict(type='OCRHead',
-             in_channels=40,
-             in_index=0,
+             in_channels=[40, 80, 160, 320],
+             in_index=[0, 1, 2, 3],
+             input_transform='multiple_select',
              channels=40,
              ocr_channels=40,
              sep_conv=True,
-             input_transform=None,
              dropout_ratio=-1,
              num_classes=2,
-             norm_cfg=__norm_cfg,
+             norm_cfg=norm_cfg,
              align_corners=False,
+             enable_aggregator=True,
              enable_out_norm=True,
              loss_decode=[
                  dict(type='AMSoftmaxLoss',
@@ -116,7 +119,15 @@ model = dict(
              ]),
     ],
     train_cfg=dict(
-        mix_loss=dict(enable=False, weight=0.1)
+        mix_loss=dict(
+            enable=False,
+            weight=0.1
+        ),
+        loss_reweighting=dict(
+            weights={'decode_0.loss_seg': 0.9,
+                     'decode_1.loss_seg': 1.0},
+            momentum=0.1
+        ),
     ),
     test_cfg=dict(
         mode='whole',
@@ -124,4 +135,37 @@ model = dict(
     ),
 )
 
-find_unused_parameters = True
+find_unused_parameters = False
+
+# optimizer
+optimizer = dict(
+    _delete_=True,
+    type='Adam',
+    lr=1e-3,
+    eps=1e-08,
+    weight_decay=0.0
+)
+
+# learning policy
+lr_config = dict(
+    _delete_=True,
+    policy='customstep',
+    gamma=0.1,
+    by_epoch=True,
+    step=[400, 500],
+    fixed='constant',
+    fixed_iters=0,
+    fixed_ratio=10.0,
+    warmup='cos',
+    warmup_iters=80,
+    warmup_ratio=1e-2,
+)
+
+# parameter manager
+params_config = dict(
+    iters=0,
+)
+
+dist_params = dict(
+    _delete_=True,
+    backend='nccl')
