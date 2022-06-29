@@ -5,3 +5,7 @@ model:
     task: classification
     backbone:
         version: b0
+    head:
+        type: CustomMultiLabelLinearClsHead
+        loss:
+            type: AsymmetricLossWithIgnore
