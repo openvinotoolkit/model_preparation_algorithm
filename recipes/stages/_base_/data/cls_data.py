@@ -18,8 +18,10 @@ data = dict(
         pipeline=__train_pipeline),
     val=dict(
         type=__dataset_type,
+        test_mode=True,
         pipeline=__test_pipeline),
     test=dict(
         type=__dataset_type,
+        test_mode=True,
         pipeline=__test_pipeline)
 )
