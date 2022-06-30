@@ -30,6 +30,8 @@ class SAMImageClassifier(ImageClassifier):
     """SAM-enabled ImageClassifier"""
 
     def __init__(self, task_adapt=None, **kwargs):
+        if 'multilabel' in kwargs:
+            self.multilabel = kwargs.pop('multilabel')
         super().__init__(**kwargs)
         self.is_export = False
         self.featuremap = None
@@ -55,6 +57,36 @@ class SAMImageClassifier(ImageClassifier):
 
         return super().train_step(data, optimizer)
 
+    def forward_train(self, img, gt_label, **kwargs):
+        """Forward computation during training.
+
+        Args:
+            img (Tensor): of shape (N, C, H, W) encoding input images.
+                Typically these should be mean centered and std scaled.
+
+            gt_label (Tensor): It should be of shape (N, 1) encoding the
+                ground-truth label of input images for single label task. It
+                shoulf be of shape (N, C) encoding the ground-truth label
+                of input images for multi-labels task.
+
+        Returns:
+            dict[str, Tensor]: a dictionary of loss components
+        """
+        if self.mixup is not None:
+            img, gt_label = self.mixup(img, gt_label)
+
+        x = self.extract_feat(img)
+
+        losses = dict()
+        if kwargs.get('img_metas', False) and len(kwargs['img_metas'][-1]['ignored_labels']) > 0:
+            loss = self.head.forward_train(x, gt_label, **kwargs)
+        else:
+            loss = self.head.forward_train(x, gt_label)
+
+        losses.update(loss)
+
+        return losses
+
     @staticmethod
     def state_dict_hook(module, state_dict, *args, **kwargs):
         """Redirect model as output state_dict for OTE model compatibility
@@ -70,8 +102,10 @@ class SAMImageClassifier(ImageClassifier):
                     k = k.replace('backbone.', '')
                 elif k.startswith('head'):
                     k = k.replace('head.', '')
-                    if '3' in k:  # MPA uses "classifier.3", while OTE uses "classifier.4". Convert for OTE compatibility.
+                    if '3' in k:  # MPA uses "classifier.3", OTE uses "classifier.4". Convert for OTE compatibility.
                         k = k.replace('3', '4')
+                        if module.multilabel and not module.is_export:
+                            v = v.t()
                 output[k] = v
 
         elif backbone_type == 'OTEEfficientNet':
@@ -80,6 +114,9 @@ class SAMImageClassifier(ImageClassifier):
                     k = k.replace('backbone.', '')
                 elif k.startswith('head'):
                     k = k.replace('head', 'output')
+                    if module.multilabel and not module.is_export:
+                        k = k.replace('fc', 'asl')
+                        v = v.t()
                 output[k] = v
 
         elif backbone_type == 'OTEEfficientNetV2':
@@ -106,7 +143,12 @@ class SAMImageClassifier(ImageClassifier):
             for k in list(state_dict.keys()):
                 v = state_dict.pop(k)
                 if k.startswith('classifier.'):
-                    k = 'head.'+k.replace('4', '3') if '4' in k else 'head.'+k
+                    if '4' in k:
+                        k = 'head.'+k.replace('4', '3')
+                        if module.multilabel:
+                            v = v.t()
+                    else:
+                        k = 'head.'+k
                 elif not k.startswith('backbone.'):
                     k = 'backbone.'+k
                 state_dict[k] = v
@@ -118,6 +160,9 @@ class SAMImageClassifier(ImageClassifier):
                     k = 'backbone.'+k
                 elif k.startswith('output.'):
                     k = k.replace('output', 'head')
+                    if module.multilabel:
+                        k = k.replace('asl', 'fc')
+                        v = v.t()
                 state_dict[k] = v
 
         elif backbone_type == 'OTEEfficientNetV2':
@@ -148,16 +193,19 @@ class SAMImageClassifier(ImageClassifier):
         model_dict = model.state_dict()
 
         if backbone_type == 'OTEMobileNetV3':
-            param_names = [
-                'classifier.4.weight',
-                'classifier.4.bias',
-            ]
+            if model.multilabel:
+                param_names = ['classifier.4.weight']
+            else:
+                param_names = ['classifier.4.weight', 'classifier.4.bias']
+
         elif backbone_type == 'OTEEfficientNet':
-            param_names = [
-                'output.fc.weight',
-            ]
-            if 'head.fc.bias' in chkpt_dict.keys():
-                param_names.append('output.fc.bias')
+            if model.multilabel:
+                param_names = ['output.asl.weight']
+            else:
+                param_names = ['output.fc.weight']
+                if 'head.fc.bias' in chkpt_dict.keys():
+                    param_names.append('output.fc.bias')
+
         elif backbone_type == 'OTEEfficientNetV2':
             param_names = [
                 'model.classifier.weight',
@@ -169,8 +217,15 @@ class SAMImageClassifier(ImageClassifier):
             model_param = model_dict[model_name].clone()
             if backbone_type == 'OTEMobileNetV3':
                 chkpt_name = 'head.'+model_name.replace('4', '3')
+                if model.multilabel:
+                    model_param = model_param.t()
             elif backbone_type in 'OTEEfficientNet':
-                chkpt_name = model_name.replace('output', 'head')
+                if model.multilabel:
+                    chkpt_name = model_name.replace('output.asl.', 'head.fc.')
+                    model_param = model_param.t()
+                else:
+                    chkpt_name = model_name.replace('output', 'head')
+
             elif backbone_type in 'OTEEfficientNetV2':
                 if model_name.endswith('bias'):
                     chkpt_name = model_name

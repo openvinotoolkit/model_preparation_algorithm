@@ -219,12 +219,15 @@ class CrossDatasetDetectorHead(BaseDenseHead):
         bbox_weights = torch.cat(bbox_weights_list)
         return labels_list, label_weights, bbox_targets_list, bbox_weights, valid_label_mask
 
-    def get_valid_label_mask(self, img_metas, all_labels):
+    def get_valid_label_mask(self, img_metas, all_labels, use_bg=False):
+        num_classes = self.num_classes + 1 if use_bg else self.num_classes
         valid_label_mask = []
         for i, meta in enumerate(img_metas):
-            mask = torch.Tensor([1 for _ in range(self.num_classes)])
-            if 'ignored_labels' in meta and meta['ignored_labels']:
+            mask = torch.Tensor([1 for _ in range(num_classes)])
+            if 'ignored_labels' in meta and len(meta['ignored_labels']) > 0:
                 mask[meta['ignored_labels']] = 0
+                if use_bg:
+                    mask[self.num_classes] = 0
             mask = mask.repeat(len(all_labels[i]), 1)
             mask = mask.cuda() if torch.cuda.is_available() else mask
             valid_label_mask.append(mask)
