@@ -43,7 +43,7 @@ NAME_DICT = {
 class TimmModelsWrapper(nn.Module):
     def __init__(self,
                  model_name,
-                 pretrained=True,
+                 pretrained=False,
                  pooling_type='avg',
                  **kwargs):
         super().__init__(**kwargs)
@@ -97,10 +97,3 @@ class OTEEfficientNetV2(TimmModelsWrapper):
         self.model_name = "efficientnetv2_" + version
         super().__init__(model_name=self.model_name, **kwargs)
 
-    def init_weights(self, pretrained=None):
-        if isinstance(pretrained, str) and os.path.exists(pretrained):
-            load_checkpoint(self, pretrained)
-            logger.info(f"init weight - {pretrained}")
-        elif pretrained is not None:
-            load_checkpoint(self, pretrained_urls[self.model_name])
-            logger.info(f"init weight - {pretrained_urls[self.model_name]}")
