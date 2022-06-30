@@ -266,6 +266,8 @@ class ClsTrainer(ClsStage):
                 runner.load_checkpoint(cfg.load_from)
             else:
                 runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{gpu}')
+        logger.info(f"RUNNER CFG : {cfg.runner}")
+        logger.info(f"OPT CFG : {cfg.lr_config, cfg.optimizer, optimizer_config}")
         runner.run(data_loaders, cfg.workflow)
 
     @staticmethod

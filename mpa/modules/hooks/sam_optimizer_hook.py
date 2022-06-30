@@ -22,6 +22,11 @@ class SAMOptimizerHook(OptimizerHook):
         if rho < 0.0:
             raise ValueError('rho should be greater than 0 for SAM optimizer')
 
+    def after_train_epoch(self, runner):
+        curr_loss = runner.outputs['loss']
+        curr_lr = runner.optimizer.param_groups[0]['lr']
+        print(f"\nCurrent loss : {curr_loss}, Current lr : {curr_lr}")
+
     def after_train_iter(self, runner):
         '''Perform SAM optimization
         0. compute current loss (DONE IN model.train_step())

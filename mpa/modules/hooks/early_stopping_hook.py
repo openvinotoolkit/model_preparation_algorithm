@@ -301,7 +301,7 @@ class ReduceLROnPlateauLrUpdaterHook(LrUpdaterHook):
     rule_map = {'greater': lambda x, y: x > y, 'less': lambda x, y: x < y}
     init_value_map = {'greater': -inf, 'less': inf}
     greater_keys = [
-        'acc', 'top', 'AR@', 'auc', 'precision', 'mAP', 'mDice', 'mIoU',
+        'accuracy', 'acc', 'top', 'AR@', 'auc', 'precision', 'mAP', 'mDice', 'mIoU',
         'mAcc', 'aAcc'
     ]
     less_keys = ['loss']
@@ -376,6 +376,7 @@ class ReduceLROnPlateauLrUpdaterHook(LrUpdaterHook):
 
     @check_input_parameters_type()
     def get_lr(self, runner: BaseRunner, base_lr: float):
+        print("GET LR",runner.val)
         if not self._should_check_stopping(
                 runner) or self.warmup_iters > runner.iter:
             return base_lr
@@ -388,7 +389,7 @@ class ReduceLROnPlateauLrUpdaterHook(LrUpdaterHook):
         else:
             return self.current_lr
 
-        print_log(
+        print(
             f"\nBest Score: {self.best_score}, Current Score: {score}, Patience: {self.patience} "
             f"Count: {self.bad_count}",
             logger=runner.logger)
