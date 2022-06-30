@@ -55,6 +55,8 @@ class TimmModelsWrapper(nn.Module):
         self.model = timm.create_model(NAME_DICT[self.model_name],
                                        pretrained=pretrained,
                                        num_classes=1000)
+        if self.pretrained:
+            logger.info(f"init weight - {pretrained_urls[self.model_name]}")
         self.model.classifier = None  # Detach classifier. Only use 'backbone' part in mpa.
         self.num_head_features = self.model.num_features
         self.num_features = (self.model.conv_head.in_channels if self.is_mobilenet
@@ -97,3 +99,10 @@ class OTEEfficientNetV2(TimmModelsWrapper):
         self.model_name = "efficientnetv2_" + version
         super().__init__(model_name=self.model_name, **kwargs)
 
+    def init_weights(self, pretrained=None):
+        if isinstance(pretrained, str) and os.path.exists(pretrained):
+            load_checkpoint(self, pretrained)
+            logger.info(f"init weight - {pretrained}")
+        elif pretrained is not None:
+            load_checkpoint(self, pretrained_urls[self.model_name])
+            logger.info(f"init weight - {pretrained_urls[self.model_name]}")
