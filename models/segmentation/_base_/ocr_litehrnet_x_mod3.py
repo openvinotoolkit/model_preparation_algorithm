@@ -147,15 +147,6 @@ model = dict(
 
 find_unused_parameters = False
 
-# optimizer
-optimizer = dict(
-    _delete_=True,
-    type='Adam',
-    lr=1e-3,
-    eps=1e-08,
-    weight_decay=0.0
-)
-
 # learning policy
 lr_config = dict(
     _delete_=True,
@@ -175,7 +166,3 @@ lr_config = dict(
 params_config = dict(
     iters=0,
 )
-
-# dist_params = dict(
-#     _delete_=True,
-#     backend='nccl')
