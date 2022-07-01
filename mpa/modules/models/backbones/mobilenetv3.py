@@ -343,6 +343,7 @@ class OTEMobileNetV3(MobileNetV3):
         self.key = "mobilenetv3_" + mode
         if width_mult != 1.0:
             self.key = self.key + "_{:03d}".format(int(width_mult * 100))
+        self.init_weights(self.pretrained)
 
     def forward(self, x):
         return super().forward(x, return_featuremaps=True)
