@@ -9,4 +9,3 @@ model:
     head:
         in_channels: 720
         hid_channels: 1280
-
