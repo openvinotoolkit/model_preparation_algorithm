@@ -53,6 +53,9 @@ class DetectionStage(Stage):
                 cfg.data.train.dataset.labels = cfg.data.train.labels
                 cfg.data.train.dataset.data_classes = cfg.data.train.data_classes
                 cfg.data.train.dataset.new_classes = cfg.data.train.new_classes
+                cfg.data.train.pop('ote_dataset')
+                cfg.data.train.pop('data_classes')
+                cfg.data.train.pop('new_classes')
         self.configure_data(cfg, training, **kwargs)
 
         # Task
@@ -352,13 +355,13 @@ class DetectionStage(Stage):
     def add_yolox_hooks(cfg):
         update_or_add_custom_hook(
             cfg,
-            dict(
+            ConfigDict(
                 type='YOLOXModeSwitchHook',
                 num_last_epochs=15,
                 priority=48))
         update_or_add_custom_hook(
             cfg,
-            dict(
+            ConfigDict(
                 type='SyncRandomSizeHook',
                 ratio_range=(10, 20),
                 img_scale=(640, 640),
@@ -366,7 +369,7 @@ class DetectionStage(Stage):
                 priority=48))
         update_or_add_custom_hook(
             cfg,
-            dict(
+            ConfigDict(
                 type='SyncNormHook',
                 num_last_epochs=15,
                 interval=1,
