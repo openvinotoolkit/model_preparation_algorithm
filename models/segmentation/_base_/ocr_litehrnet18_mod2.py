@@ -146,26 +146,7 @@ optimizer = dict(
     weight_decay=0.0
 )
 
-# learning policy
-lr_config = dict(
-    _delete_=True,
-    policy='customstep',
-    gamma=0.1,
-    by_epoch=True,
-    step=[400, 500],
-    fixed='constant',
-    fixed_iters=0,
-    fixed_ratio=10.0,
-    warmup='cos',
-    warmup_iters=80,
-    warmup_ratio=1e-2,
-)
-
 # parameter manager
 params_config = dict(
     iters=0,
 )
-
-dist_params = dict(
-    _delete_=True,
-    backend='nccl')

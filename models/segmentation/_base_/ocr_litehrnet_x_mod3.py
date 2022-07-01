@@ -176,6 +176,6 @@ params_config = dict(
     iters=0,
 )
 
-dist_params = dict(
-    _delete_=True,
-    backend='nccl')
+# dist_params = dict(
+#     _delete_=True,
+#     backend='nccl')
