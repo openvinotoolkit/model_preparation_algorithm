@@ -29,9 +29,11 @@ from mpa.utils.logger import get_logger
 
 logger = get_logger()
 
-pretrained_root = "https://github.com/osmr/imgclsmob/releases/download/v0.0.364/"
+#pretrained_root = "https://github.com/osmr/imgclsmob/releases/download/v0.0.364/"
+pretrained_root = "https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/custom_image_classification/"
 pretrained_urls = {
-    "efficientnet_b0": pretrained_root + "efficientnet_b0-0752-0e386130.pth.zip",
+    #"efficientnet_b0": pretrained_root + "efficientnet_b0-0752-0e386130.pth.zip",
+    "efficientnet_b0": pretrained_root + "efficientnet_b0_imagenet_cls.pth",
 }
 
 
