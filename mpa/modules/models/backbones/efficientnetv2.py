@@ -52,6 +52,7 @@ class TimmModelsWrapper(nn.Module):
         self.is_mobilenet = True if model_name in [
                 "mobilenetv3_large_100_miil_in21k", "mobilenetv3_large_100_miil"
             ] else False
+        print(f"WHAT IS LOADED : {self.model_name}, {pretrained}")
         self.model = timm.create_model(NAME_DICT[self.model_name],
                                        pretrained=pretrained,
                                        num_classes=1000)

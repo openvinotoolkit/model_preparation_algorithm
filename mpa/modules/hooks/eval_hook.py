@@ -60,6 +60,8 @@ class CustomEvalHook(Hook):
             results, logger=runner.logger, **self.eval_kwargs)
         for name, val in eval_res.items():
             runner.log_buffer.output[name] = val
+            #print(f"runner will be inserted {name}, {val}")
+            setattr(runner, name, val)
         runner.log_buffer.ready = True
         score = self.cal_score(eval_res)
         if score >= self.best_score:
