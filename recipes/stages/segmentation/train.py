@@ -14,6 +14,7 @@ optimizer = dict(
 
 # learning policy
 lr_config = dict(
+    _delete_=True,
     policy='customstep',
     gamma=0.1,
     by_epoch=True,
