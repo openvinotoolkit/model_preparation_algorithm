@@ -151,10 +151,9 @@ class ClsStage(Stage):
         data_classes = Stage.get_data_classes(cfg)
         if model_classes:
             cfg.model.head.num_classes = len(model_classes)
-            model_meta['CLASSES'] = model_classes
         elif data_classes:
             cfg.model.head.num_classes = len(data_classes)
-            model_meta['CLASSES'] = data_classes
+        model_meta['CLASSES'] = model_classes
 
         if not train_data_cfg.get('new_classes', False):  # when train_data_cfg doesn't have 'new_classes' key
             new_classes = np.setdiff1d(data_classes, model_classes).tolist()
@@ -176,10 +175,7 @@ class ClsStage(Stage):
                     cfg.model.head.update({'tasks': train_data_cfg.get('tasks')})
             elif 'new_classes' in train_data_cfg:
                 # Class-Incremental
-                if model_meta.get('CLASSES', False):
-                    dst_classes, old_classes = refine_cls(train_data_cfg, model_meta, adapt_type)
-                else:
-                    raise KeyError(f'can not find CLASSES or classes meta data from {cfg.load_from}.')
+                dst_classes, old_classes = refine_cls(train_data_cfg, model_meta, adapt_type)
             else:
                 raise KeyError(
                     '"new_classes" or "tasks" should be defined for incremental learning w/ current model.'
@@ -240,11 +236,8 @@ class ClsStage(Stage):
                 else:
                     raise KeyError(f'can not find task meta data from {cfg.load_from}.')
             elif train_data_cfg.get('new_classes'):
-                if model_meta.get('CLASSES', False):
-                    dst_classes, _ = refine_cls(train_data_cfg, model_meta, adapt_type)
-                    cfg.model.head.num_classes = len(dst_classes)
-                else:
-                    raise KeyError(f'can not find classes meta data from {cfg.load_from}.')
+                dst_classes, _ = refine_cls(train_data_cfg, model_meta, adapt_type)
+                cfg.model.head.num_classes = len(dst_classes)
 
         # Pseudo label augmentation
         pre_stage_res = kwargs.get('pre_stage_res', None)
