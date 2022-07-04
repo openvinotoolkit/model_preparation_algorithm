@@ -22,10 +22,6 @@ optimizer_config = dict(
     )
 )
 
-lr_config = dict(
-    metric='mIoU',
-)
-
 log_config = dict(
     interval=10,
     hooks=[
@@ -56,10 +52,11 @@ evaluation = dict(
 )
 
 seed = 42
+find_unused_parameters = False
 
 task_adapt = dict(
     type='mpa',
-    op='MERGE',
+    op='REPLACE',
 )
 
 ignore = True
