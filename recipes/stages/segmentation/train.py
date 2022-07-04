@@ -12,20 +12,16 @@ optimizer = dict(
     weight_decay=0.0001,
 )
 
-# learning policy
 lr_config = dict(
-    _delete_=True,
-    policy='customstep',
-    gamma=0.1,
-    by_epoch=True,
-    step=[400, 500],
-    fixed='constant',
-    fixed_iters=0,
-    fixed_ratio=10.0,
-    warmup='cos',
-    warmup_iters=80,
-    warmup_ratio=1e-2,
-)
+    policy='ReduceLROnPlateau',
+    metric='mIoU',
+    patience=5,
+    iteration_patience=300,
+    interval=1,
+    min_lr=0.000001,
+    warmup='linear',
+    warmup_iters=200,
+    warmup_ratio=1.0 / 3)
 
 evaluation = dict(
     interval=1,
