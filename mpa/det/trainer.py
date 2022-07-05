@@ -17,11 +17,13 @@ from mmdet.apis import train_detector
 from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
 from mmdet.utils import collect_env
+from detection_tasks.apis.detection.config_utils import cluster_anchors
 
 from mpa.registry import STAGES
 from .stage import DetectionStage
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.utils.logger import get_logger
+from mpa.stage import Stage
 
 logger = get_logger()
 
@@ -153,7 +155,12 @@ class DetectionTrainer(DetectionStage):
         # model
         model = build_detector(cfg.model)
         model.CLASSES = target_classes
-
+        # Do clustering for SSD model
+        if hasattr(cfg.model, 'bbox_head') and hasattr(cfg.model.bbox_head, 'anchor_generator'):
+            if getattr(cfg.model.bbox_head.anchor_generator, 'reclustering_anchors', False):
+                train_cfg = Stage.get_train_data_cfg(cfg)
+                train_dataset = train_cfg.ote_dataset
+                cfg, model = cluster_anchors(cfg, train_dataset, model)
         train_detector(
             model,
             datasets,

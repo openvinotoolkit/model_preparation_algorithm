@@ -48,14 +48,6 @@ class DetectionStage(Stage):
         # Data
         if data_cfg:
             cfg.merge_from_dict(data_cfg)
-            if 'dataset' in cfg.data.train:
-                cfg.data.train.dataset.ote_dataset = cfg.data.train.ote_dataset
-                cfg.data.train.dataset.labels = cfg.data.train.labels
-                cfg.data.train.dataset.data_classes = cfg.data.train.data_classes
-                cfg.data.train.dataset.new_classes = cfg.data.train.new_classes
-                cfg.data.train.pop('ote_dataset')
-                cfg.data.train.pop('data_classes')
-                cfg.data.train.pop('new_classes')
         self.configure_data(cfg, training, **kwargs)
 
         # Task
@@ -121,6 +113,15 @@ class DetectionStage(Stage):
                         seed=cfg.seed
                     )
                 )
+            if 'dataset' in cfg.data.train:
+                train_cfg = self.get_train_data_cfg(cfg)
+                train_cfg.ote_dataset = cfg.data.train.ote_dataset
+                train_cfg.labels = cfg.data.train.labels
+                train_cfg.data_classes = cfg.data.train.data_classes
+                train_cfg.new_classes = cfg.data.train.new_classes
+                cfg.data.train.pop('ote_dataset')
+                cfg.data.train.pop('data_classes')
+                cfg.data.train.pop('new_classes')
 
     def configure_task(self, cfg, training, **kwargs):
         """Adjust settings for task adaptation

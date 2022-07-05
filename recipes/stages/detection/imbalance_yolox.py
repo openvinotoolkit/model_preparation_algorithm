@@ -25,11 +25,11 @@ custom_hooks = [
         type='LazyEarlyStoppingHook',
         start=3,
         patience=5,
-        iteration_patience=1000,
+        iteration_patience=30,
         metric='mAP',
         interval=1,
         priority=75,
     ),
 ]
 
-ignore = True
+ignore = False
