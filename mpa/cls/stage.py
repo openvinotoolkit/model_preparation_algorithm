@@ -202,20 +202,23 @@ class ClsStage(Stage):
                 if not cfg.model.get('multilabel', False):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
                     gamma = 2 if efficient_mode else 3
-
-                    cfg.model.head.loss = ConfigDict(
-                        type='SoftmaxFocalLoss',
-                        loss_weight=1.0,
-                        gamma=gamma,
-                        reduction='none',
-                    )
                     sampler_type = 'balanced'
+                    if len(model_classes) > 0:
+                        cfg.model.head.loss = ConfigDict(
+                            type='SoftmaxFocalLoss',
+                            loss_weight=1.0,
+                            gamma=gamma,
+                            reduction='none',
+                        )
+                    elif len(model_classes) == 0:
+                        cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
+
                 else:
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
 
                 # if op='REPLACE' & no new_classes (REMOVE), then sampler_flag = False
-                sampler_flag = True if len(train_data_cfg.new_classes) > 0 else False
+                sampler_flag = True if len(train_data_cfg.new_classes) > 0 and len(model_classes) > 0 else False
 
                 # Update Task Adapt Hook
                 task_adapt_hook = ConfigDict(
