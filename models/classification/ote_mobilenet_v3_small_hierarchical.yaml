@@ -1,0 +1,9 @@
+_base_: _base_/ote_mobilenet_v3.py
+
+model:
+    type: SAMImageClassifier
+    task: classification
+    head:
+        type: CustomHierarchicalNonLinearClsHead
+        loss:
+            type: AsymmetricLossWithIgnore

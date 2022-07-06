@@ -33,6 +33,10 @@ class SAMImageClassifier(ImageClassifier):
     def __init__(self, task_adapt=None, **kwargs):
         if 'multilabel' in kwargs:
             self.multilabel = kwargs.pop('multilabel')
+        if 'hierarchical' in kwargs:
+            self.hierarchical = kwargs.pop('hierarchical')
+        if 'multiclass' in kwargs:
+            self.multiclass = kwargs.pop('multiclass')
         super().__init__(**kwargs)
         self.is_export = False
         self.featuremap = None
