@@ -13,7 +13,7 @@ from mmseg.models import build_segmentor
 from mpa.registry import STAGES
 from mpa.seg.stage import SegStage
 from mpa.stage import Stage
-
+import torch
 
 @STAGES.register_module()
 class SegInferrer(SegStage):
@@ -37,7 +37,7 @@ class SegInferrer(SegStage):
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
-        outputs = self.infer(cfg)['segmentations']
+        outputs = self.infer(cfg)
         # outputs = np.array(outputs)
 
         # Save outputs
@@ -72,7 +72,7 @@ class SegInferrer(SegStage):
         dataset = self.dataset
 
         # Data loader
-        data_loader = build_dataloader(
+        mm_val_dataloader = build_dataloader(
             dataset,
             samples_per_gpu=samples_per_gpu,
             workers_per_gpu=cfg.data.workers_per_gpu,
@@ -96,6 +96,7 @@ class SegInferrer(SegStage):
             elif cfg.model.neck.get('rfp_backbone'):
                 if cfg.model.neck.rfp_backbone.get('pretrained'):
                     cfg.model.neck.rfp_backbone.pretrained = None
+        cfg.model.test_cfg.return_repr_vector = True
         model = build_segmentor(cfg.model, train_cfg=None, test_cfg=None)
         model.CLASSES = target_classes
 
@@ -108,16 +109,26 @@ class SegInferrer(SegStage):
             _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         # Inference
-        model = MMDataParallel(model, device_ids=[0])
+        model.eval()
+        eval_model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
-        SegStage.set_inference_progress_callback(model, cfg)
+        SegStage.set_inference_progress_callback(eval_model, cfg)
 
-        segmentations = single_gpu_test(model, data_loader, output_logits=True)
+        segmentations = []
+        feature_vectors = []
+        for data in mm_val_dataloader:
+            with torch.no_grad():
+                result, feature_vector = eval_model(return_loss=False, output_logits=True, **data)
+                segmentations.append(result)
+                feature_vectors.append(feature_vector)
+            assert len(result) == 1
+        
         outputs = dict(
             # config=cfg.pretty_text,
             classes=target_classes,
-            segmentations=segmentations
+            segmentations=segmentations,
+            feature_vectors=feature_vectors
         )
         return outputs
 
