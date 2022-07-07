@@ -38,7 +38,7 @@ class ClsStage(Stage):
             raise ValueError(
                 f'Given model_cfg ({model_cfg.filename}) is not supported by classification recipe'
             )
-            
+
         # Checkpoint
         if model_ckpt:
             cfg.load_from = self.get_model_ckpt(model_ckpt)
@@ -175,7 +175,7 @@ class ClsStage(Stage):
                     cfg.model.head.update({'tasks': train_data_cfg.get('tasks')})
             elif 'new_classes' in train_data_cfg:
                 # Class-Incremental
-                dst_classes, old_classes = refine_cls(train_data_cfg, model_meta, adapt_type)
+                dst_classes, old_classes = refine_cls(train_data_cfg, data_classes, model_meta, adapt_type)
             else:
                 raise KeyError(
                     '"new_classes" or "tasks" should be defined for incremental learning w/ current model.'
@@ -193,7 +193,6 @@ class ClsStage(Stage):
                     )
 
                 # Train dataset config update
-                train_data_cfg.new_classes = np.setdiff1d(dst_classes, old_classes).tolist()
                 train_data_cfg.classes = dst_classes
 
                 # model configuration update
@@ -203,16 +202,16 @@ class ClsStage(Stage):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
                     gamma = 2 if efficient_mode else 3
                     sampler_type = 'balanced'
-                    if len(model_classes) > 0:
+
+                    if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
+                        cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
+                    else:
                         cfg.model.head.loss = ConfigDict(
                             type='SoftmaxFocalLoss',
                             loss_weight=1.0,
                             gamma=gamma,
                             reduction='none',
                         )
-                    elif len(model_classes) == 0:
-                        cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
-
                 else:
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
@@ -239,7 +238,7 @@ class ClsStage(Stage):
                 else:
                     raise KeyError(f'can not find task meta data from {cfg.load_from}.')
             elif train_data_cfg.get('new_classes'):
-                dst_classes, _ = refine_cls(train_data_cfg, model_meta, adapt_type)
+                dst_classes, _ = refine_cls(train_data_cfg, data_classes, model_meta, adapt_type)
                 cfg.model.head.num_classes = len(dst_classes)
 
         # Pseudo label augmentation
@@ -293,17 +292,15 @@ def refine_tasks(train_cfg, meta, adapt_type):
     return model_tasks, old_tasks
 
 
-def refine_cls(train_cfg, meta, adapt_type):
+def refine_cls(train_cfg, data_classes, meta, adapt_type):
     # Get 'new_classes' in data.train_cfg & get 'old_classes' pretreained model meta data CLASSES
     new_classes = train_cfg['new_classes']
     old_classes = meta['CLASSES']
     if adapt_type == 'REPLACE':
-        # if 'REPLACE' operation, then old_classes -> new_classes
-        if len(new_classes) == 0:
-            raise ValueError('Data classes should contain at least one class!')
-        dst_classes = new_classes.copy()
+        # if 'REPLACE' operation, then dst_classes -> data_classes
+        dst_classes = data_classes.copy()
     elif adapt_type == 'MERGE':
-        # if 'MERGE' operation, then old_classes -> old_classes + new_classes (merge)
+        # if 'MERGE' operation, then dst_classes -> old_classes + new_classes (merge)
         dst_classes = old_classes + [cls for cls in new_classes if cls not in old_classes]
     else:
         raise KeyError(f'{adapt_type} is not supported for task_adapt options!')
