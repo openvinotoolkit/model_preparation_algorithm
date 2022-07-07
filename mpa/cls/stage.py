@@ -216,8 +216,10 @@ class ClsStage(Stage):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
 
-                # if op='REPLACE' & no new_classes (REMOVE), then sampler_flag = False
-                sampler_flag = True if len(train_data_cfg.new_classes) > 0 and len(model_classes) > 0 else False
+                if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
+                    sampler_flag = False
+                else:
+                    sampler_flag = True
 
                 # Update Task Adapt Hook
                 task_adapt_hook = ConfigDict(
