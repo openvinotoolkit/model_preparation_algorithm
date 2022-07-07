@@ -34,8 +34,8 @@ class DetectionInferrer(DetectionStage):
         self._init_logger()
         mode = kwargs.get('mode', 'train')
         eval = kwargs.get('eval', False)
-        dump_features = kwargs.get('dump_features')
-        dump_saliency_map = kwargs.get('dump_saliency_map')
+        dump_features = kwargs.get('dump_features', False)
+        dump_saliency_map = kwargs.get('dump_saliency_map', False)
         if mode not in self.mode:
             return {}
 
