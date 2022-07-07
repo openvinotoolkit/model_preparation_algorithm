@@ -82,7 +82,6 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
             head_logits = head_logits[valid_mask,:]
             multiclass_loss = self.loss(head_logits, head_gt)
             losses['loss'] += multiclass_loss
-            print(f'multiclass: {multiclass_loss}, losses: {losses}')
 
         if self.hierarchical_info['num_multiclass_heads'] > 1:
             losses['loss'] /= self.hierarchical_info['num_multiclass_heads']
@@ -98,22 +97,27 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
             valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
             multilabel_loss = self.loss(head_logits, head_gt, multilabel=True, valid_label_mask=valid_label_mask)
             losses['loss'] += multilabel_loss.mean()
-            print(f'multilabel: {multilabel_loss.mean()}, losses: {losses}')
-        print('forward_train end!! ')
         return losses
 
-    def simple_test(self, img):  # 여기도 필요하려나? 여기도 위에 heat_gt랑 logit 파싱하는부분이필요하네....
+    def simple_test(self, img):
         """Test without augmentation."""
         cls_score = self.fc(img)
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
-        # for i in range(self.hierarchical_info['num_multiclass_heads']): # 이거 어떻게하지..
-        multiclass_logits = cls_score[:,self.hierarchical_info['head_idx_to_logits_range'][0][0] :
-                                        self.hierarchical_info['head_idx_to_logits_range'][0][1]]
+        
+        multiclass_logits = []
+        for i in range(self.hierarchical_info['num_multiclass_heads']):
+            multiclass_logit = cls_score[:,self.hierarchical_info['head_idx_to_logits_range'][i][0] :
+                                            self.hierarchical_info['head_idx_to_logits_range'][i][1]]
+            multiclass_logits.append(multiclass_logit)
+        
+        multiclass_logits = torch.cat(multiclass_logits)
         multilabel_logits = cls_score[:,self.hierarchical_info['num_single_label_classes']:]
-        multiclass_pred = F.softmax(multiclass_logits) if multiclass_logits is not None else None
-        multilabel_pred = F.sigmoid(multilabel_logits) if multilabel_logits is not None else None
+        
+        multiclass_pred = torch.softmax(multiclass_logits, dim=1) if multiclass_logits is not None else None
+        multilabel_pred = torch.sigmoid(multilabel_logits) if multilabel_logits is not None else None
         pred = torch.cat([multiclass_pred, multilabel_pred], axis=1)
+        
         if torch.onnx.is_in_onnx_export():
             return pred
         pred = list(pred.detach().cpu().numpy())
