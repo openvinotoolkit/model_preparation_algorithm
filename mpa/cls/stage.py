@@ -38,11 +38,12 @@ class ClsStage(Stage):
             raise ValueError(
                 f'Given model_cfg ({model_cfg.filename}) is not supported by classification recipe'
             )
-        self.configure_model(cfg, training, **kwargs)
-
+            
         # Checkpoint
         if model_ckpt:
             cfg.load_from = self.get_model_ckpt(model_ckpt)
+
+        self.configure_model(cfg, training, **kwargs)
 
         # OMZ-plugin
         if cfg.model.backbone.type == 'OmzBackboneCls':
@@ -89,6 +90,10 @@ class ClsStage(Stage):
     def configure_model(cfg, training, **kwargs):
         # verify and update model configurations
         # check whether in/out of the model layers require updating
+
+        if cfg.get('load_from', None) and cfg.model.backbone.get('pretrained', None):
+            cfg.model.backbone.pretrained = None
+
         update_required = False
         if cfg.model.get('neck') is not None:
             if cfg.model.neck.get('in_channels') is not None and cfg.model.neck.in_channels <= 0:

@@ -500,10 +500,12 @@ class EfficientNet(nn.Module):
                  bn_frozen=False,
                  IN_first=False,
                  IN_conv1=False,
+                 pretrained=False,
                  **kwargs):
 
         super().__init__(**kwargs)
         self.num_classes = 1000
+        self.pretrained = pretrained
         self.in_size = in_size
         self.input_IN = nn.InstanceNorm2d(3, affine=True) if IN_first else None
         self.bn_eval = bn_eval
@@ -1522,6 +1524,7 @@ class OTEEfficientNet(EfficientNet):
             in_size=in_size,
             **kwargs,
         )
+        self.init_weights(self.pretrained)
 
     def forward(self, x):
         return super().forward(x, return_featuremaps=True)

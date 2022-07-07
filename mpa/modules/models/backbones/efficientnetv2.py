@@ -43,7 +43,7 @@ NAME_DICT = {
 class TimmModelsWrapper(nn.Module):
     def __init__(self,
                  model_name,
-                 pretrained=True,
+                 pretrained=False,
                  pooling_type='avg',
                  **kwargs):
         super().__init__(**kwargs)
@@ -55,6 +55,8 @@ class TimmModelsWrapper(nn.Module):
         self.model = timm.create_model(NAME_DICT[self.model_name],
                                        pretrained=pretrained,
                                        num_classes=1000)
+        if self.pretrained:
+            logger.info(f"init weight - {pretrained_urls[self.model_name]}")
         self.model.classifier = None  # Detach classifier. Only use 'backbone' part in mpa.
         self.num_head_features = self.model.num_features
         self.num_features = (self.model.conv_head.in_channels if self.is_mobilenet

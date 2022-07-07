@@ -78,7 +78,8 @@ class SAMImageClassifier(ImageClassifier):
         x = self.extract_feat(img)
 
         losses = dict()
-        if kwargs.get('img_metas', False) and len(kwargs['img_metas'][-1]['ignored_labels']) > 0:
+
+        if self.multilabel:
             loss = self.head.forward_train(x, gt_label, **kwargs)
         else:
             loss = self.head.forward_train(x, gt_label)
