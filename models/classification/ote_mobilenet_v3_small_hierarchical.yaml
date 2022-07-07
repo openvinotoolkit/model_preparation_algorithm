@@ -5,5 +5,5 @@ model:
     task: classification
     head:
         type: CustomHierarchicalNonLinearClsHead
-        loss:
+        multilabel_loss:
             type: AsymmetricLossWithIgnore

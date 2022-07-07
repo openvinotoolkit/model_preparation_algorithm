@@ -7,5 +7,5 @@ model:
         version: s_21k
     head:
         type: CustomHierarchicalLinearClsHead
-        loss:
+        multilabel_loss:
             type: AsymmetricLossWithIgnore

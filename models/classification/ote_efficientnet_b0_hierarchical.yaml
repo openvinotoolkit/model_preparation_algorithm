@@ -7,5 +7,5 @@ model:
         version: b0
     head:
         type: CustomHierarchicalLinearClsHead
-        loss:
+        multilabel_loss:
             type: AsymmetricLossWithIgnore

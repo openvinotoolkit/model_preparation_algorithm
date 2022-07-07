@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn import normal_init
 
-from mmcls.models.builder import HEADS
+from mmcls.models.builder import HEADS, build_loss
 from mmcls.models.heads import MultiLabelClsHead
 
 
@@ -25,13 +25,19 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
                  in_channels,
                  loss=dict(
                      type='CrossEntropyLoss',
-                     use_sigmoid=False,
+                     use_sigmoid=True,
+                     reduction='mean',
+                     loss_weight=1.0),
+                 multilabel_loss=dict(
+                     type='AsymmetricLoss',
                      reduction='mean',
                      loss_weight=1.0),
                  **kwargs):
         self.hierarchical_info = kwargs.pop('hierarchical_info', None)
         assert self.hierarchical_info
         super(CustomHierarchicalLinearClsHead, self).__init__(loss=loss)
+        if self.hierarchical_info['num_multilabel_classes'] > 0:
+            self.compute_multilabel_loss = build_loss(multilabel_loss)
 
         if num_classes <= 0:
             raise ValueError(
@@ -40,7 +46,6 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
         self.in_channels = in_channels
         self.num_classes = num_classes
         self._init_layers()
-        # build loss 두개 해야하네~
 
     def _init_layers(self):
         self.fc = nn.Linear(self.in_channels, self.num_classes)
@@ -48,62 +53,67 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
     def init_weights(self):
         normal_init(self.fc, mean=0, std=0.01, bias=0)
 
-    def loss(self, cls_score, gt_label, valid_label_mask=None):
-        gt_label = gt_label.type_as(cls_score)
+    def loss(self, cls_score, gt_label, multilabel=False, valid_label_mask=None):
         num_samples = len(cls_score)
-        losses = dict()
-
-        # map difficult examples to positive ones
-        _gt_label = torch.abs(gt_label)
         # compute loss
-        loss = self.compute_loss(cls_score, _gt_label, valid_label_mask=valid_label_mask, avg_factor=num_samples)
-        losses['loss'] = loss
-        return losses
+        if multilabel:
+            gt_label = gt_label.type_as(cls_score)
+            # map difficult examples to positive ones
+            _gt_label = torch.abs(gt_label)
 
-    def forward_train(self, x, gt_label, **kwargs): # TODO : 여기서 hierarchical info 받아서 파싱해야함.
+            loss = self.compute_multilabel_loss(cls_score, _gt_label, valid_label_mask=valid_label_mask, avg_factor=num_samples)
+        else:
+            loss = self.compute_loss(cls_score, gt_label, avg_factor=num_samples)
+
+        return loss
+
+    def forward_train(self, x, gt_label, **kwargs):
         img_metas = kwargs.get('img_metas', False)
         gt_label = gt_label.type_as(x)
         cls_score = self.fc(x)
         
+        losses = dict(loss=0.)
         for i in range(self.hierarchical_info['num_multiclass_heads']):
             head_gt = gt_label[:,i]
             head_logits = cls_score[:,self.hierarchical_info['head_idx_to_logits_range'][i][0] :
-                                        self.hierarchical_info['head_idx_to_logits_range'][i][1]]
+                                      self.hierarchical_info['head_idx_to_logits_range'][i][1]]
             valid_mask = head_gt >= 0
             head_gt = head_gt[valid_mask].long()
             head_logits = head_logits[valid_mask,:]
-
-            if img_metas:
-                valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
-                losses = self.loss(cls_score, gt_label, valid_label_mask=valid_label_mask)
-            else:
-                losses = self.loss(cls_score, gt_label)
+            multiclass_loss = self.loss(head_logits, head_gt)
+            losses['loss'] += multiclass_loss
+            print(f'multiclass: {multiclass_loss}, losses: {losses}')
 
         if self.hierarchical_info['num_multiclass_heads'] > 1:
-            losses /= self.hierarchical_info['num_multiclass_heads']
+            losses['loss'] /= self.hierarchical_info['num_multiclass_heads']
 
-        # if self.multilabel_loss:
-        #     head_gt = gt_label[:,self.hierarchical_info['num_multiclass_heads']:]
-        #     head_logits = cls_score[:,self.hierarchical_info['num_single_label_classes']:]
-        #     valid_mask = head_gt >= 0
-        #     head_gt = head_gt[valid_mask].view(*valid_mask.shape)
-        #     head_logits = head_logits[valid_mask].view(*valid_mask.shape)
-        #     # multilabel_loss is assumed to perform no batch averaging
-        #     losses = self.loss(cls_score, gt_label, valid_label_mask=valid_label_mask)
+        if self.compute_multilabel_loss:
+            head_gt = gt_label[:,self.hierarchical_info['num_multiclass_heads']:]
+            head_logits = cls_score[:,self.hierarchical_info['num_single_label_classes']:]
+            valid_mask = head_gt >= 0
+            head_gt = head_gt[valid_mask].view(*valid_mask.shape)
+            head_logits = head_logits[valid_mask].view(*valid_mask.shape)
 
-        # if img_metas:
-        #     valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
-        #     losses = self.loss(cls_score, gt_label, valid_label_mask=valid_label_mask)
-        # else:
-        #     losses = self.loss(cls_score, gt_label)
+            # multilabel_loss is assumed to perform no batch averaging
+            valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
+            multilabel_loss = self.loss(head_logits, head_gt, multilabel=True, valid_label_mask=valid_label_mask)
+            losses['loss'] += multilabel_loss.mean()
+            print(f'multilabel: {multilabel_loss.mean()}, losses: {losses}')
+        print('forward_train end!! ')
         return losses
 
-    def simple_test(self, img):  # 여기도 필요하려나?
+    def simple_test(self, img):  # 여기도 필요하려나? 여기도 위에 heat_gt랑 logit 파싱하는부분이필요하네....
         """Test without augmentation."""
         cls_score = self.fc(img)
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
-        pred = F.sigmoid(cls_score) if cls_score is not None else None
+        # for i in range(self.hierarchical_info['num_multiclass_heads']): # 이거 어떻게하지..
+        multiclass_logits = cls_score[:,self.hierarchical_info['head_idx_to_logits_range'][0][0] :
+                                        self.hierarchical_info['head_idx_to_logits_range'][0][1]]
+        multilabel_logits = cls_score[:,self.hierarchical_info['num_single_label_classes']:]
+        multiclass_pred = F.softmax(multiclass_logits) if multiclass_logits is not None else None
+        multilabel_pred = F.sigmoid(multilabel_logits) if multilabel_logits is not None else None
+        pred = torch.cat([multiclass_pred, multilabel_pred], axis=1)
         if torch.onnx.is_in_onnx_export():
             return pred
         pred = list(pred.detach().cpu().numpy())

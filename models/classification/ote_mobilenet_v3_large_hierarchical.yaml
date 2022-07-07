@@ -9,5 +9,5 @@ model:
         type: CustomHierarchicalNonLinearClsHead
         in_channels: 960
         hid_channels: 1280
-        loss:
+        multilabel_loss:
             type: AsymmetricLossWithIgnore
