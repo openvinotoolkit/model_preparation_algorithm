@@ -9,6 +9,7 @@ from mpa.modules.utils.task_adapt import map_class_names
 from mpa.utils.logger import get_logger
 from collections import OrderedDict
 import functools
+import torch
 
 logger = get_logger()
 
@@ -82,6 +83,7 @@ class SAMImageClassifier(ImageClassifier):
         if self.multilabel:
             loss = self.head.forward_train(x, gt_label, **kwargs)
         else:
+            gt_label = torch.squeeze(gt_label)
             loss = self.head.forward_train(x, gt_label)
 
         losses.update(loss)

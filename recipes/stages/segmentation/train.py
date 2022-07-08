@@ -12,20 +12,16 @@ optimizer = dict(
     weight_decay=0.0001,
 )
 
-# learning policy
 lr_config = dict(
-    _delete_=True,
-    policy='customstep',
-    gamma=0.1,
-    by_epoch=True,
-    step=[400, 500],
-    fixed='constant',
-    fixed_iters=0,
-    fixed_ratio=10.0,
-    warmup='cos',
+    policy='ReduceLROnPlateau',
+    metric='mDice',
+    patience=5,
+    iteration_patience=0,
+    interval=1,
+    min_lr=0.000001,
+    warmup='linear',
     warmup_iters=80,
-    warmup_ratio=1e-2,
-)
+    warmup_ratio=1.0 / 3)
 
 evaluation = dict(
     interval=1,
@@ -43,9 +39,9 @@ params_config = dict(
 
 custom_hooks = [
     dict(type='LazyEarlyStoppingHook',
-         patience=10,
+         patience=8,
          iteration_patience=0,
-         metric='mIoU',
+         metric='mDice',
          interval=1,
          priority=75,
          start=1
