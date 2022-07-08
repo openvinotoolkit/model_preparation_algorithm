@@ -8,3 +8,5 @@ model = dict(
         type='CustomYOLOXHead',
     ),
 )
+
+ignore = False
