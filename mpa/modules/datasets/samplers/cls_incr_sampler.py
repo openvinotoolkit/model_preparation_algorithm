@@ -4,7 +4,7 @@
 
 import numpy as np
 from torch.utils.data.sampler import Sampler
-from mpa.modules.utils.task_adapt import get_dataset_without_wrapping
+from mpa.modules.utils.task_adapt import unwrap_dataset
 
 
 class ClsIncrSampler(Sampler):
@@ -24,7 +24,7 @@ class ClsIncrSampler(Sampler):
         self.samples_per_gpu = samples_per_gpu
 
         # Dataset Wrapping remove & repeat for RepeatDataset
-        self.dataset, self.repeat = get_dataset_without_wrapping(dataset)
+        self.dataset, self.repeat = unwrap_dataset(dataset)
 
         if hasattr(self.dataset, 'img_indices'):
             self.new_indices = self.dataset.img_indices['new']
