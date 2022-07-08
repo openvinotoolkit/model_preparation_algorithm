@@ -7,8 +7,10 @@ model:
         mode: large
         width_mult: 0.75
     head:
-        type: CustomHierarchicalLinearClsHead
+        type: CustomHierarchicalNonLinearClsHead
         in_channels: 720
         hid_channels: 1280
         multilabel_loss:
             type: AsymmetricLossWithIgnore
+            gamma_pos: 0.0
+            gamma_neg: 4.0

@@ -84,11 +84,11 @@ class SAMImageClassifier(ImageClassifier):
 
         losses = dict()
 
-        if self.multilabel or self.hierarchical:
-            loss = self.head.forward_train(x, gt_label, **kwargs)
-        else:
+        if self.multiclass:
             gt_label = torch.squeeze(gt_label)
             loss = self.head.forward_train(x, gt_label)
+        else:
+            loss = self.head.forward_train(x, gt_label, **kwargs)
 
         losses.update(loss)
 

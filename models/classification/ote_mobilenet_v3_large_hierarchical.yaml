@@ -11,3 +11,5 @@ model:
         hid_channels: 1280
         multilabel_loss:
             type: AsymmetricLossWithIgnore
+            gamma_pos: 0.0
+            gamma_neg: 4.0
