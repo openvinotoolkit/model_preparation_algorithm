@@ -60,14 +60,12 @@ class EarlyStoppingHook(Hook):
                  rule: Optional[str] = None,
                  patience: int = 5,
                  iteration_patience: int = 500,
-                 min_delta: float = 0.0,
-                 warmup_iters: int = 0):
+                 min_delta: float = 0.0):
         super().__init__()
         self.patience = patience
         self.iteration_patience = iteration_patience
         self.interval = interval
         self.min_delta = min_delta
-        self.warmup_iters = warmup_iters
         self._init_rule(rule, metric)
 
         self.min_delta *= 1 if self.rule == 'greater' else -1
@@ -244,11 +242,9 @@ class LazyEarlyStoppingHook(EarlyStoppingHook):
                  patience: int = 5,
                  iteration_patience: int = 500,
                  min_delta: float = 0.0,
-                 warmup_iters: int = 0,
                  start: int = None):
         self.start = start
-        super(LazyEarlyStoppingHook, self).__init__(interval, \
-            metric, rule, patience, iteration_patience, min_delta, warmup_iters)
+        super(LazyEarlyStoppingHook, self).__init__(interval, metric, rule, patience, iteration_patience, min_delta)
 
     def _should_check_stopping(self, runner):
         if self.by_epoch:
