@@ -5,10 +5,11 @@ _base_ = [
 ]
 
 optimizer = dict(
-    type='SGD',
+    _delete_=True,
+    type='Adam',
     lr=1e-3,
-    momentum=0.9,
-    weight_decay=0.0005
+    eps=1e-08,
+    weight_decay=0.0
 )
 
 optimizer_config = dict(
