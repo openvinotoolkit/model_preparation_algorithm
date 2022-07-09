@@ -153,10 +153,11 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
     def get_valid_label_mask(self, img_metas):
         valid_label_mask = []
         for i, meta in enumerate(img_metas):
-            mask = torch.Tensor([1 for _ in range(self.num_classes)])
+            mask = torch.Tensor([1 for _ in range(self.num_classes - self.hierarchical_info['num_single_label_classes'])])
             if 'ignored_labels' in meta and meta['ignored_labels']:
                 mask[meta['ignored_labels']] = 0
             mask = mask.cuda() if torch.cuda.is_available() else mask
             valid_label_mask.append(mask)
         valid_label_mask = torch.stack(valid_label_mask, dim=0)
         return valid_label_mask
+
