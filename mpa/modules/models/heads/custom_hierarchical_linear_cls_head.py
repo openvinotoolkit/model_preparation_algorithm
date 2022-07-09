@@ -72,7 +72,7 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
         img_metas = kwargs.get('img_metas', False)
         gt_label = gt_label.type_as(x)
         cls_score = self.fc(x)
-        
+
         losses = dict(loss=0.)
         for i in range(self.hierarchical_info['num_multiclass_heads']):
             head_gt = gt_label[:,i]
@@ -111,8 +111,7 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
             multiclass_logit = cls_score[:,self.hierarchical_info['head_idx_to_logits_range'][i][0] :
                                             self.hierarchical_info['head_idx_to_logits_range'][i][1]]
             multiclass_logits.append(multiclass_logit)
-        
-        multiclass_logits = torch.cat(multiclass_logits)
+        multiclass_logits = torch.cat(multiclass_logits, dim=1)
         multiclass_pred = torch.softmax(multiclass_logits, dim=1) if multiclass_logits is not None else None
 
         if self.compute_multilabel_loss:
