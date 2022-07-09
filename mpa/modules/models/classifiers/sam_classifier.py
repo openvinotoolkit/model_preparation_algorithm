@@ -35,8 +35,6 @@ class SAMImageClassifier(ImageClassifier):
             self.multilabel = kwargs.pop('multilabel')
         if 'hierarchical' in kwargs:
             self.hierarchical = kwargs.pop('hierarchical')
-        if 'multiclass' in kwargs:
-            self.multiclass = kwargs.pop('multiclass')
         super().__init__(**kwargs)
         self.is_export = False
         self.featuremap = None
@@ -84,18 +82,18 @@ class SAMImageClassifier(ImageClassifier):
 
         losses = dict()
 
-        if self.multiclass:
+        if self.multilabel or self.hierarchical:
+            loss = self.head.forward_train(x, gt_label, **kwargs)
+        else:
             gt_label = torch.squeeze(gt_label)
             loss = self.head.forward_train(x, gt_label)
-        else:
-            loss = self.head.forward_train(x, gt_label, **kwargs)
 
         losses.update(loss)
 
         return losses
 
     @staticmethod
-    def state_dict_hook(module, state_dict, *args, **kwargs):
+    def state_dict_hook(module, state_dict, *args, **kwargs):  # TODO : support OTE -> MPA completely, support hierarchical
         """Redirect model as output state_dict for OTE model compatibility
         """
         backbone_type = type(module.backbone).__name__
@@ -139,7 +137,7 @@ class SAMImageClassifier(ImageClassifier):
         return output
 
     @staticmethod
-    def load_state_dict_pre_hook(module, state_dict, *args, **kwargs):
+    def load_state_dict_pre_hook(module, state_dict, *args, **kwargs):  # TODO : support OTE -> MPA completely, support hierarchical
         """Redirect input state_dict to model for OTE model compatibility
         """
         backbone_type = type(module.backbone).__name__
@@ -185,7 +183,7 @@ class SAMImageClassifier(ImageClassifier):
             logger.info('conversion is not required.')
 
     @staticmethod
-    def load_state_dict_mixing_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):
+    def load_state_dict_mixing_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):  # TODO : support OTE -> MPA completely, support hierarchical
         """Modify input state_dict according to class name matching before weight loading
         """
         backbone_type = type(model.backbone).__name__

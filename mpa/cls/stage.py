@@ -77,7 +77,7 @@ class ClsStage(Stage):
 
         if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
             cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
-            if not cfg.model.get('multiclass', False):
+            if cfg.model.get('multilabel', False) or cfg.model.get('hierarchical', False):
                 cfg.model.head.pop('topk', None)
 
         # Other hyper-parameters
@@ -198,7 +198,7 @@ class ClsStage(Stage):
                 # model configuration update
                 cfg.model.head.num_classes = len(dst_classes)
 
-                if cfg.model.get('multiclass', False):
+                if not cfg.model.get('multilabel', False) and not cfg.model.get('hierarchical', False):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
                     gamma = 2 if efficient_mode else 3
                     sampler_type = 'balanced'
