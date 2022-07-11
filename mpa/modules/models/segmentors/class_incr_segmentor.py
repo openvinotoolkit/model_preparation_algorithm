@@ -6,11 +6,11 @@ import functools
 from mmseg.utils import get_root_logger
 from mpa.modules.utils.task_adapt import map_class_names
 from mmseg.models import SEGMENTORS
-from mmseg.models.segmentors.cascade_encoder_decoder import CascadeEncoderDecoder
+from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
 
 
 @SEGMENTORS.register_module()
-class ClassIncrSegmentor(CascadeEncoderDecoder):
+class ClassIncrSegmentor(EncoderDecoder):
     """
     """
 
@@ -45,9 +45,8 @@ class ClassIncrSegmentor(CascadeEncoderDecoder):
 
         model_dict = model.state_dict()
         param_names = [
-            'decode_head.0.conv_seg.weight',
-            'decode_head.0.conv_seg.bias',
-            'decode_head.1.conv_seg.weight',
+            'decode_head.conv_seg.weight',
+            'decode_head.conv_seg.bias',
         ]
         for model_name in param_names:
             chkpt_name = prefix + model_name
