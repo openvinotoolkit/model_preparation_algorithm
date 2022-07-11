@@ -12,11 +12,12 @@ from mmcls.models.heads import MultiLabelClsHead
 
 @HEADS.register_module()
 class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
-    """Custom Linear classification head for multilabel task.
+    """Custom Linear classification head for hierarchical classification task.
     Args:
         num_classes (int): Number of categories.
         in_channels (int): Number of channels in the input feature map.
         loss (dict): Config of classification loss.
+        multilabel_loss (dict): Config of multi-label classification loss.
     """
 
     def __init__(self,

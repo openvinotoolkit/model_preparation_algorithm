@@ -92,7 +92,7 @@ class SAMImageClassifier(ImageClassifier):
         return losses
 
     @staticmethod
-    def state_dict_hook(module, state_dict, *args, **kwargs):  # TODO : support OTE -> MPA completely, support hierarchical
+    def state_dict_hook(module, state_dict, *args, **kwargs):
         """Redirect model as output state_dict for OTE model compatibility
         """
         backbone_type = type(module.backbone).__name__
@@ -118,7 +118,7 @@ class SAMImageClassifier(ImageClassifier):
                     k = k.replace('backbone.', '')
                 elif k.startswith('head'):
                     k = k.replace('head', 'output')
-                    if module.multilabel and not module.is_export:
+                    if not module.hierarchical and not module.is_export:
                         k = k.replace('fc', 'asl')
                         v = v.t()
                 output[k] = v
@@ -129,14 +129,14 @@ class SAMImageClassifier(ImageClassifier):
                     k = k.replace('backbone.', '')
                 elif k == 'head.fc.weight':
                     k = k.replace('head.fc', 'model.classifier')
-                    if not module.is_export:
+                    if not module.hierarchical and not module.is_export:
                         v = v.t()
                 output[k] = v
 
         return output
 
     @staticmethod
-    def load_state_dict_pre_hook(module, state_dict, *args, **kwargs):  # TODO : support OTE -> MPA completely, support hierarchical
+    def load_state_dict_pre_hook(module, state_dict, *args, **kwargs):
         """Redirect input state_dict to model for OTE model compatibility
         """
         backbone_type = type(module.backbone).__name__
@@ -164,17 +164,18 @@ class SAMImageClassifier(ImageClassifier):
                     k = 'backbone.'+k
                 elif k.startswith('output.'):
                     k = k.replace('output', 'head')
-                    if module.multilabel:
+                    if not module.hierarchical:
                         k = k.replace('asl', 'fc')
                         v = v.t()
                 state_dict[k] = v
-
+        
         elif backbone_type == 'OTEEfficientNetV2':
             for k in list(state_dict.keys()):
                 v = state_dict.pop(k)
                 if k.startswith('model.classifier'):
                     k = k.replace('model.classifier', 'head.fc')
-                    v = v.t()
+                    if not module.hierarchical:
+                        v = v.t()
                 elif k.startswith('model'):
                     k = 'backbone.'+k
                 state_dict[k] = v
@@ -182,7 +183,7 @@ class SAMImageClassifier(ImageClassifier):
             logger.info('conversion is not required.')
 
     @staticmethod
-    def load_state_dict_mixing_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):  # TODO : support OTE -> MPA completely, support hierarchical
+    def load_state_dict_mixing_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):
         """Modify input state_dict according to class name matching before weight loading
         """
         backbone_type = type(model.backbone).__name__
@@ -203,12 +204,10 @@ class SAMImageClassifier(ImageClassifier):
                 param_names = ['classifier.4.weight', 'classifier.4.bias']
 
         elif backbone_type == 'OTEEfficientNet':
-            if model.multilabel:
+            if not model.hierarchical:
                 param_names = ['output.asl.weight']
             else:
                 param_names = ['output.fc.weight']
-                if 'head.fc.bias' in chkpt_dict.keys():
-                    param_names.append('output.fc.bias')
 
         elif backbone_type == 'OTEEfficientNetV2':
             param_names = [
@@ -224,18 +223,18 @@ class SAMImageClassifier(ImageClassifier):
                 if model.multilabel:
                     model_param = model_param.t()
             elif backbone_type in 'OTEEfficientNet':
-                if model.multilabel:
-                    chkpt_name = model_name.replace('output.asl.', 'head.fc.')
+                chkpt_name = model_name.replace('output', 'head')
+                if not model.hierarchical:
+                    chkpt_name = chkpt_name.replace('asl', 'fc')
                     model_param = model_param.t()
-                else:
-                    chkpt_name = model_name.replace('output', 'head')
 
             elif backbone_type in 'OTEEfficientNetV2':
                 if model_name.endswith('bias'):
                     chkpt_name = model_name
                 else:
                     chkpt_name = model_name.replace('model.classifier', 'head.fc')
-                    model_param = model_param.t()
+                    if not model.hierarchical:
+                        model_param = model_param.t()
 
             if model_name not in model_dict or chkpt_name not in chkpt_dict:
                 logger.info(f'Skipping weight copy: {chkpt_name}')

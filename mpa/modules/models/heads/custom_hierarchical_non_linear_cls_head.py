@@ -12,11 +12,15 @@ from mmcls.models.heads import MultiLabelClsHead
 
 @HEADS.register_module()
 class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
-    """Custom Linear classification head for multilabel task.
+    """Custom NonLinear classification head for hierarchical classification task.
     Args:
-        num_classes (int): Number of categories.
+        num_classes (int): Number of categories excluding the background
+            category.
         in_channels (int): Number of channels in the input feature map.
+        hid_channels (int): Number of channels of hidden layer.
+        act_cfg (dict): Config of activation layer.
         loss (dict): Config of classification loss.
+        multilabel_loss (dict): Config of multi-label classification loss.
     """
 
     def __init__(self,
