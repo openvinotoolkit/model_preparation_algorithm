@@ -263,7 +263,6 @@ class DetectionStage(Stage):
                     cfg.data.train.pop('img_prefix', None)
                     cfg.data.train['labels'] = cfg.data.train.pop('labels', None)
                     self.add_yolox_hooks(cfg)
-                cfg.ignore = False  # YOLOX does not yet support ignore mode
             # Ignore Mode
             if cfg.get('ignore', False):
                 bbox_head.loss_cls = ConfigDict(
