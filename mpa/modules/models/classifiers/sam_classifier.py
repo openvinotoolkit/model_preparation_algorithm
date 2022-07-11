@@ -262,7 +262,4 @@ class SAMImageClassifier(ImageClassifier):
         """
         x = self.extract_feat(img)
         logits = self.head.simple_test(x)
-        if self.is_export:
-            return logits, self.featuremap, x  # (logits, featuremap, vector)
-        else:
-            return logits
+        return logits, self.featuremap, x  # (logits, featuremap, vector)

@@ -95,21 +95,19 @@ class ClsInferrer(ClsStage):
         return outputs
 
     def single_gpu_test(self, model, data_loader):
+
         model.eval()
-        results = []
         dataset = data_loader.dataset
         prog_bar = mmcv.ProgressBar(len(dataset))
+        logits = []
+        feature_maps = []
+        feature_vectors = []
         for data in data_loader:
             with torch.no_grad():
-                result = model(return_loss=False, **data)
-            batch_size = len(result)
-            if not isinstance(result, dict):
-                result = np.array(result, dtype=np.float32)
-                for r in result:
-                    results.append(r)
-            for _ in range(batch_size):
-                prog_bar.update()
-
-        if not isinstance(result, dict):
-            result = np.array(result)
-        return results
+                _logits, _feature_maps, _feature_vectors = model(return_loss=False, **data)
+            for _logit, _fmap, _fvec in zip(_logits, _feature_maps, _feature_vectors):
+                logits.append(_logit)
+                feature_maps.append(_fmap.detach().cpu().numpy())
+                feature_vectors.append(_fvec.detach().cpu().numpy())
+            prog_bar.update(len(_logits))
+        return logits, feature_maps, feature_vectors
