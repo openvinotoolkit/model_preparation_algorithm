@@ -1,6 +1,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+from typing import Tuple, List
 
 import os.path as osp
 import numpy as np
@@ -16,6 +17,7 @@ from mmcls.models import build_classifier
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
 from mpa.modules.utils.task_adapt import prob_extractor
+from mpa.utils.auxiliary_helper import get_feature_vector, get_saliency_map
 from mpa.utils.logger import get_logger
 logger = get_logger()
 
@@ -30,6 +32,8 @@ class ClsInferrer(ClsStage):
         - Run inference via mmcls -> mmcv
         """
         self._init_logger()
+        dump_features = kwargs.get('dump_features', False)
+        dump_saliency_map = kwargs.get('dump_saliency_map', False)
         mode = kwargs.get('mode', 'train')
         if mode not in self.mode:
             return {}
@@ -37,7 +41,7 @@ class ClsInferrer(ClsStage):
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-        outputs = self._infer(cfg)
+        outputs = self._infer(cfg, dump_features, dump_saliency_map)
         if cfg.get('task_adapt', False) and self.extract_prob:
             output_file_path = osp.join(cfg.work_dir, 'pre_stage_res.npy')
             np.save(output_file_path, outputs, allow_pickle=True)
@@ -50,7 +54,7 @@ class ClsInferrer(ClsStage):
                 outputs=outputs
                 )
 
-    def _infer(self, cfg):
+    def _infer(self, cfg, dump_features=False, dump_saliency_map=False):
         if cfg.get('task_adapt', False) and not hasattr(self, 'eval'):
             dataset_cfg = cfg.data.train.copy()
             dataset_cfg.pipeline = cfg.data.test.pipeline
@@ -81,6 +85,52 @@ class ClsInferrer(ClsStage):
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
+        eval_predictions = []
+        feature_vectors = []
+        saliency_maps = []
+
+        def dump_features_hook(module, input, out):
+            """ Perform average pooling on feature maps then cache it 
+
+            Args:
+                module (torch.nn.Module): mmcls backbone module
+                input (Tuple): mmcls backbone input
+                out (torch.Tensor): feature maps from backbone
+            """
+            with torch.no_grad():
+                feature_vector = get_feature_vector(out)
+            feature_vector = feature_vector.detach().cpu().numpy()
+            if len(feature_vector) > 1:
+                for tensor in feature_vector:
+                  feature_vectors.append(tensor)
+            else:
+                feature_vectors.append(feature_vector)
+
+        def dummy_dump_features_hook(module, input, out):
+            feature_vectors.append(None)
+
+        def dump_saliency_hook(module: torch.nn.Module, input: Tuple, out: List[torch.Tensor]):
+            """ Perform feature map transformation to saliency map then cache it
+
+            Args:
+                model (torch.nn.Module): mmcls backbone module
+                input (Tuple): mmcls backbone input 
+                out (torch.Tensor): feature map from backbone
+            """
+            with torch.no_grad():
+                saliency_map = get_saliency_map(out)
+            saliency_map = saliency_map.detach().cpu().numpy()
+            if len(saliency_map) > 1:
+                for tensor in saliency_map:
+                  saliency_maps.append(tensor)
+            else:
+                saliency_maps.append(saliency_map)
+        
+        def dummy_dump_saliency_hook(model, input, out):
+            saliency_maps.append(None)
+
+        feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
+        saliency_map_hook = dump_saliency_hook if dump_saliency_map else dummy_dump_saliency_hook
 
         if cfg.get('task_adapt', False) and not hasattr(self, 'eval') and self.extract_prob:
             old_prob, feats = prob_extractor(model.module, data_loader)
@@ -90,24 +140,18 @@ class ClsInferrer(ClsStage):
                 data_info['soft_label'] = {task: value[i] for task, value in old_prob.items()}
             outputs = data_infos
         else:
-            outputs = self.single_gpu_test(model, data_loader)
-
+            with model.module.backbone.register_forward_hook(feature_vector_hook):
+                with model.module.backbone.register_forward_hook(saliency_map_hook):
+                    for data in data_loader:
+                        with torch.no_grad():
+                            result = model(return_loss=False, **data)
+                        eval_predictions.extend(result)
+        assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
+                'Number of elements should be the same, however, number of outputs are ' \
+                f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
+        outputs = dict(
+            eval_predictions=eval_predictions,
+            feature_vectors=feature_vectors,
+            saliency_maps=saliency_maps
+        )
         return outputs
-
-    def single_gpu_test(self, model, data_loader):
-
-        model.eval()
-        dataset = data_loader.dataset
-        prog_bar = mmcv.ProgressBar(len(dataset))
-        logits = []
-        feature_maps = []
-        feature_vectors = []
-        for data in data_loader:
-            with torch.no_grad():
-                _logits, _feature_maps, _feature_vectors = model(return_loss=False, **data)
-            for _logit, _fmap, _fvec in zip(_logits, _feature_maps, _feature_vectors):
-                logits.append(_logit)
-                feature_maps.append(_fmap.detach().cpu().numpy())
-                feature_vectors.append(_fvec.detach().cpu().numpy())
-            prog_bar.update(len(_logits))
-        return logits, feature_maps, feature_vectors

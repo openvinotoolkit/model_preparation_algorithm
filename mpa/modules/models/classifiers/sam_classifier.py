@@ -251,7 +251,7 @@ class SAMImageClassifier(ImageClassifier):
         """Directly extract features from the backbone + neck
            Overriding for OpenVINO export with features
         """
-        x = self.featuremap = self.backbone(img)
+        x = self.backbone(img)
         if self.with_neck:
             x = self.neck(x)
         return x
@@ -262,4 +262,8 @@ class SAMImageClassifier(ImageClassifier):
         """
         x = self.extract_feat(img)
         logits = self.head.simple_test(x)
-        return logits, self.featuremap, x  # (logits, featuremap, vector)
+        # TODO[EUGENE]: output feature map on torch.onnx.tracing
+        if self.is_export:
+            return logits, x
+        else:
+            return logits
