@@ -15,7 +15,8 @@ from mpa.utils.logger import get_logger
 
 logger = get_logger()
 
-CLASS_INC_DATASET = ['MPAClsDataset', 'MPAMultilabelClsDataset', 'MPAHierarchicalClsDataset', 'ClsDirDataset', 'ClsTVDataset']
+CLASS_INC_DATASET = ['MPAClsDataset', 'MPAMultilabelClsDataset', 'MPAHierarchicalClsDataset',
+                     'ClsDirDataset', 'ClsTVDataset']
 PSEUDO_LABEL_ENABLE_DATASET = ['ClassIncDataset', 'LwfTaskIncDataset', 'ClsTVDataset']
 WEIGHT_MIX_CLASSIFIER = ['SAMImageClassifier']
 

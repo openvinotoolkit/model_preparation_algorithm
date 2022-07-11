@@ -4,7 +4,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from mmcv.cnn import normal_init, constant_init, build_activation_layer
 
 from mmcls.models.builder import HEADS, build_loss
@@ -86,7 +85,8 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
             # map difficult examples to positive ones
             _gt_label = torch.abs(gt_label)
 
-            loss = self.compute_multilabel_loss(cls_score, _gt_label, valid_label_mask=valid_label_mask, avg_factor=num_samples)
+            loss = self.compute_multilabel_loss(cls_score, _gt_label,
+                                                valid_label_mask=valid_label_mask, avg_factor=num_samples)
         else:
             loss = self.compute_loss(cls_score, gt_label, avg_factor=num_samples)
 
@@ -96,15 +96,15 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
         img_metas = kwargs.get('img_metas', False)
         gt_label = gt_label.type_as(x)
         cls_score = self.classifier(x)
-        
+
         losses = dict(loss=0.)
         for i in range(self.hierarchical_info['num_multiclass_heads']):
-            head_gt = gt_label[:,i]
-            head_logits = cls_score[:,self.hierarchical_info['head_idx_to_logits_range'][i][0] :
-                                      self.hierarchical_info['head_idx_to_logits_range'][i][1]]
+            head_gt = gt_label[:, i]
+            head_logits = cls_score[:, self.hierarchical_info['head_idx_to_logits_range'][i][0]:
+                                       self.hierarchical_info['head_idx_to_logits_range'][i][1]]
             valid_mask = head_gt >= 0
             head_gt = head_gt[valid_mask].long()
-            head_logits = head_logits[valid_mask,:]
+            head_logits = head_logits[valid_mask, :]
             multiclass_loss = self.loss(head_logits, head_gt)
             losses['loss'] += multiclass_loss
 
@@ -112,8 +112,8 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
             losses['loss'] /= self.hierarchical_info['num_multiclass_heads']
 
         if self.compute_multilabel_loss:
-            head_gt = gt_label[:,self.hierarchical_info['num_multiclass_heads']:]
-            head_logits = cls_score[:,self.hierarchical_info['num_single_label_classes']:]
+            head_gt = gt_label[:, self.hierarchical_info['num_multiclass_heads']:]
+            head_logits = cls_score[:, self.hierarchical_info['num_single_label_classes']:]
             valid_mask = head_gt >= 0
             head_gt = head_gt[valid_mask].view(*valid_mask.shape)
             head_logits = head_logits[valid_mask].view(*valid_mask.shape)
@@ -129,22 +129,22 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
         cls_score = self.classifier(img)
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
-        
+
         multiclass_logits = []
         for i in range(self.hierarchical_info['num_multiclass_heads']):
-            multiclass_logit = cls_score[:,self.hierarchical_info['head_idx_to_logits_range'][i][0] :
+            multiclass_logit = cls_score[:, self.hierarchical_info['head_idx_to_logits_range'][i][0]:
                                             self.hierarchical_info['head_idx_to_logits_range'][i][1]]
             multiclass_logits.append(multiclass_logit)
         multiclass_logits = torch.cat(multiclass_logits, dim=1)
         multiclass_pred = torch.softmax(multiclass_logits, dim=1) if multiclass_logits is not None else None
 
         if self.compute_multilabel_loss:
-            multilabel_logits = cls_score[:,self.hierarchical_info['num_single_label_classes']:]
+            multilabel_logits = cls_score[:, self.hierarchical_info['num_single_label_classes']:]
             multilabel_pred = torch.sigmoid(multilabel_logits) if multilabel_logits is not None else None
             pred = torch.cat([multiclass_pred, multilabel_pred], axis=1)
         else:
             pred = multiclass_pred
-        
+
         if torch.onnx.is_in_onnx_export():
             return pred
         pred = list(pred.detach().cpu().numpy())
@@ -153,11 +153,10 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
     def get_valid_label_mask(self, img_metas):
         valid_label_mask = []
         for i, meta in enumerate(img_metas):
-            mask = torch.Tensor([1 for _ in range(self.num_classes - self.hierarchical_info['num_single_label_classes'])])
+            mask = torch.Tensor([1 for _ in range(self.num_classes-self.hierarchical_info['num_single_label_classes'])])
             if 'ignored_labels' in meta and meta['ignored_labels']:
                 mask[meta['ignored_labels']] = 0
             mask = mask.cuda() if torch.cuda.is_available() else mask
             valid_label_mask.append(mask)
         valid_label_mask = torch.stack(valid_label_mask, dim=0)
         return valid_label_mask
-
