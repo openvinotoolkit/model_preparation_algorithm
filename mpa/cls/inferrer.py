@@ -1,7 +1,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-from typing import Tuple, List
+from contextlib import nullcontext
 
 import os.path as osp
 import numpy as np
@@ -17,8 +17,8 @@ from mmcls.models import build_classifier
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
 from mpa.modules.utils.task_adapt import prob_extractor
-from mpa.utils.auxiliary_helper import get_feature_vector, get_saliency_map
 from mpa.utils.logger import get_logger
+from mpa.utils.auxiliary_hooks import FeatureVectorHook, SaliencyMapHook
 logger = get_logger()
 
 
@@ -89,49 +89,6 @@ class ClsInferrer(ClsStage):
         feature_vectors = []
         saliency_maps = []
 
-        def dump_features_hook(module, input, out):
-            """ Perform average pooling on feature maps then cache it 
-
-            Args:
-                module (torch.nn.Module): mmcls backbone module
-                input (Tuple): mmcls backbone input
-                out (torch.Tensor): feature maps from backbone
-            """
-            with torch.no_grad():
-                feature_vector = get_feature_vector(out)
-            feature_vector = feature_vector.detach().cpu().numpy()
-            if len(feature_vector) > 1:
-                for tensor in feature_vector:
-                  feature_vectors.append(tensor)
-            else:
-                feature_vectors.append(feature_vector)
-
-        def dummy_dump_features_hook(module, input, out):
-            feature_vectors.append(None)
-
-        def dump_saliency_hook(module: torch.nn.Module, input: Tuple, out: List[torch.Tensor]):
-            """ Perform feature map transformation to saliency map then cache it
-
-            Args:
-                model (torch.nn.Module): mmcls backbone module
-                input (Tuple): mmcls backbone input 
-                out (torch.Tensor): feature map from backbone
-            """
-            with torch.no_grad():
-                saliency_map = get_saliency_map(out)
-            saliency_map = saliency_map.detach().cpu().numpy()
-            if len(saliency_map) > 1:
-                for tensor in saliency_map:
-                  saliency_maps.append(tensor)
-            else:
-                saliency_maps.append(saliency_map)
-        
-        def dummy_dump_saliency_hook(model, input, out):
-            saliency_maps.append(None)
-
-        feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
-        saliency_map_hook = dump_saliency_hook if dump_saliency_map else dummy_dump_saliency_hook
-
         if cfg.get('task_adapt', False) and not hasattr(self, 'eval') and self.extract_prob:
             old_prob, feats = prob_extractor(model.module, data_loader)
             data_infos = self.dataset.data_infos
@@ -140,12 +97,15 @@ class ClsInferrer(ClsStage):
                 data_info['soft_label'] = {task: value[i] for task, value in old_prob.items()}
             outputs = data_infos
         else:
-            with model.module.backbone.register_forward_hook(feature_vector_hook):
-                with model.module.backbone.register_forward_hook(saliency_map_hook):
-                    for data in data_loader:
-                        with torch.no_grad():
-                            result = model(return_loss=False, **data)
-                        eval_predictions.extend(result)
+            with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as fhook:
+              with SaliencyMapHook(model.module.backbone) if dump_saliency_map else nullcontext() as shook:
+                  for data in data_loader:
+                      with torch.no_grad():
+                          result = model(return_loss=False, **data)
+                      eval_predictions.extend(result)
+                  feature_vectors = fhook.records if dump_features else [None] * len(self.dataset)
+                  saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
+
         assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
                 'Number of elements should be the same, however, number of outputs are ' \
                 f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
