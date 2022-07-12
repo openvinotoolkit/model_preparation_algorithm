@@ -15,8 +15,8 @@ custom_hooks = [
     dict(
         type='LazyEarlyStoppingHook',
         start=3,
-        patience=5,
-        iteration_patience=1000,
+        patience=10,
+        iteration_patience=0,
         metric='bbox_mAP',
         interval=1,
         priority=75

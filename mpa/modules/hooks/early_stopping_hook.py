@@ -3,13 +3,10 @@
 #
 
 import math
-import logging
 from math import inf, isnan
-from collections import defaultdict
-from typing import Any, Dict, Optional
+from typing import Optional
 from mmcv.runner.hooks import HOOKS, Hook
-from mmcv.runner import BaseRunner, EpochBasedRunner, LrUpdaterHook
-from mmcv.runner.dist_utils import master_only
+from mmcv.runner import BaseRunner, LrUpdaterHook
 from mmcv.utils import print_log
 from ote_sdk.utils.argument_checks import check_input_parameters_type
 from ote_sdk.usecases.reporting.time_monitor_callback import TimeMonitorCallback
@@ -18,6 +15,7 @@ from mmcls.utils.logger import get_root_logger
 
 
 logger = get_root_logger()
+
 
 # Temp copy from detection_task
 # TODO: refactoing
@@ -235,7 +233,6 @@ class OTEProgressHook(Hook):
         return self.time_monitor.get_progress()
 
 
-
 @HOOKS.register_module()
 class LazyEarlyStoppingHook(EarlyStoppingHook):
     def __init__(self,
@@ -438,5 +435,5 @@ class StopLossNanTrainingHook(Hook):
     @check_input_parameters_type()
     def after_train_iter(self, runner: BaseRunner):
         if isnan(runner.outputs['loss'].item()):
-            logger.warning(f"Early Stopping since loss is NaN")
+            logger.warning('Early Stopping since loss is NaN')
             runner.should_stop = True

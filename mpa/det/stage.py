@@ -257,7 +257,7 @@ class DetectionStage(Stage):
             elif bbox_head.type in ['VFNetHead', 'CustomVFNetHead']:
                 alpha = 0.75
                 gamma = 1 if cfg['task_adapt'].get('efficient_mode', False) else 2
-            elif cfg.model.bbox_head.type in ['YOLOXHead', 'CustomYOLOXHead']:
+            elif bbox_head.type in ['YOLOXHead', 'CustomYOLOXHead']:
                 if cfg.data.train.type == 'MultiImageMixDataset':
                     cfg.data.train.pop('ann_file', None)
                     cfg.data.train.pop('img_prefix', None)

@@ -4,7 +4,7 @@ _base_ = './log.py'
 log_config = dict(
     interval=100,
     hooks=[
-        dict(type='TextLoggerHook'),
+        dict(type='TextLoggerHook', ignore_last=False),
         dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable

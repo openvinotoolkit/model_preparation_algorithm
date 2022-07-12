@@ -12,7 +12,16 @@ optimizer = dict(
     weight_decay=0.0001,
 )
 
-lr_config = dict(min_lr=1e-06)
+lr_config = dict(
+    policy='ReduceLROnPlateau',
+    metric='mDice',
+    patience=5,
+    iteration_patience=0,
+    interval=1,
+    min_lr=0.000001,
+    warmup='linear',
+    warmup_iters=80,
+    warmup_ratio=1.0 / 3)
 
 evaluation = dict(
     interval=1,
@@ -23,16 +32,16 @@ evaluation = dict(
 params_config = dict(
     type='FreezeLayers',
     by_epoch=True,
-    iters=40,
+    iters=0,
     open_layers=[r'\w*[.]?backbone\.aggregator\.', r'\w*[.]?neck\.',
                  r'\w*[.]?decode_head\.', r'\w*[.]?auxiliary_head\.']
 )
 
 custom_hooks = [
     dict(type='LazyEarlyStoppingHook',
-         patience=5,
-         iteration_patience=1000,
-         metric='mIoU',
+         patience=8,
+         iteration_patience=0,
+         metric='mDice',
          interval=1,
          priority=75,
          start=1
