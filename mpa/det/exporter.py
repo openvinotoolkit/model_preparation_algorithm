@@ -45,7 +45,8 @@ class DetectionExporter(DetectionStage):
                 model = model.cuda(cfg.gpu_ids[0])
             else:
                 model = model.cpu()
-            export_model(model, cfg, output_path, target='openvino')
+            precision = kwargs.pop('precision', 'FP32')
+            export_model(model, cfg, output_path, target='openvino', precision=precision)
         except Exception as ex:
             # output_model.model_status = ModelStatus.FAILED
             # raise RuntimeError('Optimization was unsuccessful.') from ex
