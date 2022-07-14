@@ -21,7 +21,7 @@ evaluation:
 
 task_adapt: 
     type: 'mpa'
-    op: 'MERGE'
+    op: 'REPLACE'
 
 custom_hooks:
 - type: NoBiasDecayHook

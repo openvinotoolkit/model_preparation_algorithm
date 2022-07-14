@@ -5,10 +5,11 @@ _base_ = [
 ]
 
 optimizer = dict(
-    type='SGD',
+    _delete_=True,
+    type='Adam',
     lr=1e-3,
-    momentum=0.9,
-    weight_decay=0.0005
+    eps=1e-08,
+    weight_decay=0.0
 )
 
 optimizer_config = dict(
@@ -20,10 +21,6 @@ optimizer_config = dict(
         max_norm=40,
         norm_type=2
     )
-)
-
-lr_config = dict(
-    metric='mIoU',
 )
 
 log_config = dict(
@@ -56,10 +53,11 @@ evaluation = dict(
 )
 
 seed = 42
+find_unused_parameters = False
 
 task_adapt = dict(
     type='mpa',
-    op='MERGE',
+    op='REPLACE',
 )
 
 ignore = True

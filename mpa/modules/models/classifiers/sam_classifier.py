@@ -85,6 +85,7 @@ class SAMImageClassifier(ImageClassifier):
         if self.multilabel:
             loss = self.head.forward_train(x, gt_label, **kwargs)
         else:
+            gt_label = gt_label.squeeze(dim=1)
             loss = self.head.forward_train(x, gt_label)
 
         losses.update(loss)
