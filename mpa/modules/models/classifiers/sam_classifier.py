@@ -2,10 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import torch
+
 from mmcls.models.builder import CLASSIFIERS
 from mmcls.models.classifiers.base import BaseClassifier
 from mmcls.models.classifiers.image import ImageClassifier
 from mpa.modules.utils.task_adapt import map_class_names
+from mpa.modules.hooks.auxiliary_hooks import SaliencyMapHook, FeatureVectorHook
 from mpa.utils.logger import get_logger
 from collections import OrderedDict
 import functools
@@ -262,8 +265,9 @@ class SAMImageClassifier(ImageClassifier):
         """
         x = self.extract_feat(img)
         logits = self.head.simple_test(x)
-        # TODO[EUGENE]: output feature map on torch.onnx.tracing
-        if self.is_export:
-            return logits, x
+        if self.is_export and torch.onnx.is_in_onnx_export():
+            feature_vector = FeatureVectorHook.func(x)
+            saliency_map = SaliencyMapHook.func(x)
+            return logits, feature_vector, saliency_map
         else:
             return logits
