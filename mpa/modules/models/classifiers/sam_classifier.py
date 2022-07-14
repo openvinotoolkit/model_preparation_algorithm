@@ -256,6 +256,9 @@ class SAMImageClassifier(ImageClassifier):
            Overriding for OpenVINO export with features
         """
         x = self.backbone(img)
+        if torch.onnx.is_in_onnx_export:
+            self.featuremap = x
+
         if self.with_neck:
             x = self.neck(x)
         return x
@@ -266,9 +269,9 @@ class SAMImageClassifier(ImageClassifier):
         """
         x = self.extract_feat(img)
         logits = self.head.simple_test(x)
-        if self.is_export and torch.onnx.is_in_onnx_export():
-            feature_vector = FeatureVectorHook.func(x)
-            saliency_map = SaliencyMapHook.func(x)
-            return logits, feature_vector, saliency_map
+        if self.featuremap is not None and torch.onnx.is_in_onnx_export():
+            saliency_map = SaliencyMapHook.func(self.featuremap)
+            feature_vector = FeatureVectorHook.func(self.featuremap)
+            return logits, saliency_map, feature_vector
         else:
             return logits
