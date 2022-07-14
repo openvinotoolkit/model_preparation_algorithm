@@ -96,7 +96,7 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
             head_logits = head_logits[valid_mask].view(*valid_mask.shape)
 
             # multilabel_loss is assumed to perform no batch averaging
-            valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
+            valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)[:, self.hierarchical_info['num_single_label_classes']:]
             multilabel_loss = self.loss(head_logits, head_gt, multilabel=True, valid_label_mask=valid_label_mask)
             losses['loss'] += multilabel_loss.mean()
         return losses
@@ -130,7 +130,7 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
     def get_valid_label_mask(self, img_metas):
         valid_label_mask = []
         for i, meta in enumerate(img_metas):
-            mask = torch.Tensor([1 for _ in range(self.num_classes-self.hierarchical_info['num_single_label_classes'])])
+            mask = torch.Tensor([1 for _ in range(self.num_classes)])
             if 'ignored_labels' in meta and meta['ignored_labels']:
                 mask[meta['ignored_labels']] = 0
             mask = mask.cuda() if torch.cuda.is_available() else mask
