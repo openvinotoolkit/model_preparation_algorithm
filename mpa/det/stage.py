@@ -272,15 +272,12 @@ class DetectionStage(Stage):
                         alpha=alpha,
                         gamma=gamma
                 )
-            sampler_flag = True
-            if len(set(org_model_classes) & set(model_classes)) == 0 or set(org_model_classes) == set(model_classes):
-                sampler_flag = False
 
             update_or_add_custom_hook(
                 cfg,
                 ConfigDict(
                     type='TaskAdaptHook',
-                    sampler_flag=sampler_flag,
+                    sampler_flag=True,
                     efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
                 )
             )
