@@ -138,7 +138,7 @@ class DetectionTrainer(DetectionStage):
         best_ckpt_path = glob.glob(osp.join(cfg.work_dir, 'best_segm_mAP*.pth'))
         if len(best_ckpt_path) > 0:
             output_ckpt_path = best_ckpt_path[0]
-        best_ckpt_path = glob.glob(osp.join(cfg.work_dir, 'best_bbox_mAP*.pth'))
+        best_ckpt_path = glob.glob(osp.join(cfg.work_dir, 'best_mAP*.pth'))
         if len(best_ckpt_path) > 0:
             output_ckpt_path = best_ckpt_path[0]
         return dict(final_ckpt=output_ckpt_path)
