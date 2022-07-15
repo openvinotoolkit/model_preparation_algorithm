@@ -81,6 +81,7 @@ class ClsInferrer(ClsStage):
             logger.info('load checkpoint from ' + cfg.load_from)
             _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
+        model.eval()
         model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
