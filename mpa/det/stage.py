@@ -118,7 +118,7 @@ class DetectionStage(Stage):
                 train_cfg.ote_dataset = cfg.data.train.pop('ote_dataset', None)
                 train_cfg.labels = cfg.data.train.get('labels', None)
                 train_cfg.data_classes = cfg.data.train.pop('data_classes', None)
-                train_cfg.new_classes = cfg.data.train.pop('new_classes', None)                
+                train_cfg.new_classes = cfg.data.train.pop('new_classes', None)
 
     def configure_task(self, cfg, training, **kwargs):
         """Adjust settings for task adaptation
@@ -272,11 +272,15 @@ class DetectionStage(Stage):
                         alpha=alpha,
                         gamma=gamma
                 )
+            sampler_flag = True
+            if len(set(org_model_classes) & set(model_classes)) == 0 or set(org_model_classes) == set(model_classes):
+                sampler_flag = False
+
             update_or_add_custom_hook(
                 cfg,
                 ConfigDict(
                     type='TaskAdaptHook',
-                    sampler_flag=True,
+                    sampler_flag=sampler_flag,
                     efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
                 )
             )
