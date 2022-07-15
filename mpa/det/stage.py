@@ -118,7 +118,7 @@ class DetectionStage(Stage):
                 train_cfg.ote_dataset = cfg.data.train.pop('ote_dataset', None)
                 train_cfg.labels = cfg.data.train.get('labels', None)
                 train_cfg.data_classes = cfg.data.train.pop('data_classes', None)
-                train_cfg.new_classes = cfg.data.train.pop('new_classes', None)                
+                train_cfg.new_classes = cfg.data.train.pop('new_classes', None)
 
     def configure_task(self, cfg, training, **kwargs):
         """Adjust settings for task adaptation
@@ -272,6 +272,7 @@ class DetectionStage(Stage):
                         alpha=alpha,
                         gamma=gamma
                 )
+
             update_or_add_custom_hook(
                 cfg,
                 ConfigDict(
