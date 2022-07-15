@@ -130,20 +130,20 @@ class DetectionInferrer(DetectionStage):
         # if fp16_cfg is not None:
         #     wrap_fp16_model(model)
 
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
+        DetectionStage.set_inference_progress_callback(model, cfg)
+
         # Checkpoint
         if cfg.get('load_from', None):
             load_checkpoint(model, cfg.load_from, map_location='cpu')
 
+        model.eval()
         if torch.cuda.is_available():
             eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
                                         device_ids=cfg.gpu_ids)
         else:
             eval_model = MMDataCPU(model)
 
-        # InferenceProgressCallback (Time Monitor enable into Infer task)
-        DetectionStage.set_inference_progress_callback(model, cfg)
-
-        # detections = single_gpu_test(model, data_loader)
         eval_predictions = []
         feature_vectors = []
         saliency_maps = []
