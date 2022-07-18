@@ -52,6 +52,12 @@ class Workflow(object):
                         raise ValueError(f"'stage_name' and 'output_key' attributes are required for the '{arg_name}'")
                     stage_kwargs[arg_name] = self.context[stage_name].get(output_key, None)
 
+            if mode == "train":
+                if kwargs.get("save_model_callback") is not None:
+                    stage_kwargs["save_model_callback"] = kwargs.get(
+                        "save_model_callback"
+                    )
+
             # context will keep the results(path to model, etc) of each stage
             # stage.run() returns a dict and each output data will be stored in each output key defined in config
             self.context[stage.name] = stage.run(
