@@ -256,7 +256,7 @@ class SAMImageClassifier(ImageClassifier):
            Overriding for OpenVINO export with features
         """
         x = self.backbone(img)
-        if torch.onnx.is_in_onnx_export:
+        if torch.onnx.is_in_onnx_export():
             self.featuremap = x
 
         if self.with_neck:
