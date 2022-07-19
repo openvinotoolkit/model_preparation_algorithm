@@ -2,10 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import torch
+
 from mmcls.models.builder import CLASSIFIERS
 from mmcls.models.classifiers.base import BaseClassifier
 from mmcls.models.classifiers.image import ImageClassifier
 from mpa.modules.utils.task_adapt import map_class_names
+from mpa.modules.hooks.auxiliary_hooks import SaliencyMapHook, FeatureVectorHook
 from mpa.utils.logger import get_logger
 from collections import OrderedDict
 import functools
@@ -253,7 +256,10 @@ class SAMImageClassifier(ImageClassifier):
         """Directly extract features from the backbone + neck
            Overriding for OpenVINO export with features
         """
-        x = self.featuremap = self.backbone(img)
+        x = self.backbone(img)
+        if torch.onnx.is_in_onnx_export():
+            self.featuremap = x
+
         if self.with_neck:
             x = self.neck(x)
         return x
@@ -264,7 +270,9 @@ class SAMImageClassifier(ImageClassifier):
         """
         x = self.extract_feat(img)
         logits = self.head.simple_test(x)
-        if self.is_export:
-            return logits, self.featuremap, x  # (logits, featuremap, vector)
+        if self.featuremap is not None and torch.onnx.is_in_onnx_export():
+            saliency_map = SaliencyMapHook.func(self.featuremap)
+            feature_vector = FeatureVectorHook.func(self.featuremap)
+            return logits, saliency_map, feature_vector
         else:
             return logits
