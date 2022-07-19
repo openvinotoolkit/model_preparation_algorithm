@@ -13,7 +13,7 @@ from mmcls.models.heads.cls_head import ClsHead
 
 @HEADS.register_module()
 class NonLinearClsHead(ClsHead):
-    """None linear classifier head.
+    """Nonlinear classifier head.
 
     Args:
         num_classes (int): Number of categories excluding the background
