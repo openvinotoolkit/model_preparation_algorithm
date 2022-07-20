@@ -200,6 +200,7 @@ class OTEProgressHook(Hook):
 
     @check_input_parameters_type()
     def after_epoch(self, runner: BaseRunner):
+        runner.log_buffer.output['current_iters'] = runner.iter
         self.time_monitor.on_epoch_end(runner.epoch, runner.log_buffer.output)
 
     @check_input_parameters_type()
@@ -208,6 +209,7 @@ class OTEProgressHook(Hook):
 
     @check_input_parameters_type()
     def after_iter(self, runner: BaseRunner):
+        runner.log_buffer.output['current_iters'] = runner.iter
         self.time_monitor.on_train_batch_end(1)
         if self.verbose:
             progress = self.progress
