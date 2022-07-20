@@ -24,6 +24,7 @@ from mmcls.core import (DistOptimizerHook, Fp16OptimizerHook)
 
 from mpa.registry import STAGES
 from mpa.modules.datasets.composed_dataloader import ComposedDL
+from mpa.stage import Stage
 from mpa.cls.stage import ClsStage
 from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.utils.logger import get_logger
@@ -145,6 +146,8 @@ class ClsTrainer(ClsStage):
 
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
+        train_data_cfg = Stage.get_train_data_cfg(cfg)
+        drop_last = train_data_cfg.drop_last if train_data_cfg.get('drop_last', False) else False
 
         # updated to adapt list of dataset for the 'train'
         data_loaders = []
@@ -158,7 +161,8 @@ class ClsTrainer(ClsStage):
                         num_gpus=len(cfg.gpu_ids),
                         dist=distributed,
                         round_up=True,
-                        seed=cfg.seed
+                        seed=cfg.seed,
+                        drop_last=drop_last
                     ) for sub_ds in ds
                 ]
                 data_loaders.append(ComposedDL(sub_loaders))
@@ -172,7 +176,8 @@ class ClsTrainer(ClsStage):
                         num_gpus=len(cfg.gpu_ids),
                         dist=distributed,
                         round_up=True,
-                        seed=cfg.seed
+                        seed=cfg.seed,
+                        drop_last=drop_last
                     ))
         # put model on gpus
         if torch.cuda.is_available():

@@ -15,7 +15,8 @@ from mpa.utils.logger import get_logger
 
 logger = get_logger()
 
-CLASS_INC_DATASET = ['MPAClsDataset', 'MPAMultilabelClsDataset', 'ClsDirDataset', 'ClsTVDataset']
+CLASS_INC_DATASET = ['MPAClsDataset', 'MPAMultilabelClsDataset', 'MPAHierarchicalClsDataset',
+                     'ClsDirDataset', 'ClsTVDataset']
 PSEUDO_LABEL_ENABLE_DATASET = ['ClassIncDataset', 'LwfTaskIncDataset', 'ClsTVDataset']
 WEIGHT_MIX_CLASSIFIER = ['SAMImageClassifier']
 
@@ -77,7 +78,7 @@ class ClsStage(Stage):
 
         if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
             cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
-            if cfg.model.get('multilabel', False):
+            if cfg.model.get('multilabel', False) or cfg.model.get('hierarchical', False):
                 cfg.model.head.pop('topk', None)
 
         # Other hyper-parameters
@@ -198,7 +199,7 @@ class ClsStage(Stage):
                 # model configuration update
                 cfg.model.head.num_classes = len(dst_classes)
 
-                if not cfg.model.get('multilabel', False):
+                if not cfg.model.get('multilabel', False) and not cfg.model.get('hierarchical', False):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
                     gamma = 2 if efficient_mode else 3
                     sampler_type = 'balanced'
