@@ -273,6 +273,6 @@ class SAMImageClassifier(ImageClassifier):
         if self.featuremap is not None and torch.onnx.is_in_onnx_export():
             saliency_map = SaliencyMapHook.func(self.featuremap)
             feature_vector = FeatureVectorHook.func(self.featuremap)
-            return logits, saliency_map, feature_vector
+            return logits, feature_vector, saliency_map
         else:
             return logits

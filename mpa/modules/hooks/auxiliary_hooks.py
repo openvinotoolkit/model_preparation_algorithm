@@ -84,12 +84,17 @@ class SaliencyMapHook:
         Returns:
             torch.Tensor: Saliency Map
         """
-        saliency_map = torch.sigmoid(torch.mean(feature_map, dim=1))
+        bs, c, h, w = feature_map.size()
+        saliency_map = torch.mean(feature_map, dim=1)
+        saliency_map = saliency_map.reshape((bs, h * w))
+        max_values, _ = torch.max(saliency_map, -1)
+        min_values, _ = torch.min(saliency_map, -1)
         saliency_map = (
             255
-            * (saliency_map - torch.min(saliency_map))
-            / (torch.max(saliency_map) - torch.min(saliency_map) + 1e-12)
+            * (saliency_map - min_values[:, None])
+            / (max_values - min_values + 1e-12)[:, None]
         )
+        saliency_map = saliency_map.reshape((bs, h, w))
         saliency_map = saliency_map.to(torch.uint8)
         return saliency_map
 
