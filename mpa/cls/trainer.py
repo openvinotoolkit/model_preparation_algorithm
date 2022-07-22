@@ -14,13 +14,13 @@ import torch.distributed as dist
 
 import mmcv
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
-from mmcv.runner import DistSamplerSeedHook, build_optimizer, build_runner, HOOKS
+from mmcv.runner import DistSamplerSeedHook, Fp16OptimizerHook, build_optimizer, build_runner, HOOKS
 
 from mmcls import __version__
 from mmcls.datasets import build_dataset, build_dataloader
 from mmcls.models import build_classifier
 from mmcls.utils import collect_env
-from mmcls.core import (DistOptimizerHook, Fp16OptimizerHook)
+from mmcls.core import DistOptimizerHook
 
 from mpa.registry import STAGES
 from mpa.modules.datasets.composed_dataloader import ComposedDL
@@ -230,7 +230,7 @@ class ClsTrainer(ClsStage):
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             optimizer_config = Fp16OptimizerHook(
-                **fp16_cfg, distributed=distributed)
+                **cfg.optimizer_config, **fp16_cfg, distributed=distributed)
         elif distributed and 'type' not in cfg.optimizer_config:
             optimizer_config = DistOptimizerHook(**cfg.optimizer_config)
         else:
