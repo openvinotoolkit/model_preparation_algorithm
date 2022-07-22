@@ -139,3 +139,13 @@ def sync_transpose_tensor(src_w, dst_w):
         return src_w.t()
     else:
         raise ValueError('the size of model and checkpoint file are not matched')
+
+
+def unwrap_dataset(dataset):
+    times = 1
+    target_dataset = dataset
+    while hasattr(target_dataset, 'dataset'):
+        if hasattr(target_dataset, 'times'):
+            times = target_dataset.times
+        target_dataset = target_dataset.dataset
+    return target_dataset, times

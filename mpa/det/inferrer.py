@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 import torch
 from mmcv.parallel import MMDataParallel, is_module_wrapper
-from mmcv.runner import load_checkpoint, wrap_fp16_model
+from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.models import build_detector
@@ -46,8 +46,8 @@ class DetectionInferrer(DetectionStage):
 
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
-        outputs = self.infer(cfg, eval=eval, dump_features=dump_features, 
-                            dump_saliency_map=dump_saliency_map)
+        outputs = self.infer(cfg, eval=eval, dump_features=dump_features,
+                             dump_saliency_map=dump_saliency_map)
 
         # Save outputs
         # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
@@ -125,24 +125,25 @@ class DetectionInferrer(DetectionStage):
         model = build_detector(cfg.model)
         model.CLASSES = target_classes
 
-        fp16_cfg = cfg.get('fp16', None)
-        if fp16_cfg is not None:
-            wrap_fp16_model(model)
+        # TODO: Check Inference FP16 Support
+        # fp16_cfg = cfg.get('fp16', None)
+        # if fp16_cfg is not None:
+        #     wrap_fp16_model(model)
+
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
+        DetectionStage.set_inference_progress_callback(model, cfg)
 
         # Checkpoint
         if cfg.get('load_from', None):
             load_checkpoint(model, cfg.load_from, map_location='cpu')
 
+        model.eval()
         if torch.cuda.is_available():
             eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
                                         device_ids=cfg.gpu_ids)
         else:
             eval_model = MMDataCPU(model)
 
-        # InferenceProgressCallback (Time Monitor enable into Infer task)
-        DetectionStage.set_inference_progress_callback(model, cfg)
-
-        # detections = single_gpu_test(model, data_loader)
         eval_predictions = []
         feature_vectors = []
         saliency_maps = []
@@ -157,17 +158,17 @@ class DetectionInferrer(DetectionStage):
             feature_vectors.append(None)
 
         def dump_saliency_hook(model: torch.nn.Module, input: Tuple, out: List[torch.Tensor]):
-            """ Dump the last feature map to `saliency_maps` cache 
+            """ Dump the last feature map to `saliency_maps` cache
 
             Args:
                 model (torch.nn.Module): PyTorch model
-                input (Tuple): input 
-                out (List[torch.Tensor]): a list of feature maps 
+                input (Tuple): input
+                out (List[torch.Tensor]): a list of feature maps
             """
             with torch.no_grad():
                 saliency_map = get_saliency_map(out[-1])
             saliency_maps.append(saliency_map.squeeze(0).detach().cpu().numpy())
-        
+
         def dummy_dump_saliency_hook(model, input, out):
             saliency_maps.append(None)
 
