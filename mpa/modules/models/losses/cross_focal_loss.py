@@ -4,8 +4,9 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from mmdet.models import LOSSES
-from mmdet.models.losses.focal_loss import sigmoid_focal_loss
+from mmdet.models.losses.focal_loss import sigmoid_focal_loss, py_sigmoid_focal_loss
 from mmdet.models.losses.varifocal_loss import varifocal_loss
 
 
@@ -37,19 +38,23 @@ def cross_sigmoid_focal_loss(inputs,
         cross_mask[neg_idx] = valid_label_mask[neg_idx].type(torch.int8)
 
     if use_vfl:
-        loss = varifocal_loss(inputs, targets,
-                              weight=weight,
-                              gamma=gamma,
-                              alpha=alpha,
-                              reduction='none',
-                              avg_factor=None) * cross_mask
+        calculate_loss_func = varifocal_loss
     else:
-        loss = sigmoid_focal_loss(inputs, targets,
-                                  weight=weight,
-                                  gamma=gamma,
-                                  alpha=alpha,
-                                  reduction='none',
-                                  avg_factor=None) * cross_mask
+        if torch.cuda.is_available() and inputs.is_cuda:
+            calculate_loss_func = sigmoid_focal_loss
+        else:
+            inputs_size = inputs.size(1)
+            targets = F.one_hot(targets, num_classes=inputs_size+1)
+            targets = targets[:, :inputs_size]
+            calculate_loss_func = py_sigmoid_focal_loss
+
+    loss = calculate_loss_func(inputs,
+                               targets,
+                               weight=weight,
+                               gamma=gamma,
+                               alpha=alpha,
+                               reduction='none',
+                               avg_factor=None) * cross_mask
 
     if reduction == "mean":
         if avg_factor is None:

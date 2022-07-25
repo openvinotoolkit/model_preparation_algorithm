@@ -6,10 +6,10 @@ model:
     backbone:
         mode: large
     head:
-        type: CustomMultiLabelNonLinearClsHead
+        type: CustomHierarchicalNonLinearClsHead
         in_channels: 960
         hid_channels: 1280
-        loss:
+        multilabel_loss:
             type: AsymmetricLossWithIgnore
             gamma_pos: 0.0
-            gamma_neg: 0.0
+            gamma_neg: 4.0

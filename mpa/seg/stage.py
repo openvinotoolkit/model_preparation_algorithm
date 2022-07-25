@@ -88,7 +88,6 @@ class SegStage(Stage):
         cfg_loss_decode = ConfigDict(
             type='CrossEntropyLossWithIgnore',
             reduction='mean',
-            loss_jitter_prob=0.01,
             sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
             loss_weight=1.0
         )
@@ -119,7 +118,6 @@ class SegStage(Stage):
                 num_iters=200,
                 power=1.2
             ),
-            loss_jitter_prob=0.01,
             border_reweighting=False,
             sampler=ConfigDict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
             loss_weight=1.0

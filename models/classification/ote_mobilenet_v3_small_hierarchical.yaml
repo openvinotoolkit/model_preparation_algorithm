@@ -4,8 +4,8 @@ model:
     type: SAMImageClassifier
     task: classification
     head:
-        type: CustomMultiLabelNonLinearClsHead
-        loss:
+        type: CustomHierarchicalNonLinearClsHead
+        multilabel_loss:
             type: AsymmetricLossWithIgnore
             gamma_pos: 0.0
-            gamma_neg: 0.0
+            gamma_neg: 4.0

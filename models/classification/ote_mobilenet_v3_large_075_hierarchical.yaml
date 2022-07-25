@@ -5,11 +5,12 @@ model:
     task: classification
     backbone:
         mode: large
+        width_mult: 0.75
     head:
-        type: CustomMultiLabelNonLinearClsHead
-        in_channels: 960
+        type: CustomHierarchicalNonLinearClsHead
+        in_channels: 720
         hid_channels: 1280
-        loss:
+        multilabel_loss:
             type: AsymmetricLossWithIgnore
             gamma_pos: 0.0
-            gamma_neg: 0.0
+            gamma_neg: 4.0

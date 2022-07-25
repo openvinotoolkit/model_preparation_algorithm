@@ -80,7 +80,7 @@ class ClsExporter(ClsStage):
                               verbose=False,
                               export_params=True,
                               input_names=['data'],
-                              output_names=['logits', 'features', 'vector'],
+                              output_names=['logits', 'feature_vector', 'saliency_map'],
                               dynamic_axes={},
                               opset_version=11,
                               operator_export_type=torch.onnx.OperatorExportTypes.ONNX

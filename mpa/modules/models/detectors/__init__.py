@@ -10,4 +10,5 @@ from . import custom_single_stage_detector
 from . import unbiased_teacher
 from . import custom_vfnet_detector
 from . import custom_atss_detector
+from . import custom_yolox_detector
 from . import custom_maskrcnn_detector
