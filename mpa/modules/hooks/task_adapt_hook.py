@@ -44,8 +44,6 @@ class TaskAdaptHook(Hook):
     def before_epoch(self, runner):
         if self.sampler_flag:
             dataset = runner.data_loader.dataset
-            if hasattr(dataset, 'dataset'):
-                dataset = dataset.dataset
             batch_size = runner.data_loader.batch_size
             num_workers = runner.data_loader.num_workers
             collate_fn = runner.data_loader.collate_fn

@@ -14,16 +14,17 @@ import torch.distributed as dist
 
 import mmcv
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
-from mmcv.runner import DistSamplerSeedHook, build_optimizer, build_runner, HOOKS
+from mmcv.runner import DistSamplerSeedHook, Fp16OptimizerHook, build_optimizer, build_runner, HOOKS
 
 from mmcls import __version__
 from mmcls.datasets import build_dataset, build_dataloader
 from mmcls.models import build_classifier
 from mmcls.utils import collect_env
-from mmcls.core import (DistOptimizerHook, Fp16OptimizerHook)
+from mmcls.core import DistOptimizerHook
 
 from mpa.registry import STAGES
 from mpa.modules.datasets.composed_dataloader import ComposedDL
+from mpa.stage import Stage
 from mpa.cls.stage import ClsStage
 from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.utils.logger import get_logger
@@ -145,6 +146,8 @@ class ClsTrainer(ClsStage):
 
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
+        train_data_cfg = Stage.get_train_data_cfg(cfg)
+        drop_last = train_data_cfg.drop_last if train_data_cfg.get('drop_last', False) else False
 
         # updated to adapt list of dataset for the 'train'
         data_loaders = []
@@ -158,7 +161,8 @@ class ClsTrainer(ClsStage):
                         num_gpus=len(cfg.gpu_ids),
                         dist=distributed,
                         round_up=True,
-                        seed=cfg.seed
+                        seed=cfg.seed,
+                        drop_last=drop_last
                     ) for sub_ds in ds
                 ]
                 data_loaders.append(ComposedDL(sub_loaders))
@@ -172,7 +176,8 @@ class ClsTrainer(ClsStage):
                         num_gpus=len(cfg.gpu_ids),
                         dist=distributed,
                         round_up=True,
-                        seed=cfg.seed
+                        seed=cfg.seed,
+                        drop_last=drop_last
                     ))
         # put model on gpus
         if torch.cuda.is_available():
@@ -225,7 +230,7 @@ class ClsTrainer(ClsStage):
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             optimizer_config = Fp16OptimizerHook(
-                **fp16_cfg, distributed=distributed)
+                **cfg.optimizer_config, **fp16_cfg, distributed=distributed)
         elif distributed and 'type' not in cfg.optimizer_config:
             optimizer_config = DistOptimizerHook(**cfg.optimizer_config)
         else:

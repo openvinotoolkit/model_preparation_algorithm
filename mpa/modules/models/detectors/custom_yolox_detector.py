@@ -1,26 +1,23 @@
-# Copyright (C) 2022 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
-
 import functools
-from mmseg.utils import get_root_logger
+from mmdet.models.builder import DETECTORS
+from mmdet.models.detectors.yolox import YOLOX
+from .sam_detector_mixin import SAMDetectorMixin
+from .l2sp_detector_mixin import L2SPDetectorMixin
 from mpa.modules.utils.task_adapt import map_class_names
-from mmseg.models import SEGMENTORS
-from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
+from mpa.utils.logger import get_logger
+
+logger = get_logger()
 
 
-@SEGMENTORS.register_module()
-class ClassIncrSegmentor(EncoderDecoder):
+@DETECTORS.register_module()
+class CustomYOLOX(SAMDetectorMixin, L2SPDetectorMixin, YOLOX):
+    """SAM optimizer & L2SP regularizer enabled custom YOLOX
     """
-    """
-
-    def __init__(self, *args, is_task_adapt=True, task_adapt=None, **kwargs):
+    def __init__(self, *args, task_adapt=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Hook for class-sensitive weight loading
-        if is_task_adapt:
-            assert task_adapt is not None, 'When using task_adapt, task_adapt must be set.'
-
+        if task_adapt:
             self._register_load_state_dict_pre_hook(
                 functools.partial(
                     self.load_state_dict_pre_hook,
@@ -30,12 +27,26 @@ class ClassIncrSegmentor(EncoderDecoder):
                 )
             )
 
+    def forward_train(self,
+                      img,
+                      img_metas,
+                      gt_bboxes,
+                      gt_labels,
+                      gt_bboxes_ignore=None,
+                      **kwargs):
+        return super().forward_train(
+              img,
+              img_metas,
+              gt_bboxes,
+              gt_labels,
+              gt_bboxes_ignore=gt_bboxes_ignore
+        )
+
     @staticmethod
     def load_state_dict_pre_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):
         """Modify input state_dict according to class name matching before weight loading
         """
-        logger = get_root_logger('INFO')
-        logger.info(f'----------------- ClassIncrSegmentor.load_state_dict_pre_hook() called w/ prefix: {prefix}')
+        logger.info(f'----------------- CustomYOLOX.load_state_dict_pre_hook() called w/ prefix: {prefix}')
 
         # Dst to src mapping index
         model_classes = list(model_classes)
@@ -45,8 +56,12 @@ class ClassIncrSegmentor(EncoderDecoder):
 
         model_dict = model.state_dict()
         param_names = [
-            'decode_head.conv_seg.weight',
-            'decode_head.conv_seg.bias',
+            'bbox_head.multi_level_conv_cls.0.weight',
+            'bbox_head.multi_level_conv_cls.0.bias',
+            'bbox_head.multi_level_conv_cls.1.weight',
+            'bbox_head.multi_level_conv_cls.1.bias',
+            'bbox_head.multi_level_conv_cls.2.weight',
+            'bbox_head.multi_level_conv_cls.2.bias',
         ]
         for model_name in param_names:
             chkpt_name = prefix + model_name

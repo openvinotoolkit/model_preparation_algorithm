@@ -2,7 +2,6 @@ __norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     type='ClassIncrSegmentor',
     is_task_adapt=True,
-    num_stages=1,
     pretrained=None,
     backbone=dict(
         type='LiteHRNet',
@@ -54,44 +53,29 @@ model = dict(
             add_input=False
         )
     ),
-    decode_head=[
-        dict(type='FCNHead',
-             in_channels=[18, 60, 80, 160, 320],
-             in_index=[0, 1, 2, 3, 4],
-             input_transform='multiple_select',
-             channels=60,
-             kernel_size=1,
-             num_convs=1,
-             concat_input=False,
-             dropout_ratio=-1,
-             num_classes=2,
-             norm_cfg=__norm_cfg,
-             align_corners=False,
-             enable_aggregator=True,
-             aggregator_min_channels=60,
-             aggregator_merge_norm=None,
-             aggregator_use_concat=False,
-             enable_out_norm=False,
-             enable_loss_equalizer=True,
-             loss_decode=[
-                 dict(type='CrossEntropyLoss',
-                      use_sigmoid=False,
-                      sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
-                      loss_weight=4.0),
-             ]),
-    ],
-    train_cfg=dict(
-        mix_loss=dict(
-            enable=False,
-            weight=0.1
-        ),
-        loss_reweighting=dict(
-            weights={'decode_0.loss_seg': 0.9},
-            momentum=0.1
-        ),
-    ),
-    test_cfg=dict(
-        mode='whole',
-        output_scale=10.0,
-    ),
+    decode_head=dict(
+        type='FCNHead',
+        in_channels=[18, 60, 80, 160, 320],
+        in_index=[0, 1, 2, 3, 4],
+        input_transform='multiple_select',
+        channels=60,
+        kernel_size=1,
+        num_convs=1,
+        concat_input=False,
+        dropout_ratio=-1,
+        num_classes=2,
+        norm_cfg=__norm_cfg,
+        align_corners=False,
+        enable_aggregator=True,
+        aggregator_min_channels=60,
+        aggregator_merge_norm=None,
+        aggregator_use_concat=False,
+        enable_out_norm=False,
+        enable_loss_equalizer=True,
+        loss_decode=[
+            dict(type='CrossEntropyLoss',
+                 use_sigmoid=False,
+                 sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
+                 loss_weight=1.0),
+        ]),
 )
