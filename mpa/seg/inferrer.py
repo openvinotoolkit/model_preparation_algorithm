@@ -2,14 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+from contextlib import nullcontext
 import os.path as osp
 
 import mmcv
 from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
-from mmseg.apis import single_gpu_test
 from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
+from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, SaliencyMapHook
 from mpa.registry import STAGES
 from mpa.seg.stage import SegStage
 from mpa.stage import Stage
@@ -28,6 +29,8 @@ class SegInferrer(SegStage):
         - Run inference via MMSegmentation -> MMCV
         """
         self._init_logger()
+        dump_features = kwargs.get('dump_features', False)
+        dump_saliency_map = kwargs.get('dump_saliency_map', False)
         mode = kwargs.get('mode', 'train')
         if mode not in self.mode:
             return {}
@@ -37,7 +40,7 @@ class SegInferrer(SegStage):
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
-        outputs = self.infer(cfg)
+        outputs = self.infer(cfg, dump_features, dump_saliency_map)
         # outputs = np.array(outputs)
 
         # Save outputs
@@ -49,7 +52,7 @@ class SegInferrer(SegStage):
             outputs=outputs
         )
 
-    def infer(self, cfg):
+    def infer(self, cfg, dump_features=False, dump_saliency_map=False):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
@@ -110,25 +113,32 @@ class SegInferrer(SegStage):
 
         # Inference
         model.eval()
-        eval_model = MMDataParallel(model, device_ids=[0])
+        model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
-        SegStage.set_inference_progress_callback(eval_model, cfg)
+        SegStage.set_inference_progress_callback(model, cfg)
 
-        segmentations = []
+        eval_predictions = []
         feature_vectors = []
-        for data in mm_val_dataloader:
-            with torch.no_grad():
-                result, feature_vector = eval_model(return_loss=False, output_logits=True, **data)
-                segmentations.append(result)
-                feature_vectors.append(feature_vector)
-            assert len(result) == 1
-        
+        saliency_maps = []
+        with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as fhook:
+            with SaliencyMapHook(model.module.backbone) if dump_saliency_map else nullcontext() as shook:
+                for data in mm_val_dataloader:
+                    with torch.no_grad():
+                        result = model(return_loss=False, output_logits=True, **data)
+                    eval_predictions.append(result)
+                feature_vectors = fhook.records if dump_features else [None] * len(self.dataset)
+                saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
+                    
+        assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
+                'Number of elements should be the same, however, number of outputs are ' \
+                f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
         outputs = dict(
             # config=cfg.pretty_text,
             classes=target_classes,
-            segmentations=segmentations,
-            feature_vectors=feature_vectors
+            eval_predictions=eval_predictions,
+            feature_vectors=feature_vectors,
+            saliency_maps=saliency_maps
         )
         return outputs
 
