@@ -27,6 +27,7 @@ from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.stage import Stage
 from mpa.cls.stage import ClsStage
 from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
+from mpa.modules.hooks.fp16_sam_optimizer_hook import Fp16SAMOptimizerHook
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -229,7 +230,12 @@ class ClsTrainer(ClsStage):
         # fp16 setting
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
-            optimizer_config = Fp16OptimizerHook(
+            if cfg.optimizer_config.get('type', False)=='SAMOptimizerHook':
+                opt_hook = Fp16SAMOptimizerHook
+            else:
+                opt_hook = Fp16OptimizerHook
+            cfg.optimizer_config.pop('type')
+            optimizer_config = opt_hook(
                 **cfg.optimizer_config, **fp16_cfg, distributed=distributed)
         elif distributed and 'type' not in cfg.optimizer_config:
             optimizer_config = DistOptimizerHook(**cfg.optimizer_config)

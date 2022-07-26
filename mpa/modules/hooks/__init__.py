@@ -20,3 +20,4 @@ from . import progress_update_hook
 from . import logger_replace_hook
 from . import auxiliary_hooks
 from . import save_initial_weight_hook
+from . import fp16_sam_optimizer_hook
