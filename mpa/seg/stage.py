@@ -197,7 +197,7 @@ class SegStage(Stage):
 
         # Model classes
         if task_adapt_op == 'REPLACE':
-            if len(data_classes) == 1:
+            if len(data_classes) == 1: # 'background'
                 model_classes = org_model_classes.copy()
             else:
                 model_classes = data_classes.copy()
