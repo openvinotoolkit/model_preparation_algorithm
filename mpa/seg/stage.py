@@ -197,9 +197,10 @@ class SegStage(Stage):
 
         # Model classes
         if task_adapt_op == 'REPLACE':
-            if len(data_classes) == 0:
-                raise ValueError('Data classes should contain at least one class!')
-            model_classes = data_classes.copy()
+            if len(data_classes) == 1:
+                model_classes = org_model_classes.copy()
+            else:
+                model_classes = data_classes.copy()
         elif task_adapt_op == 'MERGE':
             model_classes = org_model_classes + [cls for cls in data_classes if cls not in org_model_classes]
         else:
