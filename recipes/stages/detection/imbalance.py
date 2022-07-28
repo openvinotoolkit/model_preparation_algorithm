@@ -33,3 +33,6 @@ custom_hooks = [
 ]
 
 ignore = True
+
+seed = 1234
+deterministic = True

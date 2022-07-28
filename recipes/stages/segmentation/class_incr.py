@@ -53,6 +53,7 @@ evaluation = dict(
 )
 
 seed = 42
+deterministic = True
 find_unused_parameters = False
 
 task_adapt = dict(

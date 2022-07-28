@@ -26,3 +26,6 @@ task_adapt:
 custom_hooks:
 - type: NoBiasDecayHook
 - type: ModelEmaV2Hook
+
+seed: 1234
+deterministic: true
