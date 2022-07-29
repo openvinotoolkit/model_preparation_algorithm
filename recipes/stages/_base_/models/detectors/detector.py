@@ -7,4 +7,4 @@ model = dict(
     test_cfg=dict()
 )
 
-checkpoint_config = dict(interval=5, max_keep_ckpt=1)
+checkpoint_config = dict(interval=5, max_keep_ckpts=1)
