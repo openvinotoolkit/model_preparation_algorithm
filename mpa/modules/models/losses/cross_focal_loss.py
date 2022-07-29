@@ -43,8 +43,9 @@ def cross_sigmoid_focal_loss(inputs,
         if torch.cuda.is_available() and inputs.is_cuda:
             calculate_loss_func = sigmoid_focal_loss
         else:
-            targets = F.one_hot(targets, num_classes=num_classes + 1)
-            targets = targets[:, :num_classes]
+            inputs_size = inputs.size(1)
+            targets = F.one_hot(targets, num_classes=inputs_size+1)
+            targets = targets[:, :inputs_size]
             calculate_loss_func = py_sigmoid_focal_loss
 
     loss = calculate_loss_func(inputs,
