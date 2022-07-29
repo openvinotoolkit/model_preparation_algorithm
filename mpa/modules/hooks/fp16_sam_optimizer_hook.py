@@ -16,7 +16,6 @@ class Fp16SAMOptimizerHook(Fp16OptimizerHook):
     '''
 
     def __init__(self, rho=0.05, start_epoch=1, **kwargs):
-        print(f"rho {rho}, st_epoch {start_epoch}, {kwargs}")
         super().__init__(**kwargs)
         self.rho = rho
         self.start_epoch = start_epoch
