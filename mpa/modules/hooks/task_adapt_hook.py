@@ -46,6 +46,7 @@ class TaskAdaptHook(Hook):
             dataset = runner.data_loader.dataset
             batch_size = runner.data_loader.batch_size
             num_workers = runner.data_loader.num_workers
+            print(f"NUM WORKERS : {num_workers}")
             collate_fn = runner.data_loader.collate_fn
             worker_init_fn = runner.data_loader.worker_init_fn
             if self.sampler_type == 'balanced':

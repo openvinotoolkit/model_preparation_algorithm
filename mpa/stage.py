@@ -39,10 +39,7 @@ def _set_random_seed(seed, deterministic=False):
     logger.info(f'Training seed was set to {seed} w/ deterministic={deterministic}.')
     if deterministic:
         torch.backends.cudnn.deterministic = True
-        #torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.benchmark = True
-        print(f"torch.backends.cudnn.benchmark : {torch.backends.cudnn.benchmark}")
-
+        torch.backends.cudnn.benchmark = False
 
 def get_available_types():
     types = []

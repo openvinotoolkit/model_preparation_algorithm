@@ -37,6 +37,7 @@ params_config = dict(
                  r'\w*[.]?decode_head\.', r'\w*[.]?auxiliary_head\.']
 )
 
+"""
 custom_hooks = [
     dict(type='LazyEarlyStoppingHook',
          patience=8,
@@ -47,3 +48,4 @@ custom_hooks = [
          start=1
          ),
 ]
+"""
