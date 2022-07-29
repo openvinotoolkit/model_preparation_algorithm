@@ -18,16 +18,16 @@ runner = dict(
     max_epochs=30
 )
 
-evaluation = dict(interval=1, metric='mAP', save_best='mAP')
+evaluation = dict(interval=5, metric='mAP', save_best='mAP')
 
 custom_hooks = [
     dict(
         type='LazyEarlyStoppingHook',
-        start=3,
-        patience=10,
+        start=5,
+        patience=2,
         iteration_patience=0,
         metric='mAP',
-        interval=1,
+        interval=5,
         priority=75,
     ),
 ]
