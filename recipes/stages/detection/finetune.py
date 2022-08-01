@@ -12,13 +12,13 @@ custom_hooks = [
         epoch_momentum=0.4,
         start_epoch=2,
     ),
-    dict(
-        type='LazyEarlyStoppingHook',
-        start=3,
-        patience=10,
-        iteration_patience=0,
-        metric='bbox_mAP',
-        interval=1,
-        priority=75
-    ),
+    #dict(
+    #    type='LazyEarlyStoppingHook',
+    #    start=3,
+    #    patience=10,
+    #    iteration_patience=0,
+    #    metric='bbox_mAP',
+    #    interval=1,
+    #    priority=75
+    #),
 ]

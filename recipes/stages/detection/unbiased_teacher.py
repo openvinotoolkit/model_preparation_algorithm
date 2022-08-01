@@ -14,13 +14,13 @@ custom_hooks = [
         # min_pseudo_label_ratio=0.1,
         min_pseudo_label_ratio=0.0,
     ),
-    dict(
-        type='LazyEarlyStoppingHook',
-        start=3,
-        patience=5,
-        iteration_patience=1000,
-        metric='bbox_mAP',
-        interval=1,
-        priority=75,
-    ),
+    #dict(
+    #    type='LazyEarlyStoppingHook',
+    #    start=3,
+    #    patience=5,
+    #    iteration_patience=1000,
+    #    metric='bbox_mAP',
+    #    interval=1,
+    #    priority=75,
+    #),
 ]

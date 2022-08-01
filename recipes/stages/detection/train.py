@@ -38,14 +38,14 @@ evaluation = dict(
     save_best='bbox_mAP'
 )
 
-custom_hooks = [
-    dict(
-        type='LazyEarlyStoppingHook',
-        start=3,
-        patience=10,
-        iteration_patience=0,
-        metric='bbox_mAP',
-        interval=1,
-        priority=75,
-    ),
-]
+#custom_hooks = [
+#    dict(
+#        type='LazyEarlyStoppingHook',
+#        start=3,
+#        patience=10,
+#        iteration_patience=0,
+#        metric='bbox_mAP',
+#        interval=1,
+#        priority=75,
+#    ),
+#]

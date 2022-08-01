@@ -31,14 +31,14 @@ evaluation = dict(
     save_best='mAP'
 )
 
-custom_hooks = [
-    dict(
-        type='LazyEarlyStoppingHook',
-        start=3,
-        patience=10,
-        iteration_patience=0,
-        metric='mAP',
-        interval=1,
-        priority=75,
-    ),
-]
+#custom_hooks = [
+#    dict(
+#        type='LazyEarlyStoppingHook',
+#        start=3,
+#        patience=10,
+#        iteration_patience=0,
+#        metric='mAP',
+#        interval=1,
+#        priority=75,
+#    ),
+#]
