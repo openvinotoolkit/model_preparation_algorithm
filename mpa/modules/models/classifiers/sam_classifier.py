@@ -77,8 +77,8 @@ class SAMImageClassifier(ImageClassifier):
         Returns:
             dict[str, Tensor]: a dictionary of loss components
         """
-        if self.mixup is not None:
-            img, gt_label = self.mixup(img, gt_label)
+        if self.augments is not None:
+            img, gt_label = self.augments(img, gt_label)
 
         x = self.extract_feat(img)
 
