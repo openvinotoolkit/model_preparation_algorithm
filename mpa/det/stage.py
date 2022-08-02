@@ -59,6 +59,7 @@ class DetectionStage(Stage):
             self.configure_regularization(cfg)
 
         # Other hyper-parameters
+        # TODO[EUGENE]: WHAT IS HYPERPARAMS? 
         if 'hyperparams' in cfg:
             self.configure_hyperparams(cfg, training, **kwargs)
 
@@ -118,8 +119,10 @@ class DetectionStage(Stage):
                     subset_cfg = self.get_data_cfg(cfg, subset)
                     subset_cfg.ote_dataset = cfg.data[subset].pop('ote_dataset', None)
                     subset_cfg.labels = cfg.data[subset].get('labels', None)
-                    subset_cfg.data_classes = cfg.data[subset].pop('data_classes', None)
-                    subset_cfg.new_classes = cfg.data[subset].pop('new_classes', None)
+                    if 'data_classes' in cfg.data[subset]:
+                        subset_cfg.data_classes = cfg.data[subset].pop('data_classes')
+                    if 'new_classes' in cfg.data[subset]:
+                        subset_cfg.new_classes = cfg.data[subset].pop('new_classes')
 
     def configure_task(self, cfg, training, **kwargs):
         """Adjust settings for task adaptation
@@ -232,7 +235,7 @@ class DetectionStage(Stage):
         update_or_add_custom_hook(cfg, task_adapt_hook)
 
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
-        # TODO[EUGENE]: DO I NEED TO CHANGE SOMETHING
+        # TODO[EUGENE]: DO I NEED TO CHANGE SOMETHING HERE?
         if cfg.get('task', 'detection') == 'detection':
             bbox_head = cfg.model.bbox_head
         else:
