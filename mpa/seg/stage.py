@@ -151,7 +151,7 @@ class SegStage(Stage):
                             head.loss_decode = [self.configure_am_softmax_loss_with_ignore(model_classes)]
 
         # Dataset
-        src_data_cfg = Stage.get_train_data_cfg(cfg)
+        src_data_cfg = Stage.get_data_cfg(cfg, "train")
         for mode in ['train', 'val', 'test']:
             if src_data_cfg.type == 'MPASegIncrDataset':
                 if cfg.data[mode]['type'] != 'MPASegIncrDataset':

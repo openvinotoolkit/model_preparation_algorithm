@@ -113,12 +113,13 @@ class DetectionStage(Stage):
                         seed=cfg.seed
                     )
                 )
-            if 'dataset' in cfg.data.train:
-                train_cfg = self.get_train_data_cfg(cfg)
-                train_cfg.ote_dataset = cfg.data.train.pop('ote_dataset', None)
-                train_cfg.labels = cfg.data.train.get('labels', None)
-                train_cfg.data_classes = cfg.data.train.pop('data_classes', None)
-                train_cfg.new_classes = cfg.data.train.pop('new_classes', None)
+            for subset in ("train", "val", "test"):
+                if 'dataset' in cfg.data[subset]:
+                    subset_cfg = self.get_data_cfg(cfg, subset)
+                    subset_cfg.ote_dataset = cfg.data[subset].pop('ote_dataset', None)
+                    subset_cfg.labels = cfg.data[subset].get('labels', None)
+                    subset_cfg.data_classes = cfg.data[subset].pop('data_classes', None)
+                    subset_cfg.new_classes = cfg.data[subset].pop('new_classes', None)
 
     def configure_task(self, cfg, training, **kwargs):
         """Adjust settings for task adaptation
@@ -196,7 +197,7 @@ class DetectionStage(Stage):
 
     def configure_task_data_pipeline(self, cfg, model_classes, data_classes):
         # Trying to alter class indices of training data according to model class order
-        tr_data_cfg = self.get_train_data_cfg(cfg)
+        tr_data_cfg = self.get_data_cfg(cfg, "train")
         class_adapt_cfg = dict(type='AdaptClassLabels', src_classes=data_classes, dst_classes=model_classes)
         pipeline_cfg = tr_data_cfg.pipeline
         for i, op in enumerate(pipeline_cfg):
@@ -231,12 +232,13 @@ class DetectionStage(Stage):
         update_or_add_custom_hook(cfg, task_adapt_hook)
 
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
+        # TODO[EUGENE]: DO I NEED TO CHANGE SOMETHING
         if cfg.get('task', 'detection') == 'detection':
             bbox_head = cfg.model.bbox_head
         else:
             bbox_head = cfg.model.roi_head.bbox_head
         if task_adapt_type == 'mpa':
-            tr_data_cfg = self.get_train_data_cfg(cfg)
+            tr_data_cfg = self.get_data_cfg(cfg, "train")
             if tr_data_cfg.type != 'MPADetDataset':
                 tr_data_cfg.img_ids_dict = self.get_img_ids_for_incr(cfg, org_model_classes, model_classes)
                 tr_data_cfg.org_type = tr_data_cfg.type
@@ -287,7 +289,7 @@ class DetectionStage(Stage):
             )
             update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook'))
         else:
-            src_data_cfg = Stage.get_train_data_cfg(cfg)
+            src_data_cfg = Stage.get_data_cfg(cfg, "train")
             src_data_cfg.pop('old_new_indices', None)
 
     def configure_regularization(self, cfg):
@@ -314,7 +316,7 @@ class DetectionStage(Stage):
         new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
         old_classes = np.intersect1d(org_model_classes, model_classes).tolist()
 
-        src_data_cfg = Stage.get_train_data_cfg(cfg)
+        src_data_cfg = Stage.get_data_cfg(cfg, "train")
 
         ids_old, ids_new = [], []
         data_cfg = cfg.data.test.copy()

@@ -144,7 +144,7 @@ class ClsStage(Stage):
 
         model_tasks, dst_classes = None, None
         model_classes, data_classes = [], []
-        train_data_cfg = Stage.get_train_data_cfg(cfg)
+        train_data_cfg = Stage.get_data_cfg(cfg, "train")
         if isinstance(train_data_cfg, list):
             train_data_cfg = train_data_cfg[0]
 
