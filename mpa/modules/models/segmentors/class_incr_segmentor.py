@@ -3,7 +3,9 @@
 #
 
 import functools
+import torch
 from mmseg.utils import get_root_logger
+from mpa.modules.hooks.auxiliary_hooks import SaliencyMapHook, FeatureVectorHook
 from mpa.modules.utils.task_adapt import map_class_names
 from mmseg.models import SEGMENTORS
 from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
@@ -29,6 +31,7 @@ class ClassIncrSegmentor(EncoderDecoder):
                     task_adapt['src_classes']   # chkpt_classes
                 )
             )
+        self.feature_maps = None
 
     @staticmethod
     def load_state_dict_pre_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):
@@ -63,3 +66,25 @@ class ClassIncrSegmentor(EncoderDecoder):
 
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
+
+    def extract_feat(self, img):
+        """Extract features from images."""
+
+        x = self.backbone(img)
+        if torch.onnx.is_in_onnx_export():
+            self.feature_maps = x
+
+        if self.with_neck:
+            x = self.neck(x)
+        return x
+
+    def simple_test(self, img, img_meta, rescale=True, output_logits=False):
+        """Simple test with single image."""
+
+        seg_pred = super().simple_test(img, img_meta, rescale, output_logits)
+        if self.feature_maps is not None and torch.onnx.is_in_onnx_export():
+            saliency_map = SaliencyMapHook.func(self.feature_maps)
+            feature_vector = FeatureVectorHook.func(self.feature_maps)
+            return seg_pred, feature_vector, saliency_map
+        
+        return seg_pred
