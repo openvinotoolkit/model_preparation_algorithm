@@ -11,7 +11,7 @@ data = dict(
 )
 
 evaluation = dict(
-    interval=1,
+    interval=5,
     metric='mAP',
     save_best='mAP',
     iou_thr=[
