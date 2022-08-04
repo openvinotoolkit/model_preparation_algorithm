@@ -59,7 +59,7 @@ class DetectionStage(Stage):
             self.configure_regularization(cfg)
 
         # Other hyper-parameters
-        # TODO[EUGENE]: WHAT IS HYPERPARAMS? 
+        # TODO[EUGENE]: WHAT IS HYPERPARAMS?
         if 'hyperparams' in cfg:
             self.configure_hyperparams(cfg, training, **kwargs)
 
