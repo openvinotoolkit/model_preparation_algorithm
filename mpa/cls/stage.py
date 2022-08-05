@@ -81,10 +81,6 @@ class ClsStage(Stage):
             if cfg.model.get('multilabel', False) or cfg.model.get('hierarchical', False):
                 cfg.model.head.pop('topk', None)
 
-        # Other hyper-parameters
-        if cfg.get('hyperparams', False):
-            self.configure_hyperparams(cfg, training, **kwargs)
-
         return cfg
 
     @staticmethod

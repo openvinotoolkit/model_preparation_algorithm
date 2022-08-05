@@ -59,10 +59,6 @@ class SegStage(Stage):
         if 'task_adapt' in cfg:
             self.configure_task(cfg, training, **kwargs)
 
-        # Other hyper-parameters
-        if 'hyperparams' in cfg:
-            self.configure_hyperparams(cfg, training, **kwargs)
-
         return cfg
 
     def configure_model(self, cfg, training, **kwargs):
@@ -197,7 +193,7 @@ class SegStage(Stage):
 
         # Model classes
         if task_adapt_op == 'REPLACE':
-            if len(data_classes) == 1: # 'background'
+            if len(data_classes) == 1:  # 'background'
                 model_classes = org_model_classes.copy()
             else:
                 model_classes = data_classes.copy()

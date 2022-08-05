@@ -58,11 +58,6 @@ class DetectionStage(Stage):
         if training:
             self.configure_regularization(cfg)
 
-        # Other hyper-parameters
-        # TODO[EUGENE]: WHAT IS HYPERPARAMS?
-        if 'hyperparams' in cfg:
-            self.configure_hyperparams(cfg, training, **kwargs)
-
         # Hooks
         self.configure_hook(cfg)
 
@@ -346,17 +341,6 @@ class DetectionStage(Stage):
             img_ids_new=ids_new,
         )
         return outputs
-
-    def configure_hyperparams(self, cfg, training, **kwargs):
-        hyperparams = kwargs.get('hyperparams', None)
-        if hyperparams is not None:
-            bs = hyperparams.get('bs', None)
-            if bs is not None:
-                cfg.data.samples_per_gpu = bs
-
-            lr = hyperparams.get('lr', None)
-            if lr is not None:
-                cfg.optimizer.lr = lr
 
     @staticmethod
     def add_yolox_hooks(cfg):
