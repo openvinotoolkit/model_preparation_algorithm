@@ -285,7 +285,16 @@ class DetectionStage(Stage):
                     efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
                 )
             )
-            update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook'))
+            # update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook'))
+            update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook', priority="ABOVE_NORMAL", momentum=0.1))
+            adaptive_ema_momentum = cfg.get('adaptive_ema_momentum', False)
+            adaptive_validation_interval = cfg.get('adaptive_validation_interval', False)
+            adaptive_training_hook = ConfigDict(
+                type='AdaptiveTrainingHook',
+                adaptive_ema_momentum=adaptive_ema_momentum,
+                adaptive_validation_interval=adaptive_validation_interval
+            )
+            update_or_add_custom_hook(cfg, adaptive_training_hook)
         else:
             src_data_cfg = Stage.get_train_data_cfg(cfg)
             src_data_cfg.pop('old_new_indices', None)
