@@ -24,7 +24,7 @@ custom_hooks = [
     dict(
         type='LazyEarlyStoppingHook',
         start=5,
-        patience=2,
+        patience=4,
         iteration_patience=0,
         metric='mAP',
         interval=5,
@@ -35,7 +35,7 @@ custom_hooks = [
 lr_config = dict(
     policy='ReduceLROnPlateau',
     metric='bbox_mAP',
-    patience=1,
+    patience=2,
     iteration_patience=0,
     interval=5,
     min_lr=1e-06,
