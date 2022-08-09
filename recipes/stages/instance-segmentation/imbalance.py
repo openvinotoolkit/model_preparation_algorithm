@@ -38,5 +38,4 @@ optimizer_config = dict(
 )
 
 ignore = True
-adaptive_ema_momentum = False
 adaptive_validation_interval = True
