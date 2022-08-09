@@ -230,7 +230,6 @@ class DetectionStage(Stage):
         update_or_add_custom_hook(cfg, task_adapt_hook)
 
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
-        # TODO[EUGENE]: DO I NEED TO CHANGE SOMETHING HERE?
         if cfg.get('task', 'detection') == 'detection':
             bbox_head = cfg.model.bbox_head
         else:

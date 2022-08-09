@@ -259,18 +259,6 @@ class ClsStage(Stage):
                 cfg.model.head.num_old_classes = len(old_classes)
         return model_tasks, dst_classes
 
-    @staticmethod
-    def configure_hyperparams(cfg, training, **kwargs):
-        hyperparams = kwargs.get('hyperparams', None)
-        if hyperparams is not None:
-            bs = hyperparams.get('bs', None)
-            if bs is not None:
-                cfg.data.samples_per_gpu = bs
-
-            lr = hyperparams.get('lr', None)
-            if lr is not None:
-                cfg.optimizer.lr = lr
-
 
 def refine_tasks(train_cfg, meta, adapt_type):
     new_tasks = train_cfg['tasks']
