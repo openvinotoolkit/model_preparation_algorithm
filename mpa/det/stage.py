@@ -286,6 +286,20 @@ class DetectionStage(Stage):
                 )
             )
             update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook', priority="ABOVE_NORMAL", momentum=0.1))
+            # update_or_add_custom_hook(
+            #     cfg,
+            #     ConfigDict(
+            #         type='CustomModelEMAHook',
+            #         priority="ABOVE_NORMAL",
+            #         epoch_momentum=0.4
+            #     )
+            # )
+            adaptive_validation_interval = cfg.get('adaptive_validation_interval', False)
+            if adaptive_validation_interval:
+                adaptive_training_hook = ConfigDict(
+                    type='AdaptiveTrainingHook',
+                )
+                update_or_add_custom_hook(cfg, adaptive_training_hook)
         else:
             src_data_cfg = Stage.get_train_data_cfg(cfg)
             src_data_cfg.pop('old_new_indices', None)
