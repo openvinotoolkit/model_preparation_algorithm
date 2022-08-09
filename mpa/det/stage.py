@@ -299,7 +299,7 @@ class DetectionStage(Stage):
                 adaptive_training_hook = ConfigDict(
                     type='AdaptiveTrainingHook',
                 )
-            update_or_add_custom_hook(cfg, adaptive_training_hook)
+                update_or_add_custom_hook(cfg, adaptive_training_hook)
         else:
             src_data_cfg = Stage.get_train_data_cfg(cfg)
             src_data_cfg.pop('old_new_indices', None)
