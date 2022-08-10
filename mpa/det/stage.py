@@ -3,6 +3,7 @@
 #
 
 import numpy as np
+import torch
 
 from mmcv import ConfigDict
 from mmdet.datasets import build_dataset
@@ -285,21 +286,7 @@ class DetectionStage(Stage):
                     efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
                 )
             )
-            update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook', priority="ABOVE_NORMAL", momentum=0.1))
-            # update_or_add_custom_hook(
-            #     cfg,
-            #     ConfigDict(
-            #         type='CustomModelEMAHook',
-            #         priority="ABOVE_NORMAL",
-            #         epoch_momentum=0.4
-            #     )
-            # )
-            adaptive_validation_interval = cfg.get('adaptive_validation_interval', False)
-            if adaptive_validation_interval:
-                adaptive_training_hook = ConfigDict(
-                    type='AdaptiveTrainingHook',
-                )
-                update_or_add_custom_hook(cfg, adaptive_training_hook)
+            update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook'))
         else:
             src_data_cfg = Stage.get_train_data_cfg(cfg)
             src_data_cfg.pop('old_new_indices', None)
@@ -382,7 +369,8 @@ class DetectionStage(Stage):
                 ratio_range=(10, 20),
                 img_scale=(640, 640),
                 interval=1,
-                priority=48))
+                priority=48,
+                device='cuda' if torch.cuda.is_available() else 'cpu'))
         update_or_add_custom_hook(
             cfg,
             ConfigDict(
