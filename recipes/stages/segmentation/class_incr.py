@@ -24,7 +24,7 @@ optimizer_config = dict(
 )
 
 log_config = dict(
-    interval=10,
+    interval=5,
     hooks=[
         dict(type='TextLoggerHook', by_epoch=True),
         # dict(type='TensorboardLoggerHook')
@@ -43,11 +43,11 @@ runner = dict(
 
 checkpoint_config = dict(
     by_epoch=True,
-    interval=1
+    interval=5
 )
 
 evaluation = dict(
-    interval=1,
+    interval=5,
     metric=['mDice', 'mIoU'],
     show_log=True
 )
@@ -61,3 +61,4 @@ task_adapt = dict(
 )
 
 ignore = True
+adaptive_validation_interval = True

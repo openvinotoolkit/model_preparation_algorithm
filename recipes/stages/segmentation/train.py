@@ -14,17 +14,17 @@ optimizer = dict(
 
 lr_config = dict(
     policy='ReduceLROnPlateau',
-    metric='mDice',
-    patience=5,
+    metric='mAP',
+    patience=2,
     iteration_patience=0,
-    interval=1,
+    interval=5,
     min_lr=0.000001,
     warmup='linear',
-    warmup_iters=80,
+    warmup_iters=200,
     warmup_ratio=1.0 / 3)
 
 evaluation = dict(
-    interval=1,
+    interval=5,
     metric=['mIoU', 'mDice'],
 )
 
@@ -38,12 +38,13 @@ params_config = dict(
 )
 
 custom_hooks = [
-    dict(type='LazyEarlyStoppingHook',
-         patience=8,
-         iteration_patience=0,
-         metric='mDice',
-         interval=1,
-         priority=75,
-         start=1
-         ),
+    dict(
+        type='LazyEarlyStoppingHook',
+        start=5,
+        patience=3,
+        iteration_patience=0,
+        metric='mAP',
+        interval=5,
+        priority=75,
+    ),
 ]

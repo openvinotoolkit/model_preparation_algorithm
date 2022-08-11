@@ -184,6 +184,9 @@ class SegStage(Stage):
             sampler_flag=has_new_class,
             efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
         )
+        adaptive_validation_interval = cfg.get('adaptive_validation_interval', False)
+        if adaptive_validation_interval:
+            update_or_add_custom_hook(cfg, ConfigDict(type='AdaptiveTrainingHook'))
         update_or_add_custom_hook(cfg, task_adapt_hook)
 
     def configure_task_classes(self, cfg, task_adapt_op):
