@@ -5,6 +5,7 @@
 import torch
 import math
 from mmcv.runner import HOOKS, Hook
+from mmcv.runner.hooks.ema import EMAHook
 from mmcv.parallel import is_module_wrapper
 from mpa.utils.logger import get_logger
 
@@ -138,3 +139,29 @@ class DualModelEMAHook(Hook):
                 diff = ((src_param - dst_param)**2).sum()
                 diff_sum += diff
         return diff_sum
+
+
+@HOOKS.register_module()
+class CustomModelEMAHook(EMAHook):
+    def __init__(
+        self,
+        momentum=0.0002,
+        epoch_momentum=0.0,
+        interval=1,
+        **kwargs
+    ):
+        super().__init__(momentum=momentum, interval=interval, **kwargs)
+        self.momentum = momentum
+        self.epoch_momentum = epoch_momentum
+        self.interval = interval
+
+    def before_train_epoch(self, runner):
+        if self.epoch_momentum > 0.0:
+            iter_per_epoch = len(runner.data_loader)
+            epoch_decay = 1 - self.epoch_momentum
+            iter_decay = math.pow(epoch_decay, self.interval/iter_per_epoch)
+            self.momentum = 1 - iter_decay
+            logger.info(f'Update EMA momentum: {self.momentum}')
+            self.epoch_momentum = 0.0  # disable re-compute
+
+        super().before_train_epoch(runner)
