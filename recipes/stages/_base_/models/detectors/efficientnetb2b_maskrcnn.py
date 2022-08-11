@@ -119,4 +119,3 @@ model = dict(
 load_from = 'https://storage.openvinotoolkit.org/repositories/\
 openvino_training_extensions/models/instance_segmentation/\
 v2/efficientnet_b2b-mask_rcnn-576x576.pth'
-fp16 = dict(loss_scale=512.)

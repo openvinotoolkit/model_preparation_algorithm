@@ -46,7 +46,7 @@ class SegExporter(SegStage):
             else:
                 model = model.cpu()
             precision = kwargs.pop('precision', 'FP32')
-            print(precision)
+            logger.info(f'Model will be exported with precision {precision}')
 
             export_model(model, cfg, output_path, target='openvino', output_logits=True, input_format='bgr', precision=precision)
         except Exception as ex:

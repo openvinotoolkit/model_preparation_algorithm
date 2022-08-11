@@ -72,7 +72,7 @@ class ClsExporter(ClsStage):
         fake_img = data['img'].unsqueeze(0)
         
         precision = kwargs.pop('precision', 'FP32')
-        print(precision)
+        logger.info(f'Model will be exported with precision {precision}')
 
         try:
             torch.onnx.export(model,
