@@ -14,7 +14,7 @@ optimizer = dict(
 
 lr_config = dict(
     policy='ReduceLROnPlateau',
-    metric='mAP',
+    metric='mDice',
     patience=2,
     iteration_patience=0,
     interval=5,
@@ -43,7 +43,7 @@ custom_hooks = [
         start=5,
         patience=3,
         iteration_patience=0,
-        metric='mAP',
+        metric='mDice',
         interval=5,
         priority=75,
     ),
