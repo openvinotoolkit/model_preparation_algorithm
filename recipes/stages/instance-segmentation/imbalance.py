@@ -38,5 +38,5 @@ optimizer_config = dict(
 )
 
 ignore = True
-adaptive_validation_interval = True
-adaptive_ema = True
+adaptive_validation_interval = dict(max_interval=5)
+adaptive_ema = dict(epoch_momentum=0.4)

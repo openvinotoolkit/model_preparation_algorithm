@@ -13,7 +13,7 @@ logger = get_logger()
 
 
 @HOOKS.register_module()
-class AdaptiveTrainingHook(Hook):
+class AdaptiveTrainSchedulingHook(Hook):
     """Adaptive Training Scheduling Hook
 
     Depending on the size of iteration per epoch, adaptively update the validation interval and related values.
@@ -36,6 +36,7 @@ class AdaptiveTrainingHook(Hook):
         min_lr_patience=2,
         base_es_patience=10,
         min_es_patience=3,
+        decay=-0.025,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -45,6 +46,7 @@ class AdaptiveTrainingHook(Hook):
         self.min_lr_patience = min_lr_patience
         self.base_es_patience = base_es_patience
         self.min_es_patience = min_es_patience
+        self.decay = decay
         self.initialized = False
         self.enabled = False
 
@@ -76,8 +78,7 @@ class AdaptiveTrainingHook(Hook):
             self.initialized = True
 
     def get_adaptive_interval(self, iter_per_epoch):
-        decay = -0.025
         adaptive_interval = max(
-            round(math.exp(decay * iter_per_epoch) * self.max_interval), 1
+            round(math.exp(self.decay * iter_per_epoch) * self.max_interval), 1
         )
         return adaptive_interval

@@ -287,22 +287,25 @@ class DetectionStage(Stage):
                 )
             )
 
-            adaptive_ema = cfg.get('adaptive_ema', False)
+            adaptive_ema = cfg.get('adaptive_ema', {})
             if adaptive_ema:
                 update_or_add_custom_hook(
                     cfg,
                     ConfigDict(
                         type='CustomModelEMAHook',
                         priority='ABOVE_NORMAL',
-                        epoch_momentum=0.4
+                        **adaptive_ema
                     )
                 )
             else:
                 update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook', priority='ABOVE_NORMAL', momentum=0.1))
 
-            adaptive_validation_interval = cfg.get('adaptive_validation_interval', False)
+            adaptive_validation_interval = cfg.get('adaptive_validation_interval', {})
             if adaptive_validation_interval:
-                update_or_add_custom_hook(cfg, ConfigDict(type='AdaptiveTrainingHook'))
+                update_or_add_custom_hook(
+                    cfg,
+                    ConfigDict(type='AdaptiveTrainSchedulingHook', **adaptive_validation_interval)
+                )
         else:
             src_data_cfg = Stage.get_train_data_cfg(cfg)
             src_data_cfg.pop('old_new_indices', None)
