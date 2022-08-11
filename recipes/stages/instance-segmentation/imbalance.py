@@ -39,3 +39,4 @@ optimizer_config = dict(
 
 ignore = True
 adaptive_validation_interval = True
+adaptive_ema = True

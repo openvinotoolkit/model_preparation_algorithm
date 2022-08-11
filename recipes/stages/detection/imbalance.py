@@ -45,3 +45,4 @@ lr_config = dict(
 )
 
 ignore = True
+adaptive_validation_interval = True
