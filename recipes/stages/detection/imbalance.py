@@ -18,16 +18,16 @@ runner = dict(
     max_epochs=30
 )
 
-evaluation = dict(interval=5, metric='mAP', save_best='mAP')
+evaluation = dict(interval=1, metric='mAP', save_best='mAP')
 
 custom_hooks = [
     dict(
         type='LazyEarlyStoppingHook',
-        start=5,
-        patience=4,
+        start=3,
+        patience=10,
         iteration_patience=0,
         metric='mAP',
-        interval=5,
+        interval=1,
         priority=75,
     ),
 ]
@@ -35,9 +35,9 @@ custom_hooks = [
 lr_config = dict(
     policy='ReduceLROnPlateau',
     metric='bbox_mAP',
-    patience=2,
+    patience=5,
     iteration_patience=0,
-    interval=5,
+    interval=1,
     min_lr=1e-06,
     warmup='linear',
     warmup_iters=200,
