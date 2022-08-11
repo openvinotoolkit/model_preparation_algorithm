@@ -60,9 +60,7 @@ class ClsExporter(ClsStage):
 
         # build the model and load checkpoint
         model = build_classifier(cfg.model)
-        fp16_cfg = cfg.get('fp16', None)
-        if fp16_cfg is not None:
-            wrap_fp16_model(model)
+
         logger.info('load checkpoint from ' + cfg.load_from)
         _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
         if hasattr(model, 'is_export'):
@@ -72,6 +70,9 @@ class ClsExporter(ClsStage):
 
         data = self.get_fake_input(cfg)
         fake_img = data['img'].unsqueeze(0)
+        
+        precision = kwargs.pop('precision', 'FP32')
+        print(precision)
 
         try:
             torch.onnx.export(model,
@@ -91,7 +92,7 @@ class ClsExporter(ClsStage):
                 'input_model': onnx_path,
                 'mean_values': mean_values,
                 'scale_values': scale_values,
-                'data_type': 'FP32',
+                'data_type': precision,
                 'model_name': 'model',
                 'reverse_input_channels': None,
             }

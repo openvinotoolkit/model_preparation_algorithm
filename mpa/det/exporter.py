@@ -46,6 +46,8 @@ class DetectionExporter(DetectionStage):
             else:
                 model = model.cpu()
             precision = kwargs.pop('precision', 'FP32')
+            print(precision)
+            
             export_model(model, cfg, output_path, target='openvino', precision=precision)
         except Exception as ex:
             # output_model.model_status = ModelStatus.FAILED

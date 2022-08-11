@@ -45,7 +45,10 @@ class SegExporter(SegStage):
                 model = model.cuda(cfg.gpu_ids[0])
             else:
                 model = model.cpu()
-            export_model(model, cfg, output_path, target='openvino', output_logits=True, input_format='bgr')
+            precision = kwargs.pop('precision', 'FP32')
+            print(precision)
+
+            export_model(model, cfg, output_path, target='openvino', output_logits=True, input_format='bgr', precision=precision)
         except Exception as ex:
             # output_model.model_status = ModelStatus.FAILED
             # raise RuntimeError('Optimization was unsuccessful.') from ex
