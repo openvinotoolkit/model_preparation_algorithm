@@ -109,15 +109,15 @@ class DetectionStage(Stage):
                         seed=cfg.seed
                     )
                 )
-            for subset in ("train", "val", "test"):
-                if 'dataset' in cfg.data[subset]:
-                    subset_cfg = self.get_data_cfg(cfg, subset)
-                    subset_cfg.ote_dataset = cfg.data[subset].pop('ote_dataset', None)
-                    subset_cfg.labels = cfg.data[subset].get('labels', None)
-                    if 'data_classes' in cfg.data[subset]:
-                        subset_cfg.data_classes = cfg.data[subset].pop('data_classes')
-                    if 'new_classes' in cfg.data[subset]:
-                        subset_cfg.new_classes = cfg.data[subset].pop('new_classes')
+        for subset in ("train", "val", "test"):
+            if 'dataset' in cfg.data[subset]:
+                subset_cfg = self.get_data_cfg(cfg, subset)
+                subset_cfg.ote_dataset = cfg.data[subset].pop('ote_dataset', None)
+                subset_cfg.labels = cfg.data[subset].get('labels', None)
+                if 'data_classes' in cfg.data[subset]:
+                    subset_cfg.data_classes = cfg.data[subset].pop('data_classes')
+                if 'new_classes' in cfg.data[subset]:
+                    subset_cfg.new_classes = cfg.data[subset].pop('new_classes')
 
     def configure_task(self, cfg, training, **kwargs):
         """Adjust settings for task adaptation

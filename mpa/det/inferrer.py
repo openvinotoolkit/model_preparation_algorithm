@@ -7,10 +7,11 @@ import torch
 from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint
 
-from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
+from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
 from mmdet.parallel import MMDataCPU
 from mmdet.utils.deployment import get_saliency_map, get_feature_vector
+from mmdet.apis import single_gpu_test
 
 from mpa.registry import STAGES
 from .stage import DetectionStage
@@ -180,10 +181,7 @@ class DetectionInferrer(DetectionStage):
             model = model.module
         with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
             with eval_model.module.backbone.register_forward_hook(saliency_map_hook):
-                for data in data_loader:
-                    with torch.no_grad():
-                        result = eval_model(return_loss=False, rescale=True, **data)
-                    eval_predictions.extend(result)
+                eval_predictions = single_gpu_test(eval_model, data_loader)
 
         for key in [
                 'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',
@@ -193,7 +191,13 @@ class DetectionInferrer(DetectionStage):
 
         metric = None
         if eval:
-            metric = dataset.evaluate(eval_predictions, **cfg.evaluation)[cfg.evaluation.metric]
+            metric = dataset.evaluate(eval_predictions, **cfg.evaluation)['mAP']
+
+        # TODO[EUGENE]: HOW TO HANDLE FEATURE MAP AND FEATURE VECTOR SINCE WE CROPPED ONE IMAGE TO TILES?
+        if isinstance(dataset, ImageTilingDataset):
+            saliency_maps = [None] * dataset.num_samples
+            feature_vectors = [None] * dataset.num_samples
+            eval_predictions = dataset.merge(eval_predictions)
 
         outputs = dict(
             classes=target_classes,
