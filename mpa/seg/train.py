@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import torch
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
-from mmcv.runner import build_optimizer, build_runner
+from mmcv.runner import Fp16OptimizerHook, build_optimizer, build_runner
 
 from mmseg.core import DistEvalHook, EvalHook
 # from mmdet.core import DistEvalHook, EvalHook
@@ -94,6 +94,12 @@ def train_segmentor(model,
             work_dir=cfg.work_dir,
             logger=logger,
             meta=meta))
+
+    fp16_cfg = cfg.get('fp16', None)
+    if fp16_cfg is not None:
+        grad_clip = cfg.optimizer_config.get('grad_clip', None)
+        cfg.optimizer_config = Fp16OptimizerHook(
+            **fp16_cfg, grad_clip=grad_clip, distributed=distributed)
 
     # register hooks
     runner.register_training_hooks(cfg.lr_config, cfg.optimizer_config,
