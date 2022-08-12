@@ -25,6 +25,6 @@ optimizer_config:
 custom_hooks:
 - type: NoBiasDecayHook
 - type: ModelEmaV2Hook
-
+  priority: ABOVE_NORMAL
 deterministic: True
 seed: 1234
