@@ -61,3 +61,4 @@ task_adapt = dict(
 )
 
 ignore = True
+adaptive_validation_interval = dict(max_interval=5)
