@@ -1,6 +1,8 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+import json
+import os
 from typing import List, Tuple
 
 import torch
@@ -34,9 +36,9 @@ class DetectionInferrer(DetectionStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
-        eval = kwargs.get('eval', False)
-        dump_features = kwargs.get('dump_features', False)
-        dump_saliency_map = kwargs.get('dump_saliency_map', False)
+        eval = kwargs.pop('eval', False)
+        dump_features = kwargs.pop('dump_features', False)
+        dump_saliency_map = kwargs.pop('dump_saliency_map', False)
         if mode not in self.mode:
             return {}
 
@@ -48,7 +50,7 @@ class DetectionInferrer(DetectionStage):
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         outputs = self.infer(cfg, eval=eval, dump_features=dump_features,
-                             dump_saliency_map=dump_saliency_map)
+                             dump_saliency_map=dump_saliency_map, **kwargs)
 
         # Save outputs
         # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
@@ -71,7 +73,7 @@ class DetectionInferrer(DetectionStage):
         print(json_dump)
         """
 
-    def infer(self, cfg, eval=False, dump_features=False, dump_saliency_map=False):
+    def infer(self, cfg, eval=False, dump_features=False, dump_saliency_map=False, **kwargs):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
@@ -191,7 +193,11 @@ class DetectionInferrer(DetectionStage):
 
         metric = None
         if eval:
-            metric = dataset.evaluate(eval_predictions, **cfg.evaluation)['mAP']
+            metric = dataset.evaluate(eval_predictions, **cfg.evaluation)
+            if kwargs.get('performance_path'):
+                with open(kwargs.get('performance_path'), "w", encoding="UTF-8") as f:
+                    json.dump(metric, f)
+            metric = metric['mAP']
 
         # TODO[EUGENE]: HOW TO HANDLE FEATURE MAP AND FEATURE VECTOR SINCE WE CROPPED ONE IMAGE TO TILES?
         if isinstance(dataset, ImageTilingDataset):
