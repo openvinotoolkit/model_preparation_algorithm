@@ -16,5 +16,4 @@ optimizer_config:
 
 custom_hooks:
 - type: NoBiasDecayHook
-- type: ModelEmaV2Hook
 - type: SemiSLClsHook
