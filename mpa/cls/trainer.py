@@ -268,7 +268,7 @@ class ClsTrainer(ClsStage):
             eval_cfg = cfg.get('evaluation', {})
             eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'
             eval_hook = DistCustomEvalHook if distributed else CustomEvalHook
-            runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority='HIGHEST')
+            runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority='ABOVE_NORMAL')
 
         if cfg.get('resume_from', False):
             runner.resume(cfg.resume_from)
