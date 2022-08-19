@@ -21,3 +21,8 @@ import mpa.modules.models.heads.custom_ocr_head
 import mpa.modules.models.losses.am_softmax_loss_with_ignore
 import mpa.modules.models.losses.cross_entropy_loss_with_ignore
 import mpa.modules.models.losses.recall_loss
+
+import mpa.modules.experimental.datasets.pipelines.compose
+import mpa.modules.experimental.datasets.pipelines.transforms.selfsl_transforms
+import mpa.modules.experimental.models.segmentors.detcon
+import mpa.modules.experimental.models.losses.detcon_loss
