@@ -52,6 +52,8 @@ evaluation = dict(
     show_log=True
 )
 
+task_adapt = None
+
 seed = 42
 find_unused_parameters = False
 
