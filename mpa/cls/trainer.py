@@ -163,7 +163,8 @@ class ClsTrainer(ClsStage):
                         dist=distributed,
                         round_up=True,
                         seed=cfg.seed,
-                        drop_last=drop_last
+                        drop_last=drop_last,
+                        persistent_workers=False
                     ) for sub_ds in ds
                 ]
                 data_loaders.append(ComposedDL(sub_loaders))
@@ -178,7 +179,8 @@ class ClsTrainer(ClsStage):
                         dist=distributed,
                         round_up=True,
                         seed=cfg.seed,
-                        drop_last=drop_last
+                        drop_last=drop_last,
+                        persistent_workers=False
                     ))
         # put model on gpus
         if torch.cuda.is_available():
@@ -264,7 +266,8 @@ class ClsTrainer(ClsStage):
                 workers_per_gpu=cfg.data.workers_per_gpu,
                 dist=distributed,
                 shuffle=False,
-                round_up=True)
+                round_up=True,
+                persistent_workers=False)
             eval_cfg = cfg.get('evaluation', {})
             eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'
             eval_hook = DistCustomEvalHook if distributed else CustomEvalHook
