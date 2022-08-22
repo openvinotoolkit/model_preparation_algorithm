@@ -429,3 +429,10 @@ class DetConSupCon(DetConB):
             raise ValueError()
 
         return losses
+
+    def encode_decode(self, img, img_metas):
+        """Encode images with backbone and decode into a semantic segmentation
+        map of the same size as input."""
+        out, repr_vector = super().encode_decode(img, img_metas)
+
+        return out
