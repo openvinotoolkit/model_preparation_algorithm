@@ -224,12 +224,18 @@ class SegStage(Stage):
         return org_model_classes, model_classes, data_classes
 
     def configure_hyperparams(self, cfg, training, **kwargs):
-        hyperparams = kwargs.get('hyperparams', None)
-        if hyperparams is not None:
-            bs = hyperparams.get('bs', None)
-            if bs is not None:
-                cfg.data.samples_per_gpu = bs
+        if cfg.get('hyperparams', None):
+            cfg.merge_from_dict(cfg.hyperparams)
 
-            lr = hyperparams.get('lr', None)
-            if lr is not None:
-                cfg.optimizer.lr = lr
+        if kwargs.get('hyperparams', None):
+            cfg.merge_from_dict(kwargs.hyperparams)
+
+        # hyperparams = kwargs.get('hyperparams', None)
+        # if hyperparams is not None:
+        #     bs = hyperparams.get('bs', None)
+        #     if bs is not None:
+        #         cfg.data.samples_per_gpu = bs
+
+        #     lr = hyperparams.get('lr', None)
+        #     if lr is not None:
+        #         cfg.optimizer.lr = lr
