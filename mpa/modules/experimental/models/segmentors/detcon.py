@@ -206,11 +206,13 @@ class DetConB(CascadeEncoderDecoder):
 
         self.projector_online.init_weights(init_linear='kaiming') # projection
         self.predictor.init_weights()
-        for param_ol, param_tgt in zip(self.online_net.parameters(), self.target_net.parameters()):
+        for param_ol, param_tgt in zip(self.online_net.parameters(), 
+                                       self.target_net.parameters()):
             param_tgt.data.copy_(param_ol.data)
             param_tgt.requires_grad = False
 
-        for param_ol, param_tgt in zip(self.projector_online.parameters(), self.projector_target.parameters()):
+        for param_ol, param_tgt in zip(self.projector_online.parameters(), 
+                                       self.projector_target.parameters()):
             param_tgt.data.copy_(param_ol.data)
             param_tgt.requires_grad = False
 
@@ -224,7 +226,12 @@ class DetConB(CascadeEncoderDecoder):
     def _momentum_update(self):
         """Momentum update of the target network."""
         for param_ol, param_tg in zip(self.online_net.parameters(),
-                                       self.target_net.parameters()):
+                                      self.target_net.parameters()):
+            param_tg.data = param_tg.data * self.momentum + \
+                param_ol.data * (1. - self.momentum)
+
+        for param_ol, param_tg in zip(self.projector_online.parameters(),
+                                      self.projector_target.parameters()):
             param_tg.data = param_tg.data * self.momentum + \
                 param_ol.data * (1. - self.momentum)
 
