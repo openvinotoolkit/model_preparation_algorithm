@@ -1,7 +1,7 @@
 _base_ = [
     '../../../stages/segmentation/train.py',
-    '../_base_/models/segmentors/seg_selfsl_detcon_supcon_ocr.py',
-    '../_base_/data/voc_selfsl.py'
+    '../_base_/models/segmentors/seg_detcon_supcon_ocr.py',
+    '../_base_/data/voc_detcon.py'
 ]
 
 optimizer = dict(
@@ -55,6 +55,7 @@ evaluation = dict(
 task_adapt = None
 
 seed = 42
+deterministic = True
 find_unused_parameters = False
 
 ignore = True
