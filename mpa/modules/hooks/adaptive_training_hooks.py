@@ -55,10 +55,10 @@ class AdaptiveTrainSchedulingHook(Hook):
             iter_per_epoch = len(runner.data_loader)
             adaptive_interval = self.get_adaptive_interval(iter_per_epoch)
             for hook in runner.hooks:
-                if isinstance(hook, EvalHook):
+                if isinstance(hook, EvalHook) or 'EvalHook' in str(hook):
                     hook.interval = adaptive_interval
                     logger.info(f"Update Validation Interval: {adaptive_interval}")
-                elif isinstance(hook, LrUpdaterHook):
+                if isinstance(hook, LrUpdaterHook):
                     hook.interval = adaptive_interval
                     hook.patience = max(
                         math.ceil((self.base_lr_patience / adaptive_interval)),
