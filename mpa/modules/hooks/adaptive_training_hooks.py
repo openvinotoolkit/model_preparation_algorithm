@@ -5,7 +5,7 @@
 import math
 from mmcv.runner import HOOKS, Hook, LrUpdaterHook
 from mmcv.runner.hooks.checkpoint import CheckpointHook
-from mmdet.core.evaluation.eval_hooks import EvalHook
+from mmcv.runner.hooks.evaluation import EvalHook
 from mpa.utils.logger import get_logger
 from mpa.modules.hooks.early_stopping_hook import EarlyStoppingHook
 
