@@ -57,7 +57,7 @@ class AdaptiveTrainSchedulingHook(Hook):
                 if 'EvalHook' in str(hook):
                     hook.interval = adaptive_interval
                     logger.info(f"Update Validation Interval: {adaptive_interval}")
-                if isinstance(hook, LrUpdaterHook):
+                elif isinstance(hook, LrUpdaterHook):
                     hook.interval = adaptive_interval
                     hook.patience = max(
                         math.ceil((self.base_lr_patience / adaptive_interval)),
