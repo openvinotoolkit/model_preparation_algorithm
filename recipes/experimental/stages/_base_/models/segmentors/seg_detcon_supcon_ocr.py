@@ -11,7 +11,6 @@ model = dict(
     downsample=4,
     input_transform='resize_concat',
     in_index=[0,1,2,3],
-    use_decode_head=True,
     backbone=dict(
         norm_cfg=norm_cfg,
     ),

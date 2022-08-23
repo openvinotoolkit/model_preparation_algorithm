@@ -16,7 +16,6 @@ class MaskPooling(nn.Module):
         num_classes, 
         num_samples=16, 
         downsample=32,
-        replacement=False,
         ignore_bg=False
     ):
 
@@ -24,7 +23,6 @@ class MaskPooling(nn.Module):
 
         self.num_classes = num_classes
         self.num_samples = num_samples
-        self.replacement = replacement
         self.ignore_bg = ignore_bg
         self.mask_ids = torch.arange(num_classes)
         self.pool = nn.AvgPool2d(kernel_size=downsample, stride=downsample)
@@ -67,7 +65,7 @@ class MaskPooling(nn.Module):
                 sel_mask[:,0] = 0
 
         mask_ids = [
-            torch.multinomial(sel_mask, num_samples=self.num_samples, replacement=self.replacement) 
+            torch.multinomial(sel_mask, num_samples=self.num_samples, replacement=True) 
             for sel_mask in sel_masks
         ]
         sampled_masks = [
@@ -145,9 +143,9 @@ class DetConB(CascadeEncoderDecoder):
         self,
         num_stages,
         backbone,
-        decode_head,
-        projector,
-        predictor,
+        decode_head=None,
+        projector=None,
+        predictor=None,
         neck=None,
         auxiliary_head=None,
         train_cfg=None,
@@ -160,14 +158,11 @@ class DetConB(CascadeEncoderDecoder):
         downsample=32,
         input_transform=None,
         in_index=-1,
-        replacement=True,
         ignore_bg=False,
-        use_decode_head=True,
-        use_warmstart=True,
         **kwargs
     ):
+        assert projector and predictor
 
-        assert use_decode_head or use_warmstart
         super(DetConB, self).__init__(
             num_stages=num_stages,
             backbone=backbone,
@@ -197,29 +192,33 @@ class DetConB(CascadeEncoderDecoder):
         self.num_classes = num_classes
         self.num_samples = num_samples
         self.downsample = downsample
-        self.use_decode_head = use_decode_head
-        self.use_warmstart = use_warmstart
-        self.mask_pool = MaskPooling(num_classes, num_samples, downsample, replacement, ignore_bg)
+        self.mask_pool = MaskPooling(num_classes, num_samples, downsample, ignore_bg)
 
         if pretrained:
             load_checkpoint(self.backbone, pretrained, strict=False, map_location='cpu', 
                             logger=logger, revise_keys=[(r'^backbone\.', '')])
         
-        if self.use_warmstart:
-            self.online_net = nn.Sequential(self.backbone, DetConMLP(**projector))
-            self.target_net = nn.Sequential(builder.build_backbone(backbone), DetConMLP(**projector))
-            self.predictor = DetConMLP(**predictor)
+        self.online_net = self.backbone
+        self.target_net = builder.build_backbone(backbone)
+        self.projector_online = DetConMLP(**projector)
+        self.projector_target = DetConMLP(**projector)
+        self.predictor = DetConMLP(**predictor)
 
-            self.online_net[1].init_weights(init_linear='kaiming') # projection
-            self.predictor.init_weights()
-            for param_ol, param_tgt in zip(self.online_net.parameters(), self.target_net.parameters()):
-                param_tgt.data.copy_(param_ol.data)
-                param_tgt.requires_grad = False
+        self.projector_online.init_weights(init_linear='kaiming') # projection
+        self.predictor.init_weights()
+        for param_ol, param_tgt in zip(self.online_net.parameters(), self.target_net.parameters()):
+            param_tgt.data.copy_(param_ol.data)
+            param_tgt.requires_grad = False
 
-            self.detcon_loss = builder.build_loss(detcon_loss_cfg)
+        for param_ol, param_tgt in zip(self.projector_online.parameters(), self.projector_target.parameters()):
+            param_tgt.data.copy_(param_ol.data)
+            param_tgt.requires_grad = False
 
-        else:
-            self.online_net = [self.backbone]
+        self.detcon_loss = builder.build_loss(detcon_loss_cfg)
+
+    def _init_decode_head(self, decode_head):
+        if decode_head:
+            super()._init_decode_head(decode_head)
 
     @torch.no_grad()
     def _momentum_update(self):
@@ -229,41 +228,33 @@ class DetConB(CascadeEncoderDecoder):
             param_tg.data = param_tg.data * self.momentum + \
                 param_ol.data * (1. - self.momentum)
 
-    def _forward_train(self, imgs, masks, net):
-        embeddings = [net[0](img) for img in imgs]
+    def _forward_train(self, imgs, masks, net, projector):
+        embeddings = [net(img) for img in imgs]
 
-        if self.use_warmstart:
-            if self.input_transform:
-                embeddings_for_detcon = [self._transform_inputs(embedding) for embedding in embeddings]
-            elif isinstance(self.in_index, int):
-                embeddings_for_detcon = [embeddings[self.in_index] for embedding in embeddings]
-            else:
-                raise ValueError()
+        if self.input_transform:
+            embeddings_for_detcon = [self._transform_inputs(embedding) for embedding in embeddings]
+        elif isinstance(self.in_index, int):
+            embeddings_for_detcon = [embeddings[self.in_index] for embedding in embeddings]
+        else:
+            raise ValueError()
 
-            bs, emb_d, emb_h, emb_w = embeddings_for_detcon[0].shape
-            sampled_masks, sampled_mask_ids = self.mask_pool(masks)
+        bs, emb_d, emb_h, emb_w = embeddings_for_detcon[0].shape
+        sampled_masks, sampled_mask_ids = self.mask_pool(masks)
 
-            embeddings_for_detcon = [
-                embedding.reshape((bs, emb_d, emb_h*emb_w)).transpose(1, 2) for embedding in embeddings_for_detcon
-            ]
-            sampled_embeddings = [
-                sampled_mask @ embedding_for_detcon 
-                for sampled_mask, embedding_for_detcon in zip(sampled_masks, embeddings_for_detcon)
-            ]
-            # error -> outer product!
-            # sampled_embeddings = [
-            #     torch.einsum('bchw,bmd->bmc', embedding_for_detcon, sampled_mask) 
-            #     for embedding_for_detcon, sampled_mask in zip(embeddings_for_detcon, sampled_masks)
-            # ]
+        embeddings_for_detcon = [
+            embedding.reshape((bs, emb_d, emb_h*emb_w)).transpose(1, 2) for embedding in embeddings_for_detcon
+        ]
+        sampled_embeddings = [
+            sampled_mask @ embedding_for_detcon 
+            for sampled_mask, embedding_for_detcon in zip(sampled_masks, embeddings_for_detcon)
+        ]
 
-            sampled_embeddings = [
-                sampled_embedding.reshape((-1, emb_d)) 
-                for sampled_embedding in sampled_embeddings
-            ]
-            proj_outs = [net[1]([sampled_embedding])[0] for sampled_embedding in sampled_embeddings]
-            return embeddings, proj_outs, sampled_mask_ids
-
-        return embeddings, None, None
+        sampled_embeddings = [
+            sampled_embedding.reshape((-1, emb_d)) 
+            for sampled_embedding in sampled_embeddings
+        ]
+        proj_outs = [projector([sampled_embedding])[0] for sampled_embedding in sampled_embeddings]
+        return embeddings, proj_outs, sampled_mask_ids
 
     def forward_train(self, img, img_metas, gt_semantic_seg, pixel_weights=None, **kwargs):
         """Forward function for training.
@@ -287,49 +278,33 @@ class DetConB(CascadeEncoderDecoder):
         losses = dict()
         img1, img2 = img[:, 0], img[:, 1]
         mask1, mask2 = gt_semantic_seg[:, 0], gt_semantic_seg[:, 1]
-        embds, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net)
+        _, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
 
-        if self.use_decode_head:
-            # decode head
-            e1, e2 = embds
-            loss_decode1, meta_decode1 = self._decode_head_forward_train(
-                e1, img_metas, gt_semantic_seg=mask1, pixel_weights=pixel_weights)
-            loss_decode2, meta_decode2 = self._decode_head_forward_train(
-                e2, img_metas, gt_semantic_seg=mask2, pixel_weights=pixel_weights)
-                
-            for k, v1 in loss_decode1.items():
-                v2 = loss_decode2[k]
-                losses[k] = sum([v1, v2]) / 2
-
-        if self.use_warmstart:
-            with torch.no_grad():
-                self._momentum_update()
-                _, (ema_proj1, ema_proj2), (ema_ids1, ema_ids2) = \
-                    self._forward_train([img1, img2], [mask1, mask2], self.target_net)
-                
-            # predictor
-            proj1, proj2 = projs
-            pred1, pred2 = self.predictor([proj1])[0], self.predictor([proj2])[0]
-            pred1 = pred1.reshape((-1, self.num_samples, pred1.shape[-1]))
-            pred2 = pred2.reshape((-1, self.num_samples, pred2.shape[-1]))
-            ema_proj1 = ema_proj1.reshape((-1, self.num_samples, ema_proj1.shape[-1]))
-            ema_proj2 = ema_proj2.reshape((-1, self.num_samples, ema_proj2.shape[-1]))
+        with torch.no_grad():
+            self._momentum_update()
+            _, (ema_proj1, ema_proj2), (ema_ids1, ema_ids2) = \
+                self._forward_train([img1, img2], [mask1, mask2], self.target_net, self.projector_target)
             
-            # decon loss
-            ids1, ids2 = ids
-            loss_detcon = self.detcon_loss(
-                pred1=pred1, 
-                pred2=pred2,
-                target1=ema_proj1,
-                target2=ema_proj2,
-                pind1=ids1,
-                pind2=ids2,
-                tind1=ema_ids1,
-                tind2=ema_ids2)['loss']
-            losses.update(dict(detcon_loss=loss_detcon))
-
-        if self.with_auxiliary_head:
-            raise ValueError()
+        # predictor
+        proj1, proj2 = projs
+        pred1, pred2 = self.predictor([proj1])[0], self.predictor([proj2])[0]
+        pred1 = pred1.reshape((-1, self.num_samples, pred1.shape[-1]))
+        pred2 = pred2.reshape((-1, self.num_samples, pred2.shape[-1]))
+        ema_proj1 = ema_proj1.reshape((-1, self.num_samples, ema_proj1.shape[-1]))
+        ema_proj2 = ema_proj2.reshape((-1, self.num_samples, ema_proj2.shape[-1]))
+        
+        # decon loss
+        ids1, ids2 = ids
+        loss_detcon = self.detcon_loss(
+            pred1=pred1, 
+            pred2=pred2,
+            target1=ema_proj1,
+            target2=ema_proj2,
+            pind1=ids1,
+            pind2=ids2,
+            tind1=ema_ids1,
+            tind2=ema_ids2)['loss']
+        losses.update(dict(detcon_loss=loss_detcon))
 
         return losses
 
@@ -385,24 +360,21 @@ class DetConSupCon(DetConB):
         losses = dict()
         img1, img2 = img[:, 0], img[:, 1]
         mask1, mask2 = gt_semantic_seg[:, 0], gt_semantic_seg[:, 1]
-        embds, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net)
+        embds, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
         
         # decode head
         # In SupCon, img1 is only used for supervised learning.
         # TODO: data pipeline for SupCon
-        assert self.use_decode_head
         e1, _ = embds
         loss_decode, _ = self._decode_head_forward_train(
             e1, img_metas, gt_semantic_seg=mask1, pixel_weights=pixel_weights)
             
         losses.update(loss_decode)
 
-        # detcon head
-        assert self.use_warmstart
         with torch.no_grad():
             self._momentum_update()
             _, (ema_proj1, ema_proj2), (ema_ids1, ema_ids2) = \
-                self._forward_train([img1, img2], [mask1, mask2], self.target_net)
+                self._forward_train([img1, img2], [mask1, mask2], self.target_net, self.projector_target)
             
         # predictor
         proj1, proj2 = projs
