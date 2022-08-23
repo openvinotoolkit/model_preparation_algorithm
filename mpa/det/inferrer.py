@@ -5,6 +5,7 @@ import json
 import os
 from typing import List, Tuple
 
+import mmcv
 import torch
 from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint
@@ -203,7 +204,11 @@ class DetectionInferrer(DetectionStage):
         if isinstance(dataset, ImageTilingDataset):
             saliency_maps = [None] * dataset.num_samples
             feature_vectors = [None] * dataset.num_samples
+            # TODO[EUGENE]: AVOID RUNNING MERGE TWICE
             eval_predictions = dataset.merge(eval_predictions)
+
+        if kwargs.get('performance_path'):
+            mmcv.dump(eval_predictions, kwargs.get('performance_path') + '.pkl')
 
         outputs = dict(
             classes=target_classes,
