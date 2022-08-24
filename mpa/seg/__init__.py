@@ -25,4 +25,7 @@ import mpa.modules.models.losses.recall_loss
 import mpa.modules.experimental.datasets.pipelines.compose
 import mpa.modules.experimental.datasets.pipelines.transforms.selfsl_transforms
 import mpa.modules.experimental.models.segmentors.detcon
+import mpa.modules.experimental.models.segmentors.regioncl
+import mpa.modules.experimental.models.losses.contrastive_loss
+import mpa.modules.experimental.models.decode_heads.regioncl_nonlinear_head
 import mpa.modules.experimental.models.losses.detcon_loss
