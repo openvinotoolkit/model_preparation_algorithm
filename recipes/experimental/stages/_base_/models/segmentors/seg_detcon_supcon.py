@@ -1,8 +1,7 @@
 norm_cfg = dict(type='SyncBN', requires_grad=True)
-num_classes = 21
+num_classes = 256
 model = dict(
     type='DetConSupCon',
-    num_stages=2,
     pretrained=None,
     num_classes=num_classes,
     num_samples=16,

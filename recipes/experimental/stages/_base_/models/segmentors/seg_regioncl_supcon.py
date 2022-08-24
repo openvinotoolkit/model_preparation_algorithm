@@ -10,7 +10,6 @@ model = dict(
     cutmix_alpha=1.0,
     cutMixUpper=14,
     cutMixLower=6,
-    num_stages=2,
     num_classes=num_classes,
     input_transform='resize_concat',
     in_index=[0,1,2,3],
