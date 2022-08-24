@@ -7,7 +7,7 @@ from mmseg.ops import resize
 from mmseg.utils import get_root_logger
 from mmseg.models import builder
 from mmseg.models import SEGMENTORS
-from mmseg.models.segmentors import CascadeEncoderDecoder
+from mmseg.models.segmentors import EncoderDecoder
 
 
 class MaskPooling(nn.Module):
@@ -138,10 +138,9 @@ class DetConMLP(nn.Module):
 
 
 @SEGMENTORS.register_module()
-class DetConB(CascadeEncoderDecoder):
+class DetConB(EncoderDecoder):
     def __init__(
         self,
-        num_stages,
         backbone,
         decode_head=None,
         projector=None,
@@ -164,7 +163,6 @@ class DetConB(CascadeEncoderDecoder):
         assert projector and predictor
 
         super(DetConB, self).__init__(
-            num_stages=num_stages,
             backbone=backbone,
             decode_head=decode_head,
             neck=neck,
@@ -174,18 +172,19 @@ class DetConB(CascadeEncoderDecoder):
             pretrained=None)
 
         logger = get_root_logger()
-        for i in range(self.num_stages):
-            if input_transform != decode_head[i]['input_transform']:
+        if self.decode_head is None:
+            if input_transform != decode_head['input_transform']:
                 logger.warning(
                     f"input_transform (={input_transform}) is not matched with "
-                    f"decode_head[{i}]['input_transform'] (={decode_head[i]['input_transform']}).")
+                    f"decode_head['input_transform'] (={decode_head['input_transform']}).")
 
-            if in_index != decode_head[i]['in_index']:
+            if in_index != decode_head['in_index']:
                 logger.warning(
                     f"in_index (={in_index}) is not matched with "
-                    f"decode_head[{i}]['in_index'] (={decode_head[i]['in_index']}).")
+                    f"decode_head['in_index'] (={decode_head['in_index']}).")
 
-        self.input_transform = input_transform
+            self.input_transform = input_transform
+
         self.in_index = in_index
         self.base_momentum = base_momentum
         self.momentum = base_momentum
@@ -221,6 +220,8 @@ class DetConB(CascadeEncoderDecoder):
     def _init_decode_head(self, decode_head):
         if decode_head:
             super()._init_decode_head(decode_head)
+        else:
+            self.decode_head = None
 
     @torch.no_grad()
     def _momentum_update(self):
@@ -236,32 +237,34 @@ class DetConB(CascadeEncoderDecoder):
                 param_ol.data * (1. - self.momentum)
 
     def _forward_train(self, imgs, masks, net, projector):
-        embeddings = [net(img) for img in imgs]
+        embds = [net(img) for img in imgs]
 
-        if self.input_transform:
-            embeddings_for_detcon = [self._transform_inputs(embedding) for embedding in embeddings]
+        if self.decode_head:
+            embds_for_detcon = [self.decode_head._transform_inputs(emb) for emb in embds]
+        elif self.input_transform:
+            embds_for_detcon = [self._transform_inputs(emb) for emb in embds]
         elif isinstance(self.in_index, int):
-            embeddings_for_detcon = [embeddings[self.in_index] for embedding in embeddings]
+            embds_for_detcon = [emb[self.in_index] for emb in embds]
         else:
             raise ValueError()
 
-        bs, emb_d, emb_h, emb_w = embeddings_for_detcon[0].shape
+        bs, emb_d, emb_h, emb_w = embds_for_detcon[0].shape
         sampled_masks, sampled_mask_ids = self.mask_pool(masks)
 
-        embeddings_for_detcon = [
-            embedding.reshape((bs, emb_d, emb_h*emb_w)).transpose(1, 2) for embedding in embeddings_for_detcon
+        embds_for_detcon = [
+            embd.reshape((bs, emb_d, emb_h*emb_w)).transpose(1, 2) for embd in embds_for_detcon
         ]
-        sampled_embeddings = [
-            sampled_mask @ embedding_for_detcon 
-            for sampled_mask, embedding_for_detcon in zip(sampled_masks, embeddings_for_detcon)
+        sampled_embds = [
+            sampled_mask @ embd_for_detcon 
+            for sampled_mask, embd_for_detcon in zip(sampled_masks, embds_for_detcon)
         ]
 
-        sampled_embeddings = [
-            sampled_embedding.reshape((-1, emb_d)) 
-            for sampled_embedding in sampled_embeddings
+        sampled_embds = [
+            sampled_embd.reshape((-1, emb_d)) 
+            for sampled_embd in sampled_embds
         ]
-        proj_outs = [projector([sampled_embedding])[0] for sampled_embedding in sampled_embeddings]
-        return embeddings, proj_outs, sampled_mask_ids
+        proj_outs = [projector([sampled_embd])[0] for sampled_embd in sampled_embds]
+        return embds, proj_outs, sampled_mask_ids
 
     def forward_train(self, img, img_metas, gt_semantic_seg, pixel_weights=None, **kwargs):
         """Forward function for training.
@@ -408,10 +411,3 @@ class DetConSupCon(DetConB):
             raise ValueError()
 
         return losses
-
-    def encode_decode(self, img, img_metas):
-        """Encode images with backbone and decode into a semantic segmentation
-        map of the same size as input."""
-        out, repr_vector = super().encode_decode(img, img_metas)
-
-        return out

@@ -8,11 +8,11 @@ from mmseg.ops import resize
 from mmseg.utils import get_root_logger
 from mmseg.models import builder
 from mmseg.models import SEGMENTORS
-from mmseg.models.segmentors import CascadeEncoderDecoder
+from mmseg.models.segmentors import EncoderDecoder
 
 
 @SEGMENTORS.register_module
-class RegionCLM(CascadeEncoderDecoder):
+class RegionCLM(EncoderDecoder):
     """RegionCLM.
 
     Implementation of "Momentum Contrast for Unsupervised Visual
@@ -35,7 +35,6 @@ class RegionCLM(CascadeEncoderDecoder):
 
     def __init__(
         self,
-        num_stages,
         backbone,
         decode_head,
         neck=None,
@@ -58,7 +57,6 @@ class RegionCLM(CascadeEncoderDecoder):
     ):
 
         super(RegionCLM, self).__init__(
-            num_stages=num_stages,
             backbone=backbone,
             decode_head=decode_head,
             neck=neck,
@@ -389,19 +387,11 @@ class RegionCLMSupCon(RegionCLM):
         losses.update(loss_decode)
 
         # for regioncl loss
-        if self.input_transform:
-            q = [self._transform_inputs(q)]
-        else:
-            q = [q[0]]
-
+        q = [self.decode_head._transform_inputs(q)]
         q = self.head_q(q)
 
         q_swapped = self.encoder_q(im_q_swapped)
-        if self.input_transform:
-            q_swapped = [self._transform_inputs(q_swapped)]
-        else:
-            q_swapped = [q_swapped[0]]
-            
+        q_swapped = [self.decode_head._transform_inputs(q_swapped)]
         q_canvas, q_canvas_shuffle, q_paste, q_paste_shuffle = self.head_q(
             q_swapped, randStartW.long(), randStartH.long(), randWidth.long(), randHeight.long(), randperm, unShuffle)    # queries: NxC
 
@@ -416,10 +406,7 @@ class RegionCLMSupCon(RegionCLM):
             self._momentum_update_key_encoder()
             im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
             k = self.encoder_k(im_k)
-            if self.input_transform:
-                k = [self._transform_inputs(k)]
-            else:
-                k = [k[0]]
+            k = [self.decode_head._transform_inputs(k)]
 
             k = self.head_k(k)  # keys: NxC
             k = nn.functional.normalize(k, dim=1)
