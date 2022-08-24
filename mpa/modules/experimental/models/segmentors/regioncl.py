@@ -286,7 +286,9 @@ class RegionCLM(EncoderDecoder):
         # compute key features
         with torch.no_grad():  # no gradient to keys
             self._momentum_update_key_encoder()
-            im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
+            if torch.cuda.device_count() > 1:
+                im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
+
             k = self.encoder_k(im_k)
             if self.input_transform:
                 k = [self._transform_inputs(k)]
@@ -295,7 +297,8 @@ class RegionCLM(EncoderDecoder):
 
             k = self.head_k(k)  # keys: NxC
             k = nn.functional.normalize(k, dim=1)
-            k = self._batch_unshuffle_ddp(k, idx_unshuffle)
+            if torch.cuda.device_count() > 1:
+                k = self._batch_unshuffle_ddp(k, idx_unshuffle)
 
         # compute logits
         # Einstein sum is more intuitive
@@ -404,13 +407,16 @@ class RegionCLMSupCon(RegionCLM):
         # compute key features
         with torch.no_grad():  # no gradient to keys
             self._momentum_update_key_encoder()
-            im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
+            if torch.cuda.device_count() > 1:
+                im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
+
             k = self.encoder_k(im_k)
             k = [self.decode_head._transform_inputs(k)]
 
             k = self.head_k(k)  # keys: NxC
             k = nn.functional.normalize(k, dim=1)
-            k = self._batch_unshuffle_ddp(k, idx_unshuffle)
+            if torch.cuda.device_count() > 1:
+                k = self._batch_unshuffle_ddp(k, idx_unshuffle)
 
         # compute logits
         # Einstein sum is more intuitive
@@ -459,11 +465,15 @@ def concat_all_gather(tensor):
 
     *** Warning ***: torch.distributed.all_gather has no gradient.
     """
-    tensors_gather = [
-        torch.ones_like(tensor)
-        for _ in range(torch.distributed.get_world_size())
-    ]
-    torch.distributed.all_gather(tensors_gather, tensor, async_op=False)
+    if torch.cuda.device_count() > 1:
+        tensors_gather = [
+            torch.ones_like(tensor)
+            for _ in range(torch.distributed.get_world_size())
+        ]
+        torch.distributed.all_gather(tensors_gather, tensor, async_op=False)
 
-    output = torch.cat(tensors_gather, dim=0)
+        output = torch.cat(tensors_gather, dim=0)
+    else:
+        output = tensor
+        
     return output
