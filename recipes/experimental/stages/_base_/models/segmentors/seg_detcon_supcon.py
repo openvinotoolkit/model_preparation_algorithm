@@ -1,5 +1,3 @@
-_base_ = '../../../../../stages/_base_/models/segmentors/encoder_decoder.ote.py'
-
 norm_cfg = dict(type='SyncBN', requires_grad=True)
 num_classes = 21
 model = dict(
