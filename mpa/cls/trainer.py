@@ -228,6 +228,7 @@ class ClsTrainer(ClsStage):
 
         # an ugly walkaround to make the .log and .log.json filenames the same
         runner.timestamp = f'{timestamp}'
+        
         # fp16 setting
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:

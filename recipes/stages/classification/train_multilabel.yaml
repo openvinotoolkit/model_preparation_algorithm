@@ -6,11 +6,11 @@ _base_: [
 ]
 
 optimizer: 
-    lr: 0.03
+    lr: 0.007
     momentum: 0.9
 
 runner: 
-    max_epochs: 10
+    max_epochs: 60
 
 evaluation: 
     metric: ['accuracy']
