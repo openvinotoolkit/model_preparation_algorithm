@@ -5,14 +5,14 @@ _base_: [
 ]
 
 runner:
-    max_epochs: 20
+    max_epochs: 50
 
 optimizer_config:
     type: SAMOptimizerHook
 
 optimizer:
     type: SGD
-    lr: 0.01
+    lr: 0.007
     momentum: 0.9
     weight_decay: 0.0005
 
