@@ -16,7 +16,6 @@ def asymmetric_angular_loss_with_ignore(pred,
                                         gamma_pos=0.0,
                                         gamma_neg=1.0,
                                         clip=0.05,
-                                        s=20.0,
                                         k=0.8,
                                         reduction='none',
                                         avg_factor=None):
@@ -30,7 +29,6 @@ def asymmetric_angular_loss_with_ignore(pred,
         gamma_pos (float): positive focusing parameter. Defaults to 0.0.
         gamma_neg (float): Negative focusing parameter. We usually set
             gamma_neg > gamma_pos. Defaults to 1.0.
-        s (float): positive scale parameter. Defaults to 20.0.
         k (float): positive balance parameter. Defaults to 0.8.
         clip (float, optional): Probability margin. Defaults to 0.05.
         reduction (str): The method used to reduce the loss.
@@ -48,11 +46,11 @@ def asymmetric_angular_loss_with_ignore(pred,
     target = target.type_as(pred)
     anti_target = 1 - target
 
-    xs_pos = torch.sigmoid(s * pred)
-    xs_neg = torch.sigmoid(-s * pred)
+    xs_pos = torch.sigmoid(pred)
+    xs_neg = torch.sigmoid(-pred)
 
-    balance_koeff_pos = k / s
-    balance_koeff_neg = (1 - k) / s
+    balance_koeff_pos = k
+    balance_koeff_neg = 1 - k
 
     if clip > 0:
         xs_neg = (xs_neg + clip).clamp(max=1)
@@ -91,7 +89,6 @@ class AsymmetricAngularLossWithIgnore(nn.Module):
             Defaults to 0.0.
         gamma_neg (float): Negative focusing parameter. We
             usually set gamma_neg > gamma_pos. Defaults to 1.0.
-        s (float): positive scale parameter. Defaults to 20.0.
         k (float): positive balance parameter. Defaults to 0.8.
         clip (float): Probability margin. Defaults to 0.05.
         reduction (str): The method used to reduce the loss into
@@ -102,7 +99,6 @@ class AsymmetricAngularLossWithIgnore(nn.Module):
     def __init__(self,
                  gamma_pos=0.0,
                  gamma_neg=1.0,
-                 s=20.0,
                  k=0.8,
                  clip=0.05,
                  reduction='none',
@@ -110,7 +106,6 @@ class AsymmetricAngularLossWithIgnore(nn.Module):
         super().__init__()
         self.gamma_pos = gamma_pos
         self.gamma_neg = gamma_neg
-        self.s = s
         self.k = k
         self.clip = clip
         self.reduction = reduction
@@ -135,7 +130,6 @@ class AsymmetricAngularLossWithIgnore(nn.Module):
             weight,
             gamma_pos=self.gamma_pos,
             gamma_neg=self.gamma_neg,
-            s=self.s,
             k=self.k,
             clip=self.clip,
             reduction=reduction,

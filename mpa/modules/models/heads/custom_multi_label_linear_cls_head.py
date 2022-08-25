@@ -18,6 +18,7 @@ class CustomMultiLabelLinearClsHead(MultiLabelClsHead):
         num_classes (int): Number of categories.
         in_channels (int): Number of channels in the input feature map.
         normalized (bool): Normalize input features and weights.
+        scale (float): positive scale parameter.
         loss (dict): Config of classification loss.
     """
 
@@ -25,6 +26,7 @@ class CustomMultiLabelLinearClsHead(MultiLabelClsHead):
                  num_classes,
                  in_channels,
                  normalized=False,
+                 scale=1.0,
                  loss=dict(
                      type='CrossEntropyLoss',
                      use_sigmoid=True,
@@ -39,6 +41,7 @@ class CustomMultiLabelLinearClsHead(MultiLabelClsHead):
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.normalized = normalized
+        self.scale = scale
         self._init_layers()
 
     def _init_layers(self):
@@ -60,13 +63,13 @@ class CustomMultiLabelLinearClsHead(MultiLabelClsHead):
         _gt_label = torch.abs(gt_label)
         # compute loss
         loss = self.compute_loss(cls_score, _gt_label, valid_label_mask=valid_label_mask, avg_factor=num_samples)
-        losses['loss'] = loss
+        losses['loss'] = loss / self.scale
         return losses
 
     def forward_train(self, x, gt_label, **kwargs):
         img_metas = kwargs.get('img_metas', False)
         gt_label = gt_label.type_as(x)
-        cls_score = self.fc(x)
+        cls_score = self.fc(x) * self.scale
         if img_metas:
             valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
             losses = self.loss(cls_score, gt_label, valid_label_mask=valid_label_mask)

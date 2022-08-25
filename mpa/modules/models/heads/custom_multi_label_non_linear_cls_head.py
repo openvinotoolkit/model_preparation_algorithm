@@ -19,6 +19,7 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         num_classes (int): Number of categories.
         in_channels (int): Number of channels in the input feature map.
         loss (dict): Config of classification loss.
+        scale (float): positive scale parameter.
         init_cfg (dict | optional): The extra init config of layers.
             Defaults to use dict(type='Normal', layer='Linear', std=0.01).
         normalized (bool): Normalize input features and weights in the last linar layer.
@@ -29,6 +30,7 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
                  in_channels,
                  hid_channels=1280,
                  act_cfg=dict(type='ReLU'),
+                 scale=1.0,
                  loss=dict(
                      type='CrossEntropyLoss',
                      use_sigmoid=True,
@@ -46,6 +48,7 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         self.act = build_activation_layer(act_cfg)
         self.dropout = dropout
         self.normalized = normalized
+        self.scale = scale
 
         if self.num_classes <= 0:
             raise ValueError(
@@ -84,13 +87,13 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         _gt_label = torch.abs(gt_label)
         # compute loss
         loss = self.compute_loss(cls_score, _gt_label, valid_label_mask=valid_label_mask, avg_factor=num_samples)
-        losses['loss'] = loss
+        losses['loss'] = loss / self.scale
         return losses
 
     def forward_train(self, x, gt_label, **kwargs):
         img_metas = kwargs.get('img_metas', False)
         gt_label = gt_label.type_as(x)
-        cls_score = self.classifier(x)
+        cls_score = self.classifier(x) * self.scale
         if img_metas:
             valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
             losses = self.loss(cls_score, gt_label, valid_label_mask=valid_label_mask)
