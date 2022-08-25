@@ -39,5 +39,6 @@ import mpa.modules.models.heads.task_incremental_classifier_head
 import mpa.modules.models.losses.class_balanced_losses
 import mpa.modules.models.losses.cross_entropy_loss
 import mpa.modules.models.losses.asymmetric_loss_with_ignore
+import mpa.modules.models.losses.asymmetric_angular_loss_with_ignore
 import mpa.modules.models.losses.triplet_loss
 
