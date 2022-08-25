@@ -15,10 +15,9 @@ def manual_cross_entropy(logits, labels, weight):
 class DetConBLoss(nn.Module):
     """Modified from https://github.com/deepmind/detcon/blob/main/utils/losses.py."""
 
-    def __init__(self, temperature=0.1, ignore_index=255, use_replicator_loss=False):
+    def __init__(self, temperature=0.1, ignore_index=255):
         super().__init__()
         self.temperature = torch.tensor(temperature)
-        self.use_replicator_loss = use_replicator_loss
 
     def forward(self, pred1, pred2, target1, target2, pind1, pind2, tind1, tind2, local_negatives=True):
         """Compute the NCE scores from pairs of predictions and targets.
@@ -60,9 +59,9 @@ class DetConBLoss(nn.Module):
         target1 = F.normalize(target1, dim=-1)
         target2 = F.normalize(target2, dim=-1)
 
-        if self.use_replicator_loss:
+        num_gpus = torch.cuda.device_count()
+        if num_gpus > 1:
             # Grab tensor across replicas and expand first dimension
-            num_gpus = torch.cuda.device_count()
             target1_large = [torch.zeros_like(target1) for _ in range(num_gpus)]
             target2_large = [torch.zeros_like(target2) for _ in range(num_gpus)]
             dist.all_gather(target1_large, target1)

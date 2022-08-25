@@ -5,6 +5,7 @@ from torchvision import transforms as _transforms
 from torchvision.transforms import functional as F
 
 from mmseg.datasets import PIPELINES
+from mmcv.utils import build_from_cfg
 
 
 @PIPELINES.register_module
@@ -58,6 +59,26 @@ class Solarization(object):
         img = np.where(img < self.threshold, img, 255-img)
         results['img'] = img
         return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        return repr_str
+
+
+@PIPELINES.register_module
+class RandomAppliedTrans(object):
+    """Randomly applied transformations.
+    Args:
+        transforms (list[dict]): List of transformations in dictionaries.
+        p (float): Probability.
+    """
+
+    def __init__(self, transforms, p=0.5):
+        t = [build_from_cfg(t, PIPELINES) for t in transforms]
+        self.trans = _transforms.RandomApply(t, p=p)
+
+    def __call__(self, img):
+        return self.trans(img)
 
     def __repr__(self):
         repr_str = self.__class__.__name__
