@@ -79,7 +79,7 @@ class CustomMultiLabelLinearClsHead(MultiLabelClsHead):
 
     def simple_test(self, img):
         """Test without augmentation."""
-        cls_score = self.fc(img)
+        cls_score = self.fc(img) * self.scale
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
         pred = F.sigmoid(cls_score) if cls_score is not None else None
