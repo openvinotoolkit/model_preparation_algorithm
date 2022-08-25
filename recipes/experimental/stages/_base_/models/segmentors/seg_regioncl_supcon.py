@@ -25,8 +25,3 @@ model = dict(
         mix_loss=dict(enable=False, weight=0.1)
     ),
 )
-evaluation = dict(
-    metric='mIoU'
-)
-
-find_unused_parameters = True

@@ -13,39 +13,51 @@ train_pipeline = [
     dict(type='SelfSLCompose',
          pipeline1=[
              dict(type='RandomResizedCrop', size=crop_size, interpolation=3),
-             dict(type='RandomFlip', prob=0.5),
-             dict(type='ProbCompose',
+             dict(type='RandomAppliedTrans',
                   transforms=[
                       dict(
                           type='ColorJitter',
                           brightness=0.4,
                           contrast=0.4,
-                          saturation=0.2,
+                          saturation=0.4,
                           hue=0.1)
                   ],
-                  probs=[0.8]),
+                  p=0.8),
              dict(type='RandomGrayscale', p=0.2),
-             dict(type='GaussianBlur', kernel_size=23),
+             dict(type='RandomAppliedTrans',
+                  transforms=[
+                    dict(
+                        type='GaussianBlur', 
+                        kernel_size=23)
+                  ],
+                  p=0.5),
+             dict(type='RandomFlip', prob=0.5),
              dict(type='Normalize', **img_norm_cfg)
-         ], 
+         ],
          pipeline2=[
              dict(type='RandomResizedCrop', size=crop_size, interpolation=3),
-             dict(type='RandomFlip', prob=0.5),
-             dict(type='ProbCompose',
+             dict(type='RandomAppliedTrans',
                   transforms=[
                       dict(
                           type='ColorJitter',
                           brightness=0.4,
                           contrast=0.4,
-                          saturation=0.2,
+                          saturation=0.4,
                           hue=0.1)
                   ],
-                  probs=[0.8]),
+                  p=0.8),
              dict(type='RandomGrayscale', p=0.2),
-             dict(type='ProbCompose', transforms=[dict(type='GaussianBlur', kernel_size=23)], probs=[0.1]),
-             dict(type='ProbCompose', transforms=[dict(type='Solarization', threshold=128)], probs=[0.2]),
+             dict(type='RandomAppliedTrans',
+                  transforms=[
+                    dict(
+                        type='GaussianBlur', 
+                        kernel_size=23)
+                  ],
+                  p=0.5),
+             dict(type='RandomFlip', prob=0.5),
              dict(type='Normalize', **img_norm_cfg)
-         ]),
+         ]
+    ),
     dict(type='Collect', keys=['img', 'gt_semantic_seg']),
 ]
 test_pipeline = [

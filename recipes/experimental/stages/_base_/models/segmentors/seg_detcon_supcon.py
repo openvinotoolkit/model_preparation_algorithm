@@ -28,10 +28,5 @@ model = dict(
     train_cfg=dict(
         mix_loss=dict(enable=False, weight=0.1)
     ),
-    detcon_loss_cfg=dict(type='DetConBLoss', temperature=0.1, use_replicator_loss=True)
+    detcon_loss_cfg=dict(type='DetConBLoss', temperature=0.1)
 )
-evaluation = dict(
-    metric='mIoU'
-)
-
-find_unused_parameters = True
