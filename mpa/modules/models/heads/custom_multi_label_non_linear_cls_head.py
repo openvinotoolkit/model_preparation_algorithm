@@ -68,22 +68,6 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
 
         self.classifier = nn.Sequential(*modules)
 
-        if self.dropout:
-            self.classifier = nn.Sequential(
-                nn.Linear(self.in_channels, self.hid_channels),
-                nn.BatchNorm1d(self.hid_channels),
-                self.act,
-                nn.Dropout(p=0.2),
-                nn.Linear(self.hid_channels, self.num_classes)
-            )
-        else:
-            self.classifier = nn.Sequential(
-                nn.Linear(self.in_channels, self.hid_channels),
-                nn.BatchNorm1d(self.hid_channels),
-                self.act,
-                nn.Linear(self.hid_channels, self.num_classes)
-            )
-
     def init_weights(self):
         for m in self.classifier:
             if isinstance(m, nn.Linear):

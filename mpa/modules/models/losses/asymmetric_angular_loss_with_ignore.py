@@ -57,7 +57,7 @@ def asymmetric_angular_loss_with_ignore(pred,
     if clip > 0:
         xs_neg = (xs_neg + clip).clamp(max=1)
 
-    asymmetric_focus = gamma_pos > 0 or gamm_neg > 0
+    asymmetric_focus = gamma_pos > 0 or gamma_neg > 0
     if asymmetric_focus:
         pt0 = xs_neg * target
         pt1 = xs_pos * anti_target
@@ -68,7 +68,7 @@ def asymmetric_angular_loss_with_ignore(pred,
     loss = balance_koeff_pos * target * torch.log(xs_pos.clamp(min=eps)) + \
         balance_koeff_neg * anti_target * torch.log(xs_neg.clamp(min=eps))
 
-    if self.asymmetric_focus:
+    if asymmetric_focus:
         loss *= one_sided_w
 
     if valid_label_mask is not None:
@@ -80,7 +80,7 @@ def asymmetric_angular_loss_with_ignore(pred,
         if pred.dim() > 1:
             weight = weight.reshape(-1, 1)
     loss = weight_reduce_loss(loss, weight, reduction, avg_factor)
-    return loss
+    return -loss
 
 
 @LOSSES.register_module()
@@ -112,7 +112,6 @@ class AsymmetricAngularLossWithIgnore(nn.Module):
         self.gamma_neg = gamma_neg
         self.s = s
         self.k = k
-        self.label_smooth = label_smooth
         self.clip = clip
         self.reduction = reduction
         self.loss_weight = loss_weight
