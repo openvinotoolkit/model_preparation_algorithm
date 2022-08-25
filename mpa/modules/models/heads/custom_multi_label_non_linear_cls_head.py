@@ -10,16 +10,18 @@ from mmcv.cnn import normal_init, constant_init, build_activation_layer
 from mmcls.models.builder import HEADS
 from mmcls.models.heads import MultiLabelClsHead
 
+from .custom_multi_label_linear_cls_head import AnglularLinear
 
 @HEADS.register_module()
 class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
-    """Linear classification head for multilabel task.
+    """Non-linear classification head for multilabel task.
     Args:
         num_classes (int): Number of categories.
         in_channels (int): Number of channels in the input feature map.
         loss (dict): Config of classification loss.
         init_cfg (dict | optional): The extra init config of layers.
             Defaults to use dict(type='Normal', layer='Linear', std=0.01).
+        normalized (bool): Normalize input features and weights in the last linar layer.
     """
 
     def __init__(self,
@@ -32,7 +34,8 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
                      use_sigmoid=True,
                      reduction='mean',
                      loss_weight=1.0),
-                 dropout=False):
+                 dropout=False,
+                 normalized=False):
 
         super(CustomMultiLabelNonLinearClsHead, self).__init__(
             loss=loss)
@@ -42,6 +45,7 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         self.hid_channels = hid_channels
         self.act = build_activation_layer(act_cfg)
         self.dropout = dropout
+        self.normalized = normalized
 
         if self.num_classes <= 0:
             raise ValueError(
@@ -50,6 +54,20 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         self._init_layers()
 
     def _init_layers(self):
+        modules = [
+                   nn.Linear(self.in_channels, self.hid_channels),
+                   nn.BatchNorm1d(self.hid_channels),
+                   self.act
+                  ]
+        if self.dropout:
+            modules.append(nn.Dropout(p=0.2))
+        if self.normalized:
+            modules.append(AnglularLinear(self.hid_channels, self.num_classes))
+        else:
+            modules.append(nn.Linear(self.hid_channels, self.num_classes))
+
+        self.classifier = nn.Sequential(*modules)
+
         if self.dropout:
             self.classifier = nn.Sequential(
                 nn.Linear(self.in_channels, self.hid_channels),
