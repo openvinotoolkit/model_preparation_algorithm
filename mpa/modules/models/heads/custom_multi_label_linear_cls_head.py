@@ -113,4 +113,4 @@ class AnglularLinear(nn.Module):
 
     def forward(self, x):
         cos_theta = F.normalize(x.view(x.shape[0], -1), dim=1).mm(F.normalize(self.weight, p=2, dim=0))
-        return 0 #cos_theta.clamp(-1, 1)
+        return cos_theta.clamp(-1, 1)
