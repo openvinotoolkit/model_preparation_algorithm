@@ -10,8 +10,10 @@ model:
         in_channels: 960
         hid_channels: 1280
         normalized: True
+        scale: 20.0
+        act_cfg:
+            type: PReLU
         loss:
             type: AsymmetricAngularLossWithIgnore
             gamma_pos: 0.0
             gamma_neg: 1.0
-            s: 20
