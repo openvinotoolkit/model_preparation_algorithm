@@ -43,20 +43,15 @@ class MLDecoder(nn.Module):
         self.decoder = nn.TransformerDecoder(layer_decode, num_layers=num_layers_decoder)
         self.decoder.embed_standart = embed_standart
         self.decoder.query_embed = query_embed
-        self.llrelu = nn.LeakyReLU(0.2)
 
-    def forward(self, x, return_all=False):
-        x = self.backbone(x, return_featuremaps=True)
-        spat_features = x
+    def init_weights(self):
+        pass
+
+    def forward(self, x):
         assert len(x.shape) == 4  # [bs,nc,h,w]
         embedding_spatial = x.flatten(2).transpose(1, 2)
-        #else:  # [bs, 197,468]
-        #    embedding_spatial = x
         embedding_spatial_786 = self.decoder.embed_standart(embedding_spatial)
-        if 'am_binary' in self.loss:
-            embedding_spatial_786 = self.llrelu(embedding_spatial_786)
-        else:
-            embedding_spatial_786 = F.relu(embedding_spatial_786, inplace=True)
+        embedding_spatial_786 = F.relu(embedding_spatial_786, inplace=True)
         bs = embedding_spatial_786.shape[0]
         query_embed = self.decoder.query_embed.weight
         tgt = query_embed.unsqueeze(1).expand(-1, bs, -1)  # no allocation of memory with expand
@@ -88,13 +83,13 @@ class TransformerDecoderLayerOptimal(nn.Module):
 
     def __setstate__(self, state):
         if 'activation' not in state:
-            state['activation'] = torch.nn.functional.relu
+            state['activation'] = F.relu
         super(TransformerDecoderLayerOptimal, self).__setstate__(state)
 
-    def forward(self, tgt: Tensor, memory: Tensor, tgt_mask: Optional[Tensor] = None,
-                memory_mask: Optional[Tensor] = None,
-                tgt_key_padding_mask: Optional[Tensor] = None,
-                memory_key_padding_mask: Optional[Tensor] = None) -> Tensor:
+    def forward(self, tgt, memory, tgt_mask = None,
+                memory_mask = None,
+                tgt_key_padding_mask = None,
+                memory_key_padding_mask = None):
         tgt = tgt + self.dropout1(tgt)
         tgt = self.norm1(tgt)
         tgt2 = self.multihead_attn(tgt, memory, memory)[0]
