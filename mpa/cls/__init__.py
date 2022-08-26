@@ -29,6 +29,7 @@ import mpa.modules.models.classifiers
 import mpa.modules.models.heads.cls_incremental_head
 import mpa.modules.models.heads.multi_classifier_head
 import mpa.modules.models.heads.non_linear_cls_head
+import mpa.modules.models.heads.custom_multi_label_group_fc_cls_head
 import mpa.modules.models.heads.custom_multi_label_linear_cls_head
 import mpa.modules.models.heads.custom_multi_label_non_linear_cls_head
 import mpa.modules.models.heads.custom_hierarchical_linear_cls_head
@@ -42,3 +43,4 @@ import mpa.modules.models.losses.asymmetric_loss_with_ignore
 import mpa.modules.models.losses.asymmetric_angular_loss_with_ignore
 import mpa.modules.models.losses.triplet_loss
 
+import mpa.modules.necks.ml_decoder
