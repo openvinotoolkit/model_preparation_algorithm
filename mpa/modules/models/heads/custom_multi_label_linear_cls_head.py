@@ -82,7 +82,7 @@ class CustomMultiLabelLinearClsHead(MultiLabelClsHead):
         cls_score = self.fc(img) * self.scale
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
-        pred = F.sigmoid(cls_score) if cls_score is not None else None
+        pred = torch.sigmoid(cls_score) if cls_score is not None else None
         if torch.onnx.is_in_onnx_export():
             return pred
         pred = list(pred.detach().cpu().numpy())

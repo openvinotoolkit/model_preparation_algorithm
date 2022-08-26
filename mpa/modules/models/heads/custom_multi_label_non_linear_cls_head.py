@@ -4,7 +4,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from mmcv.cnn import normal_init, constant_init, build_activation_layer
 
 from mmcls.models.builder import HEADS
@@ -106,7 +105,7 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         cls_score = self.classifier(img) * self.scale
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
-        pred = F.sigmoid(cls_score) if cls_score is not None else None
+        pred = torch.sigmoid(cls_score) if cls_score is not None else None
         if torch.onnx.is_in_onnx_export():
             return pred
         pred = list(pred.detach().cpu().numpy())
