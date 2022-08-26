@@ -35,8 +35,9 @@ class CustomMultiLabelGroupFCClsHead(MultiLabelClsHead):
                      type='CrossEntropyLoss',
                      use_sigmoid=True,
                      reduction='mean',
-                     loss_weight=1.0)):
-        super(CustomMultiLabelLinearClsHead, self).__init__(loss=loss)
+                     loss_weight=1.0),
+                 **kwargs):
+        super().__init__(loss=loss)
 
         if num_classes <= 0:
             raise ValueError(
@@ -56,7 +57,7 @@ class CustomMultiLabelGroupFCClsHead(MultiLabelClsHead):
             torch.Tensor(self.embed_len_decoder, self.in_embedding_size, self.duplicate_factor))
         self.duplicate_pooling_bias = nn.Parameter(torch.Tensor(self.num_classes))
 
-        self.group_fc = GroupFC(self.embed_len_decoder, normalized)
+        self.group_fc = GroupFC(self.embed_len_decoder, self.normalized)
 
     def init_weights(self):
         nn.init.xavier_normal_(self.duplicate_pooling)
@@ -76,7 +77,7 @@ class CustomMultiLabelGroupFCClsHead(MultiLabelClsHead):
 
     def forward_group_fc(self, h):
         out_extrap = torch.zeros(h.shape[0], h.shape[1], self.duplicate_factor, device=h.device, dtype=h.dtype)
-        self.decoder.group_fc(h, self.duplicate_pooling, out_extrap)
+        self.group_fc(h, self.duplicate_pooling, out_extrap)
         h_out = out_extrap.flatten(1)[:, : self.num_classes]
         h_out += self.duplicate_pooling_bias
         return h_out
