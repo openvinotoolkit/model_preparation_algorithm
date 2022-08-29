@@ -81,7 +81,6 @@ class RegionCLM(EncoderDecoder):
         self.head_k = builder.build_head(head)
 
         if pretrained is not None:
-            # TODO : check if loading works normally
             self.logger.info('load model from: {}'.format(pretrained))
             load_checkpoint(self.backbone, pretrained, strict=False, map_location='cpu', 
                             logger=self.logger, revise_keys=[(r'^backbone\.', '')])
