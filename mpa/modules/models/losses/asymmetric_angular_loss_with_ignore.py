@@ -17,7 +17,7 @@ def asymmetric_angular_loss_with_ignore(pred,
                                         gamma_neg=1.0,
                                         clip=0.05,
                                         k=0.8,
-                                        reduction='none',
+                                        reduction='mean',
                                         avg_factor=None):
     """asymmetric angular loss
     Args:
@@ -98,7 +98,7 @@ class AsymmetricAngularLossWithIgnore(nn.Module):
                  gamma_neg=1.0,
                  k=0.8,
                  clip=0.05,
-                 reduction='none',
+                 reduction='mean',
                  loss_weight=1.0):
         super().__init__()
         self.gamma_pos = gamma_pos
