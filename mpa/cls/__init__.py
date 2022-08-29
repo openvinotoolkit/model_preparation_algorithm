@@ -43,4 +43,4 @@ import mpa.modules.models.losses.asymmetric_loss_with_ignore
 import mpa.modules.models.losses.asymmetric_angular_loss_with_ignore
 import mpa.modules.models.losses.triplet_loss
 
-import mpa.modules.necks.ml_decoder
+import mpa.modules.models.necks.ml_decoder
