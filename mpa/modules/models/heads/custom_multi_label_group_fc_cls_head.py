@@ -123,7 +123,7 @@ class GroupFC(nn.Module):
         self.embed_len_decoder = embed_len_decoder
         self.normalize = normalize
 
-    def __call__(self, h: torch.Tensor, duplicate_pooling: torch.Tensor, out_extrap: torch.Tensor):
+    def __call__(self, h, duplicate_pooling, out_extrap):
         for i in range(h.shape[1]):
             h_i = h[:, i, :]
             if len(duplicate_pooling.shape) == 3:

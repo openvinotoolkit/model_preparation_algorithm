@@ -18,12 +18,15 @@ class MLDecoder(nn.Module):
     """ML-Decoder neck.
     See details in https://arxiv.org/pdf/2111.12933.pdf
     Args:
-        dim (int): Dimensions of each sample channel, can be one of {1, 2, 3}.
-            Default: 2
+        num_classes (int): number of classes.
+        in_channels (int): number of channels in input spatial features.
+        num_of_groups (int): number of output embedding. Each embedding represents a grup of classes.
+        decoder_embedding (int): size of embeddings in decoder.
+        dim_feedforward (int): size of internal representation in decoder.
     """
 
     def __init__(self, num_classes, in_channels, num_of_groups=100, decoder_embedding=768,
-                 initial_num_features=2048):
+                 dim_feedforward=2048):
         super().__init__()
 
         assert num_of_groups > 0
