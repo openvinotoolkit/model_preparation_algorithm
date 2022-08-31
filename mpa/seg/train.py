@@ -15,9 +15,9 @@ from mmseg.core import DistEvalHook, EvalHook
 # from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_params_manager
 from mmseg.datasets import build_dataloader
-from .builder import build_dataset
 from mmseg.utils import get_root_logger
-from ..utils.data_cpu import MMDataCPU
+from mpa.seg.builder import build_dataset
+from mpa.utils.data_cpu import MMDataCPU
 
 def set_random_seed(seed, deterministic=False):
     """Set random seed.

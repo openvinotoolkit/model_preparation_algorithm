@@ -29,7 +29,7 @@ from mpa.cls.stage import ClsStage
 from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.modules.hooks.fp16_sam_optimizer_hook import Fp16SAMOptimizerHook
 from mpa.utils.logger import get_logger
-from ..utils.data_cpu import MMDataCPU
+from mpa.utils.data_cpu import MMDataCPU
 
 logger = get_logger()
 
