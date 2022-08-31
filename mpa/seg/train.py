@@ -62,7 +62,6 @@ def train_segmentor(model,
             ) for ds in dataset
     ]
 
-    # put model on gpus
     if torch.cuda.is_available():
         if distributed:
             find_unused_parameters = cfg.get('find_unused_parameters', False)

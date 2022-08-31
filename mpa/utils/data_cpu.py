@@ -4,7 +4,7 @@
 # Copyright (C) 2016-2021 Facebook, Inc
 # SPDX-License-Identifier: BSD-3-Clause
 #
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 import torch
@@ -73,5 +73,3 @@ class MMDataCPU(MMDataParallel):
     def forward(self, *inputs, **kwargs):
         inputs, kwargs = self.scatter(inputs, kwargs)
         return self.module(*inputs[0], **kwargs[0])
-
-
