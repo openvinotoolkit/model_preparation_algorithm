@@ -46,6 +46,9 @@ class DetectionStage(Stage):
             logger.info(f'Overriding cfg.load_from -> {pretrained}')
             cfg.load_from = pretrained  # Overriding by stage input
 
+        if cfg.get('resume', False):
+            cfg.resume_from = cfg.load_from
+
         # Data
         if data_cfg:
             cfg.merge_from_dict(data_cfg)
