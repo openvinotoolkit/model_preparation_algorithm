@@ -111,9 +111,9 @@ class AnglularLinear(nn.Module):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = nn.Parameter(torch.Tensor(self.in_features, self.out_features))
-        self.weight.data.normal_().renorm_(2, 1, 1e-5).mul_(1e5)
+        self.weight = nn.Parameter(torch.Tensor(self.out_features, self.in_features))
+        self.weight.data.normal_().renorm_(2, 0, 1e-5).mul_(1e5)
 
     def forward(self, x):
-        cos_theta = F.normalize(x.view(x.shape[0], -1), dim=1).mm(F.normalize(self.weight, p=2, dim=0))
+        cos_theta = F.normalize(x.view(x.shape[0], -1), dim=1).mm(F.normalize(self.weight.t(), p=2, dim=0))
         return cos_theta.clamp(-1, 1)
