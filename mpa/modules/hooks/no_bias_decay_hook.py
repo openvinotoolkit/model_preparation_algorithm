@@ -47,8 +47,6 @@ class NoBiasDecayHook(Hook):
         weight_no_decay_group["weight_decay"] = 0.0
 
         param_groups = [weight_decay_group, bias_group, weight_no_decay_group]
-
-        logger.info("No Bias Decay Enable")
         runner.optimizer.param_groups = param_groups
 
     def after_train_epoch(self, runner):
@@ -69,6 +67,4 @@ class NoBiasDecayHook(Hook):
 
         param_groups = runner.optimizer.param_groups[0].copy()
         param_groups["params"] = params
-
-        logger.info("Regroup optimizer groups!")
         runner.optimizer.param_groups = [param_groups]
