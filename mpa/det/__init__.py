@@ -28,5 +28,6 @@ import mpa.modules.models.heads.custom_ssd_head
 import mpa.modules.models.heads.custom_vfnet_head
 import mpa.modules.models.heads.custom_roi_head
 import mpa.modules.models.heads.custom_yolox_head
+import mpa.modules.models.heads.custom_anchor_generator
 import mpa.modules.models.losses.cross_focal_loss
 import mpa.modules.models.losses.l2sp_loss
