@@ -19,6 +19,7 @@ import mpa.modules.datasets.task_adapt_dataset
 import mpa.modules.hooks
 import mpa.modules.hooks.unlabeled_data_hook
 
+import mpa.modules.models.backbones.imgclsmob
 import mpa.modules.models.detectors
 import mpa.modules.models.heads.cross_dataset_detector_head
 import mpa.modules.models.heads.custom_atss_head

@@ -6,7 +6,7 @@ import os
 import torch
 import warnings
 
-from mmdet.apis import export_model
+#from mmdet.apis import export_model
 from mmdet.models import build_detector
 from mmcv.runner import load_checkpoint
 
@@ -47,7 +47,7 @@ class DetectionExporter(DetectionStage):
                 model = model.cpu()
             precision = kwargs.pop('precision', 'FP32')
             logger.info(f'Model will be exported with precision {precision}')
-            
+
             export_model(model, cfg, output_path, target='openvino', precision=precision)
         except Exception as ex:
             # output_model.model_status = ModelStatus.FAILED

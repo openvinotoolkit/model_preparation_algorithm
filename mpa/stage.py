@@ -149,6 +149,10 @@ class Stage(object):
                     raise ValueError(f'not supported type for gpu_ids: {type(gpu_ids)}')
             else:
                 cfg.gpu_ids = range(1)
+        if torch.cuda.is_available():
+            cfg.device = 'cuda'
+        else:
+            cfg.device = 'cpu'
 
         # config logger replace hook
         hook_cfg = ConfigDict(

@@ -4,7 +4,11 @@
 import torch
 from mmcv.runner import force_fp32
 from mmdet.core import bbox2roi, multi_apply
-from mmdet.integration.nncf.utils import no_nncf_trace
+#from detection_tasks.extension.nncf.utils import no_nncf_trace
+from contextlib import contextmanager
+@contextmanager
+def no_nncf_trace():
+    yield
 from mmdet.models.builder import HEADS, build_head, build_roi_extractor
 from mmdet.models.losses import accuracy
 from mmdet.models.roi_heads.bbox_heads.convfc_bbox_head import Shared2FCBBoxHead

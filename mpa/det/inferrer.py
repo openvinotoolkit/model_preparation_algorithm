@@ -9,8 +9,8 @@ from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.models import build_detector
-from mmdet.parallel import MMDataCPU
-from mmdet.utils.deployment import get_saliency_map, get_feature_vector
+#from mmdet.parallel import MMDataCPU
+#from mmdet.utils.deployment import get_saliency_map, get_feature_vector
 
 from mpa.registry import STAGES
 from .stage import DetectionStage
@@ -172,8 +172,10 @@ class DetectionInferrer(DetectionStage):
         def dummy_dump_saliency_hook(model, input, out):
             saliency_maps.append(None)
 
-        feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
-        saliency_map_hook = dump_saliency_hook if dump_saliency_map else dummy_dump_saliency_hook
+        # feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
+        # saliency_map_hook = dump_saliency_hook if dump_saliency_map else dummy_dump_saliency_hook
+        feature_vector_hook = dummy_dump_features_hook
+        saliency_map_hook = dummy_dump_saliency_hook
 
         # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
         if is_module_wrapper(model):

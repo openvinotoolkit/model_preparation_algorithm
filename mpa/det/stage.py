@@ -69,6 +69,11 @@ class DetectionStage(Stage):
         # Hooks
         self.configure_hook(cfg)
 
+        # FP16
+        if cfg.get('fp16', None):
+            if cfg.optimizer_config.get('type', False)=='SAMOptimizerHook':
+                cfg.optimizer_config.pop('type')
+
         return cfg
 
     def configure_model(self, cfg, training, **kwargs):
