@@ -29,7 +29,18 @@ model = dict(
 
 data = dict(
     samples_per_gpu=8,
-    workers_per_gpu=0
+    workers_per_gpu=0,
+    train=dict(
+        dataset=dict(
+            classes=None
+        )
+    ),
+    val=dict(
+        classes=None
+    ),
+    test=dict(
+        classes=None
+    )
 )
 
 lr_config = dict(warmup_iters=100)
