@@ -12,6 +12,14 @@ from .stage import Stage, get_available_types
 from .workflow import Workflow
 from . import seg
 
+# for using EpochRunnerWithCancel in MPA
+import sys
+sys.path.append(os.path.abspath('../mpa_tasks/utils'))
+print(sys.path)
+from runner import EpochRunnerWithCancel
+sys.path.pop(-1)
+print(sys.path)
+
 
 class MPAConstants:
     PACKAGE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
