@@ -54,7 +54,7 @@ class SegTrainer(SegStage):
 
         # Work directory
         mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
-
+        cfg.dump(os.path.join(cfg.work_dir, os.path.basename(cfg.filename)))
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment

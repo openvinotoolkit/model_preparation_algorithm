@@ -77,6 +77,8 @@ def train_segmentor(model,
         model = MMDataParallel(
             model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
 
+    print(model)
+
     # build runner
     optimizer = build_optimizer(model, cfg.optimizer)
 
