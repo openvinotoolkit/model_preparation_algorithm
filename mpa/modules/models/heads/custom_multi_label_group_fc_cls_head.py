@@ -57,7 +57,7 @@ class CustomMultiLabelGroupFCClsHead(MultiLabelClsHead):
             torch.Tensor(self.embed_len_decoder, self.in_embedding_size, self.duplicate_factor))
         self.duplicate_pooling_bias = nn.Parameter(torch.Tensor(self.num_classes))
 
-        self.group_fc = GroupFC(self.embed_len_decoder, self.normalized)
+        self.group_fc = GroupFC(self.normalized)
 
     def init_weights(self):
         nn.init.xavier_normal_(self.duplicate_pooling)
@@ -118,9 +118,8 @@ class CustomMultiLabelGroupFCClsHead(MultiLabelClsHead):
 
 
 class GroupFC(nn.Module):
-    def __init__(self, embed_len_decoder, normalize=False):
+    def __init__(self, normalize=False):
         super().__init__()
-        self.embed_len_decoder = embed_len_decoder
         self.normalize = normalize
 
     def __call__(self, h, duplicate_pooling, out_extrap):
