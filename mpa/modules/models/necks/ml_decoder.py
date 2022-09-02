@@ -23,14 +23,19 @@ class MLDecoder(nn.Module):
         num_of_groups (int): number of output embedding. Each embedding represents a grup of classes.
         decoder_embedding (int): size of embeddings in decoder.
         dim_feedforward (int): size of internal representation in decoder.
+        num_layers_decoder (int): number of layers in decoder.
+        decoder_dropout (int): dropout probability in decoder feedforward.
     """
 
     def __init__(self, num_classes, in_channels, num_of_groups=100, decoder_embedding=768,
-                 dim_feedforward=2048):
+                 dim_feedforward=2048, num_layers_decoder=1, decoder_dropout=0.1):
         super().__init__()
 
         assert num_of_groups > 0
         assert decoder_embedding > 0
+        assert dim_feedforward > 0
+        assert num_layers_decoder > 0
+        assert 0 <= decoder_dropout <= 1
 
         embed_len_decoder = min(num_classes, num_of_groups)
         embed_standart = nn.Linear(in_channels, decoder_embedding)
@@ -40,9 +45,6 @@ class MLDecoder(nn.Module):
         query_embed.requires_grad_(False)
 
         # decoder
-        decoder_dropout = 0.1
-        num_layers_decoder = 1
-        dim_feedforward = 2048
         layer_decode = TransformerDecoderLayerOptimal(d_model=decoder_embedding,
                                                       dim_feedforward=dim_feedforward, dropout=decoder_dropout)
         self.decoder = nn.TransformerDecoder(layer_decode, num_layers=num_layers_decoder)
@@ -68,7 +70,7 @@ class MLDecoder(nn.Module):
 class TransformerDecoderLayerOptimal(nn.Module):
     def __init__(self, d_model, nhead=8, dim_feedforward=2048, dropout=0.1, activation="relu",
                  layer_norm_eps=1e-5) -> None:
-        super(TransformerDecoderLayerOptimal, self).__init__()
+        super().__init__()
         self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps)
         self.dropout = nn.Dropout(dropout)
         self.dropout1 = nn.Dropout(dropout)
@@ -89,7 +91,7 @@ class TransformerDecoderLayerOptimal(nn.Module):
     def __setstate__(self, state):
         if 'activation' not in state:
             state['activation'] = F.relu
-        super(TransformerDecoderLayerOptimal, self).__setstate__(state)
+        super().__setstate__(state)
 
     def forward(self, tgt, memory, tgt_mask = None,
                 memory_mask = None,
