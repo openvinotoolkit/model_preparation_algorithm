@@ -271,7 +271,7 @@ class DetectionStage(Stage):
                 if cfg.data.train.type == 'MultiImageMixDataset':
                     cfg.data.train.pop('ann_file', None)
                     cfg.data.train.pop('img_prefix', None)
-                    cfg.data.train['labels'] = cfg.data.train.pop('labels', None)
+                    cfg.data.train.pop('labels', None)
                     self.add_yolox_hooks(cfg)
             # Ignore Mode
             if cfg.get('ignore', False):
@@ -391,15 +391,6 @@ class DetectionStage(Stage):
                 type='YOLOXModeSwitchHook',
                 num_last_epochs=15,
                 priority=48))
-        update_or_add_custom_hook(
-            cfg,
-            ConfigDict(
-                type='SyncRandomSizeHook',
-                ratio_range=(10, 20),
-                img_scale=(640, 640),
-                interval=1,
-                priority=48,
-                device='cuda' if torch.cuda.is_available() else 'cpu'))
         update_or_add_custom_hook(
             cfg,
             ConfigDict(
