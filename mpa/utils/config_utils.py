@@ -159,6 +159,7 @@ def update_or_add_custom_hook(cfg: Config, hook_cfg: ConfigDict):
         custom_hooks.append(hook_cfg)
     cfg['custom_hooks'] = custom_hooks
 
+
 def remove_custom_hook(cfg: Config, hook_type: str):
     """Remove hook cfg if hook_type is in custom_hook
     """
