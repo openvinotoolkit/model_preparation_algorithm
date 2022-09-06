@@ -1,0 +1,69 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+from typing import Dict, List, Optional
+
+from mpa.utils.logger import get_logger
+
+from ..parser import parameter_parser
+from ..builder import PARSERS
+
+logger = get_logger()
+
+
+@PARSERS.register()
+def cls_base_parser(
+    graph, component: str = "backbone"
+) -> Optional[Dict[str, List[str]]]:
+    assert component in ["backbone", "neck"]
+
+    possible_neck_input_types = ["ReduceMean", "MaxPool", "AvgPool"]
+
+    result_nodes = graph.get_nodes_by_types(["Result"])
+    if len(result_nodes) != 1:
+        logger.debug("More than one reulst nodes are found.")
+        return None
+    result_node = result_nodes[0]
+
+    neck_input = None
+    for _, node_to in graph.bfs(result_node, True, 20):
+        if node_to.type in possible_neck_input_types:
+            logger.debug(f"Found neck_input: {node_to.name}")
+            neck_input = node_to
+            break
+
+    if neck_input is None:
+        logger.debug("Can not determine the output of backbone.")
+        return None
+
+    if component == "backbone":
+        outputs = [
+            node.name for node in graph.predecessors(neck_input) if node.type != "Constant"
+        ]
+        if len(outputs) != 1:
+            logger.debug(f"neck_input {neck_input.name} has more than one predecessors.")
+            return None
+
+        inputs = parameter_parser(graph)
+        if len(inputs) != 1:
+            logger.debug("More than on parameter nodes are found.")
+            return None
+
+        return dict(
+            inputs=inputs,
+            outputs=outputs,
+        )
+
+    elif component == "neck":
+        part_of_neck_types = ["Reshape"]
+        neck_output = neck_input
+        for node in graph.successors(neck_input):
+            if node.type not in part_of_neck_types:
+                break
+            else:
+                neck_output = node
+        return dict(
+            inputs=[neck_input.name],
+            outputs=[neck_output.name],
+        )

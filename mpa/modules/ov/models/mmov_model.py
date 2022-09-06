@@ -1,0 +1,56 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+from typing import List, Optional, Union, Dict
+
+from .ov_model import OVModel
+from .parser_mixin import ParserMixin
+
+
+class MMOVModel(OVModel, ParserMixin):
+    def __init__(
+        self,
+        model_path: str,
+        weight_path: Optional[str] = None,
+        inputs: Optional[
+            Union[Dict[str, Union[str, List[str]]], List[str], str]
+        ] = None,
+        outputs: Optional[
+            Union[Dict[str, Union[str, List[str]]], List[str], str]
+        ] = None,
+        *args,
+        **kwargs
+    ):
+        parser = kwargs.pop("parser", None)
+        parser_kwargs = kwargs.pop("parser_kwargs", {})
+        inputs, outputs = super().parse(
+            model_path=model_path,
+            weight_path=weight_path,
+            inputs=inputs,
+            outputs=outputs,
+            parser=parser,
+            **parser_kwargs,
+        )
+
+        super().__init__(
+            model_path=model_path,
+            weight_path=weight_path,
+            inputs=inputs,
+            outputs=outputs,
+            *args,
+            **kwargs,
+        )
+
+    def forward(self, inputs, gt_label=None):
+        assert len(self.inputs) == 1
+
+        if gt_label is not None:
+            assert "gt_label" not in self.features
+            self.features["gt_label"] = gt_label
+
+        outputs = super().forward(**{self.inputs[0]: inputs})
+        outputs = tuple(outputs.values())
+        if len(outputs) == 1:
+            outputs = outputs[0]
+        return outputs

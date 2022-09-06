@@ -3,10 +3,6 @@
 #
 
 # flake8: noqa
-
-try:
-    import openvino
-except ImportError:
-    pass
-else:
-    from . import ov
+from .graph import *
+from .models import *
+from .ops import *
