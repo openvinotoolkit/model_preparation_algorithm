@@ -9,11 +9,11 @@ task = 'segmentation'
 
 model = dict(
     is_task_adapt=False,
-    input_transform=None,
-    in_index=None,
+    input_transform='resize_concat',
+    in_index=[0,1,2],
     head=dict(
         type='RegionCLNonLinearHeadV1',
-        in_channels=60,
+        in_channels=420,
         hid_channels=256,
         out_channels=128,
         with_avg_pool=True

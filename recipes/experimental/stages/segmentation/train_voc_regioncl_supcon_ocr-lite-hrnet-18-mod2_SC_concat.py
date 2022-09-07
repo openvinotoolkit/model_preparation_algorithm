@@ -1,7 +1,7 @@
 _base_ = [
     '../_base_/models/segmentors/seg_regioncl_supcon.py',
     '../_base_/data/voc_regioncl.py',
-    '../../../../models/segmentation/_base_/ocr_litehrnet_s_mod2.py',
+    '../../../../models/segmentation/_base_/ocr_litehrnet18_mod2.py',
     '../../../stages/segmentation/class_incr.py',
 ]
 
@@ -9,11 +9,11 @@ task = 'segmentation'
 
 model = dict(
     is_task_adapt=False,
-    input_transform=None,
-    in_index=None,
+    input_transform='resize_concat',
+    in_index=[0,1,2,3],
     head=dict(
         type='RegionCLNonLinearHeadV1',
-        in_channels=60,
+        in_channels=600,
         hid_channels=256,
         out_channels=128,
         with_avg_pool=True

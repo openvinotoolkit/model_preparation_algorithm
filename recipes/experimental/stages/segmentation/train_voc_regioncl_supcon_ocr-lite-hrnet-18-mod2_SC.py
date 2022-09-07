@@ -9,6 +9,8 @@ task = 'segmentation'
 
 model = dict(
     is_task_adapt=False,
+    input_transform=None,
+    in_index=None,
     head=dict(
         type='RegionCLNonLinearHeadV1',
         in_channels=40,

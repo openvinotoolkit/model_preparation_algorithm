@@ -50,7 +50,7 @@ class RegionCLM(EncoderDecoder):
         cutMixUpper=4,
         cutMixLower=1,
         downsampling=32.,
-        in_index=-1,
+        in_index=None,
         input_transform=None,
         align_corners=False,
         **kwargs
@@ -241,6 +241,16 @@ class RegionCLM(EncoderDecoder):
         return img_mix, randStartW.float() / self.downsampling, randStartH.float() / self.downsampling, \
             randWidth.float() / self.downsampling, randHeight.float() / self.downsampling, randperm, unshuffle
 
+    def get_transformed_features(self, x):
+        if self.input_transform:
+            return self._transform_inputs(x)
+        elif isinstance(self.in_index, int):
+            return x[self.in_index]
+        elif self.decode_head:
+            return self.decode_head._transform_inputs(x)
+        else:
+            raise ValueError()
+
     def forward_train(self, img, img_metas, **kwargs):
         """Forward computation during training.
 
@@ -260,19 +270,12 @@ class RegionCLM(EncoderDecoder):
         im_q_swapped, randStartW, randStartH, randWidth, randHeight, randperm, unShuffle = self.RegionSwapping(im_q)
 
         q = self.encoder_q(im_q)
-        if self.input_transform:
-            q = [self._transform_inputs(q)]
-        else:
-            q = [q[0]]
-
+        q = [self.get_transformed_features(q)]
         q = self.head_q(q)
 
         q_swapped = self.encoder_q(im_q_swapped)
-        if self.input_transform:
-            q_swapped = [self._transform_inputs(q_swapped)]
-        else:
-            q_swapped = [q_swapped[0]]
-            
+        q_swapped = [self.get_transformed_features(q_swapped)]
+
         q_canvas, q_canvas_shuffle, q_paste, q_paste_shuffle = self.head_q(
             q_swapped, randStartW.long(), randStartH.long(), randWidth.long(), randHeight.long(), randperm, unShuffle)    # queries: NxC
 
@@ -289,12 +292,9 @@ class RegionCLM(EncoderDecoder):
                 im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
 
             k = self.encoder_k(im_k)
-            if self.input_transform:
-                k = [self._transform_inputs(k)]
-            else:
-                k = [k[0]]
-
+            k = [self.get_transformed_features(k)]
             k = self.head_k(k)  # keys: NxC
+            
             k = nn.functional.normalize(k, dim=1)
             if torch.cuda.device_count() > 1:
                 k = self._batch_unshuffle_ddp(k, idx_unshuffle)
@@ -389,11 +389,11 @@ class RegionCLMSupCon(RegionCLM):
         losses.update(loss_decode)
 
         # for regioncl loss
-        q = [self.decode_head._transform_inputs(q)]
+        q = [self.get_transformed_features(q)]
         q = self.head_q(q)
 
         q_swapped = self.encoder_q(im_q_swapped)
-        q_swapped = [self.decode_head._transform_inputs(q_swapped)]
+        q_swapped = [self.get_transformed_features(q_swapped)]
         q_canvas, q_canvas_shuffle, q_paste, q_paste_shuffle = self.head_q(
             q_swapped, randStartW.long(), randStartH.long(), randWidth.long(), randHeight.long(), randperm, unShuffle)    # queries: NxC
 
@@ -410,9 +410,9 @@ class RegionCLMSupCon(RegionCLM):
                 im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
 
             k = self.encoder_k(im_k)
-            k = [self.decode_head._transform_inputs(k)]
-
+            k = [self.get_transformed_features(k)]
             k = self.head_k(k)  # keys: NxC
+            
             k = nn.functional.normalize(k, dim=1)
             if torch.cuda.device_count() > 1:
                 k = self._batch_unshuffle_ddp(k, idx_unshuffle)
