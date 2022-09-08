@@ -68,7 +68,7 @@ class CustomEvalHook(Hook):
         if results_ema:
             eval_res_ema = self.dataloader.dataset.evaluate(
                 results_ema, logger=runner.logger, **self.eval_kwargs)
-            if eval_res_ema["mAP"] > eval_res["mAP"]:
+            if cal_score(eval_res_ema) > cal_score(eval_res):
                 eval_res = eval_res_ema
                 runner.save_ema_model = True
 
@@ -81,7 +81,15 @@ class CustomEvalHook(Hook):
             runner.save_ckpt = True
 
     def cal_score(self, res):
-        return (res["mAP"] + res["accuracy-mlc"]) / 2
+        score = 0
+        div = 0
+        for key, val in res.items():
+            if np.isnan(val):
+                continue
+            if self.metric in key:
+                score += val
+                div += 1
+        return score / div
 
 
 def single_gpu_test(model, data_loader):
