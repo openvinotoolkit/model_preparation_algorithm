@@ -3,3 +3,5 @@
 #
 
 # flake8: noqa
+
+from .ib_loss import IBLoss

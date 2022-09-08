@@ -3,3 +3,4 @@
 #
 
 # flake8: noqa
+from .ib_loss_head import IBLossHead

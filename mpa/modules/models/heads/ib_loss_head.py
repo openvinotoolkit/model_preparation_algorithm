@@ -1,0 +1,20 @@
+# Copyright (c) OpenMMLab. All rights reserved.
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from mmcls.models.builder import HEADS
+from mmcls.models.heads import LinearClsHead, ClsHead
+
+
+@HEADS.register_module()
+class IBLossHead(LinearClsHead):
+    def __init__(self, **kwargs):
+        super(IBLossHead, self).__init__(**kwargs)
+        print("IB LOSS HEAD")
+
+    def forward_train(self, x, gt_label):
+        cls_score = self.fc(x)
+        losses = dict()
+        loss = self.compute_loss(cls_score, gt_label, torch.sum(torch.abs(x), 1).reshape(-1, 1))
+        losses['loss'] = loss
+        return losses

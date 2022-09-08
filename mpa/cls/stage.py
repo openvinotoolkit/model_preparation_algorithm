@@ -43,7 +43,6 @@ class ClsStage(Stage):
         # Checkpoint
         if model_ckpt:
             cfg.load_from = self.get_model_ckpt(model_ckpt)
-
         self.configure_model(cfg, training, **kwargs)
 
         # OMZ-plugin
@@ -213,6 +212,11 @@ class ClsStage(Stage):
                             gamma=gamma,
                             reduction='none',
                         )
+                        #cfg.model.head.type = 'IBLossHead'
+                        #cfg.model.head.loss = ConfigDict(
+                        #    type='IBLoss',
+                        #    num_classes=cfg.model.head.num_classes,
+                        #)
                 else:
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
