@@ -74,6 +74,8 @@ def asymmetric_angular_loss_with_ignore(pred,
         weight = weight.float()
         if pred.dim() > 1:
             weight = weight.reshape(-1, 1)
+    if reduction != 'mean':
+        avg_factor = None
     loss = weight_reduce_loss(loss, weight, reduction, avg_factor)
     return loss
 
