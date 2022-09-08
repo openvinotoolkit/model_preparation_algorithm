@@ -48,6 +48,7 @@ class DetectionStage(Stage):
 
         if cfg.get('resume', False):
             cfg.resume_from = cfg.load_from
+            print("*"*100, f"In resume from : {cfg.resume_from}.")
 
         # Data
         if data_cfg:
