@@ -1,9 +1,9 @@
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-resize_target_size = 224
+__resize_target_size = 224
 
 train_pipeline = [
-    dict(type="Resize", size=resize_target_size),
+    dict(type="Resize", size=__resize_target_size),
     dict(type="RandomFlip", flip_prob=0.5, direction="horizontal"),
     dict(type="AugMixAugment", config_str="augmix-m5-w3"),
     dict(type="RandomRotate", p=0.35, angle=(-10, 10)),
@@ -15,14 +15,14 @@ train_pipeline = [
 ]
 
 test_pipeline = [
-    dict(type='Resize', size=resize_target_size),
+    dict(type='Resize', size=__resize_target_size),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     dict(type='Collect', keys=['img'])
 ]
 
 train_pipeline_strong = [
-    dict(type="Resize", size=resize_target_size),
+    dict(type="Resize", size=__resize_target_size),
     dict(type="RandAugment", n=2, m=10),
     dict(type="RandomFlip", flip_prob=0.5, direction="horizontal"),
     dict(type="AugMixAugment", config_str="augmix-m5-w3"),
@@ -35,7 +35,7 @@ train_pipeline_strong = [
 ]
 
 train_rand_pipeline = [
-    dict(type="Resize", size=resize_target_size),
+    dict(type="Resize", size=__resize_target_size),
     dict(type="RandomFlip", flip_prob=0.5, direction="horizontal"),
     dict(type="RandAugment", n=2, m=10),
     dict(type="RandomRotate", p=0.35, angle=(-10, 10)),
