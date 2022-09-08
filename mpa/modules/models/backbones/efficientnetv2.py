@@ -24,9 +24,8 @@ logger = get_logger()
 
 pretrained_root = "https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-effv2-weights/"
 pretrained_urls = {
-    # "efficientnetv2_s_21k": pretrained_root + "tf_efficientnetv2_s_21k-6337ad01.pth",
+    "efficientnetv2_s_21k": pretrained_root + "tf_efficientnetv2_s_21k-6337ad01.pth",
     "efficientnetv2_s_1k": pretrained_root + "tf_efficientnetv2_s_21ft1k-d7dafa41.pth",
-    "efficientnetv2_s_21k": "/home/kprokofi/multilabel-classification/efficientnetv2-s-oi.pth"
 }
 
 NAME_DICT = {

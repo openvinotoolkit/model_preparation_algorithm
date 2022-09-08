@@ -34,7 +34,7 @@ class ModelEmaV2Hook(Hook):
             to update ema parameters. Defaults to 5.
     """
 
-    def __init__(self, ema_decay=0.9993, interval=1, start_epoch=1, **kwargs):
+    def __init__(self, ema_decay=0.9997, interval=1, start_epoch=1, **kwargs):
         super().__init__(**kwargs)
         self.ema_decay = ema_decay
         self.interval = interval
@@ -43,7 +43,7 @@ class ModelEmaV2Hook(Hook):
     def before_run(self, runner):
         """Set up src & dst model parameters."""
         model = self._get_model(runner)
-        ema_model = ModelEmaV2(model, decay=self.ema_decay, device="cuda")
+        ema_model = ModelEmaV2(model, decay=self.ema_decay)
         runner.ema_model = ema_model
         runner.use_ema = True
         logger.info("\t* EMA V2 Enable")
@@ -93,7 +93,6 @@ class ModelEmaV2(nn.Module):
         self.module.eval()
         self.src_model = model.state_dict()
         self.dst_model = self.module.state_dict()
-        print(decay)
         self.decay = decay
         self.device = device  # perform ema on different device from model if set
         if self.device is not None:

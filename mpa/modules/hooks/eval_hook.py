@@ -44,6 +44,7 @@ class CustomEvalHook(Hook):
                 self.metric = 'top-1'
 
     def after_train_epoch(self, runner):
+        # TODO move this atribute to runner class
         runner.save_ema_model = False
         if not self.by_epoch or not self.every_n_epochs(runner, self.interval):
             return
@@ -67,7 +68,6 @@ class CustomEvalHook(Hook):
         if results_ema:
             eval_res_ema = self.dataloader.dataset.evaluate(
                 results_ema, logger=runner.logger, **self.eval_kwargs)
-            print('\nEMA results mAP ', eval_res_ema["mAP"])
             if eval_res_ema["mAP"] > eval_res["mAP"]:
                 eval_res = eval_res_ema
                 runner.save_ema_model = True
