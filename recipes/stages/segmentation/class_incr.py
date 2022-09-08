@@ -26,7 +26,7 @@ optimizer_config = dict(
 log_config = dict(
     interval=10,
     hooks=[
-        dict(type='TextLoggerHook', by_epoch=True),
+        dict(type='TextLoggerHook', by_epoch=True, ignore_last=False),
         # dict(type='TensorboardLoggerHook')
     ]
 )
