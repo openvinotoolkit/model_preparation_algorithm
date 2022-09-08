@@ -82,9 +82,20 @@ class CustomEvalHook(Hook):
 
     @staticmethod
     def _get_score(res):
-        if np.isnan(res['accuracy']):
-            return 0.0
-        return res['accuracy']
+        if 'accuracy' in res: # classification
+            if np.isnan(res['accuracy']):
+                return 0.0
+            return res['accuracy']
+        else:
+            score = 0
+            div = 0
+            for key, val in res.items():
+                if np.isnan(val):
+                    continue
+                if self.metric in key:
+                    score += val
+                    div += 1
+            return score / div
 
 def single_gpu_test(model, data_loader):
     model.eval()
