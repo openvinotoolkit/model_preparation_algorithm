@@ -63,7 +63,7 @@ def asymmetric_loss_with_ignore(pred,
         weight = weight.float()
         if pred.dim() > 1:
             weight = weight.reshape(-1, 1)
-    loss = weight_reduce_loss(loss, weight, reduction, avg_factor)
+    loss = weight_reduce_loss(loss, weight, reduction, None)
     return loss
 
 

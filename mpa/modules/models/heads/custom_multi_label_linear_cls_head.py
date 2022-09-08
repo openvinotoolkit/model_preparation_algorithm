@@ -33,7 +33,6 @@ class CustomMultiLabelLinearClsHead(MultiLabelClsHead):
                      reduction='mean',
                      loss_weight=1.0)):
         super(CustomMultiLabelLinearClsHead, self).__init__(loss=loss)
-
         if num_classes <= 0:
             raise ValueError(
                 f'num_classes={num_classes} must be a positive integer')
