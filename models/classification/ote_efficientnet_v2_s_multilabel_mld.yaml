@@ -1,13 +1,13 @@
-_base_: _base_/ote_mobilenet_v3.py
+_base_: _base_/ote_efficientnet_v2.py
 
 model:
     type: SAMImageClassifier
     task: classification
     backbone:
-        mode: large
+        version: s_21k
     neck:
         type: MLDecoder
-        in_channels: 960
+        in_channels: 1280
         num_of_groups: 100
         decoder_embedding: 768
     head:
