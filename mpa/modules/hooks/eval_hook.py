@@ -68,29 +68,23 @@ class CustomEvalHook(Hook):
         if results_ema:
             eval_res_ema = self.dataloader.dataset.evaluate(
                 results_ema, logger=runner.logger, **self.eval_kwargs)
-            if cal_score(eval_res_ema) > cal_score(eval_res):
+            if self._get_score(eval_res_ema) > self._get_score(eval_res):
                 eval_res = eval_res_ema
                 runner.save_ema_model = True
 
+        score = self._get_score(eval_res)
         for name, val in eval_res.items():
             runner.log_buffer.output[name] = val
         runner.log_buffer.ready = True
-        score = self.cal_score(eval_res)
         if score >= self.best_score:
             self.best_score = score
             runner.save_ckpt = True
 
-    def cal_score(self, res):
-        score = 0
-        div = 0
-        for key, val in res.items():
-            if np.isnan(val):
-                continue
-            if self.metric in key:
-                score += val
-                div += 1
-        return score / div
-
+    @staticmethod
+    def _get_score(res):
+        if np.isnan(res['accuracy']):
+            return 0.0
+        return res['accuracy']
 
 def single_gpu_test(model, data_loader):
     model.eval()
