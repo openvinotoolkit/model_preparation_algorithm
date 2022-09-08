@@ -5,7 +5,7 @@
 import functools
 import torch
 from mmseg.utils import get_root_logger
-from mpa.modules.hooks.auxiliary_hooks import SaliencyMapHook, FeatureVectorHook
+from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook
 from mpa.modules.utils.task_adapt import map_class_names
 from mmseg.models import SEGMENTORS
 from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
@@ -83,8 +83,7 @@ class ClassIncrSegmentor(EncoderDecoder):
 
         seg_pred = super().simple_test(img, img_meta, rescale, output_logits)
         if self.feature_maps is not None and torch.onnx.is_in_onnx_export():
-            saliency_map = SaliencyMapHook.func(self.feature_maps)
             feature_vector = FeatureVectorHook.func(self.feature_maps)
-            return seg_pred, feature_vector, saliency_map
-        
+            return seg_pred, feature_vector
+
         return seg_pred

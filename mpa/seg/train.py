@@ -10,15 +10,14 @@ import numpy as np
 import torch
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import Fp16OptimizerHook, build_optimizer, build_runner
-
 from mmseg.core import DistEvalHook, EvalHook
 # from mmdet.core import DistEvalHook, EvalHook
 # from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_params_manager
 from mmseg.datasets import build_dataloader
-from .builder import build_dataset
 from mmseg.utils import get_root_logger
-
+from mpa.seg.builder import build_dataset
+from mpa.utils.data_cpu import MMDataCPU
 
 def set_random_seed(seed, deterministic=False):
     """Set random seed.
@@ -63,19 +62,21 @@ def train_segmentor(model,
             ) for ds in dataset
     ]
 
-    # put model on gpus
-    if distributed:
-        find_unused_parameters = cfg.get('find_unused_parameters', False)
-        # Sets the `find_unused_parameters` parameter in
-        # torch.nn.parallel.DistributedDataParallel
-        model = MMDistributedDataParallel(
-            model.cuda(),
-            device_ids=[torch.cuda.current_device()],
-            broadcast_buffers=False,
-            find_unused_parameters=find_unused_parameters)
+    if torch.cuda.is_available():
+        if distributed:
+            find_unused_parameters = cfg.get('find_unused_parameters', False)
+            # Sets the `find_unused_parameters` parameter in
+            # torch.nn.parallel.DistributedDataParallel
+            model = MMDistributedDataParallel(
+                model.cuda(),
+                device_ids=[torch.cuda.current_device()],
+                broadcast_buffers=False,
+                find_unused_parameters=find_unused_parameters)
+        else:
+            model = MMDataParallel(
+                model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
     else:
-        model = MMDataParallel(
-            model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
+        model = MMDataCPU(model)
 
     # build runner
     optimizer = build_optimizer(model, cfg.optimizer)
