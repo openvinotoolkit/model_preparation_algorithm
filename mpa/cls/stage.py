@@ -206,17 +206,19 @@ class ClsStage(Stage):
                     if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
                         cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
                     else:
+                        """
                         cfg.model.head.loss = ConfigDict(
                             type='SoftmaxFocalLoss',
                             loss_weight=1.0,
                             gamma=gamma,
                             reduction='none',
                         )
-                        #cfg.model.head.type = 'IBLossHead'
-                        #cfg.model.head.loss = ConfigDict(
-                        #    type='IBLoss',
-                        #    num_classes=cfg.model.head.num_classes,
-                        #)
+                        """
+                        cfg.model.head.type = 'IBLossHead'
+                        cfg.model.head.loss = ConfigDict(
+                            type='IBLoss',
+                            num_classes=cfg.model.head.num_classes,
+                        )
                 else:
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
