@@ -68,7 +68,6 @@ class CustomEvalHook(Hook):
         if results_ema:
             eval_res_ema = self.dataloader.dataset.evaluate(
                 results_ema, logger=runner.logger, **self.eval_kwargs)
-            print('\n EMA accuracy ', eval_res_ema['accuracy'])
             if self.call_score(eval_res_ema) > self.call_score(eval_res):
                 eval_res = eval_res_ema
                 runner.save_ema_model = True
