@@ -81,8 +81,7 @@ class CustomEvalHook(Hook):
             self.best_score = score
             runner.save_ckpt = True
 
-    @staticmethod
-    def call_score(res):
+    def call_score(self, res):
         score = 0
         div = 0
         for key, val in res.items():
