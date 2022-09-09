@@ -8,7 +8,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.modules.transformer import _get_activation_fn
 
 from mmcls.models.builder import NECKS
 
@@ -68,8 +67,8 @@ class MLDecoder(nn.Module):
 
 
 class TransformerDecoderLayerOptimal(nn.Module):
-    def __init__(self, d_model, nhead=8, dim_feedforward=2048, dropout=0.1, activation="relu",
-                 layer_norm_eps=1e-5) -> None:
+    def __init__(self, d_model, nhead=8, dim_feedforward=2048, dropout=0.1,
+                 layer_norm_eps=1e-5):
         super().__init__()
         self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps)
         self.dropout = nn.Dropout(dropout)
@@ -86,17 +85,12 @@ class TransformerDecoderLayerOptimal(nn.Module):
         self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps)
         self.norm3 = nn.LayerNorm(d_model, eps=layer_norm_eps)
 
-        self.activation = _get_activation_fn(activation)
+        self.activation = F.relu
 
-    def __setstate__(self, state):
-        if 'activation' not in state:
-            state['activation'] = F.relu
-        super().__setstate__(state)
-
-    def forward(self, tgt, memory, tgt_mask = None,
-                memory_mask = None,
-                tgt_key_padding_mask = None,
-                memory_key_padding_mask = None):
+    def forward(self, tgt, memory, tgt_mask=None,
+                memory_mask=None,
+                tgt_key_padding_mask=None,
+                memory_key_padding_mask=None):
         tgt = tgt + self.dropout1(tgt)
         tgt = self.norm1(tgt)
         tgt2 = self.multihead_attn(tgt, memory, memory)[0]
