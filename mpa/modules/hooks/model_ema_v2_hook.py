@@ -42,7 +42,7 @@ class ModelEmaV2Hook(Hook):
 
     def before_run(self, runner):
         """Set up src & dst model parameters."""
-        model = self._get_model(runner)
+        model = runner.model
         ema_model = ModelEmaV2(model, decay=self.ema_decay)
         runner.ema_model = ema_model
         runner.use_ema = True
@@ -59,12 +59,6 @@ class ModelEmaV2Hook(Hook):
             return
         # EMA
         runner.ema_model.update()
-
-    def _get_model(self, runner):
-        model = runner.model
-        if is_module_wrapper(model):
-            model = model.module
-        return model
 
 
 class ModelEmaV2(nn.Module):
