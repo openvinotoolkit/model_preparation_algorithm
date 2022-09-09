@@ -45,6 +45,8 @@ def asymmetric_loss_with_ignore(pred,
     eps = 1e-8
     pred_sigmoid = pred.sigmoid()
     target = target.type_as(pred)
+    if reduction != 'mean': # we don't use avg factor with other reductions
+        avg_factor = None # if we are not set this to None the exception will be throwed
 
     if clip and clip > 0:
         pt = (1 - pred_sigmoid +
