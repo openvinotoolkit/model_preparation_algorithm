@@ -9,18 +9,17 @@ from mmcls.models.builder import LOSSES
 from mmcls.models.losses.utils import weight_reduce_loss
 
 
-def asymmetric_loss_with_ignore(pred,
-                                target,
-                                valid_label_mask=None,
-                                weight=None,
-                                gamma_pos=1.0,
-                                gamma_neg=4.0,
-                                clip=0.05,
-                                reduction='none',
-                                avg_factor=None):
-    """asymmetric loss
-    Please refer to the `paper <https://arxiv.org/abs/2009.14119>`_ for
-    details.
+def asymmetric_angular_loss_with_ignore(pred,
+                                        target,
+                                        valid_label_mask=None,
+                                        weight=None,
+                                        gamma_pos=0.0,
+                                        gamma_neg=1.0,
+                                        clip=0.05,
+                                        k=0.8,
+                                        reduction='mean',
+                                        avg_factor=None):
+    """asymmetric angular loss
     Args:
         pred (torch.Tensor): The prediction with shape (N, *).
         target (torch.Tensor): The ground truth label of the prediction with
@@ -29,7 +28,8 @@ def asymmetric_loss_with_ignore(pred,
             (N, ). Dafaults to None.
         gamma_pos (float): positive focusing parameter. Defaults to 0.0.
         gamma_neg (float): Negative focusing parameter. We usually set
-            gamma_neg > gamma_pos. Defaults to 4.0.
+            gamma_neg > gamma_pos. Defaults to 1.0.
+        k (float): positive balance parameter. Defaults to 0.8.
         clip (float, optional): Probability margin. Defaults to 0.05.
         reduction (str): The method used to reduce the loss.
             Options are "none", "mean" and "sum". If reduction is 'none' , loss
@@ -43,19 +43,28 @@ def asymmetric_loss_with_ignore(pred,
         target.shape, 'pred and target should be in the same shape.'
 
     eps = 1e-8
-    pred_sigmoid = pred.sigmoid()
     target = target.type_as(pred)
-    if reduction != 'mean': # we don't use avg factor with other reductions
-        avg_factor = None # if we are not set this to None the exception will be throwed
+    anti_target = 1 - target
 
-    if clip and clip > 0:
-        pt = (1 - pred_sigmoid +
-              clip).clamp(max=1) * (1 - target) + pred_sigmoid * target
-    else:
-        pt = (1 - pred_sigmoid) * (1 - target) + pred_sigmoid * target
-    asymmetric_weight = (1 - pt).pow(gamma_pos * target + gamma_neg *
-                                     (1 - target))
-    loss = -torch.log(pt.clamp(min=eps)) * asymmetric_weight
+    xs_pos = torch.sigmoid(pred)
+    xs_neg = torch.sigmoid(-pred)
+
+    if clip > 0:
+        xs_neg = (xs_neg + clip).clamp(max=1)
+
+    asymmetric_focus = gamma_pos > 0 or gamma_neg > 0
+    if asymmetric_focus:
+        pt0 = xs_neg * target
+        pt1 = xs_pos * anti_target
+        pt = pt0 + pt1
+        one_sided_gamma = gamma_pos * target + gamma_neg * anti_target
+        one_sided_w = torch.pow(pt, one_sided_gamma)
+
+    loss = - k * target * torch.log(xs_pos.clamp(min=eps)) - \
+        (1 - k) * anti_target * torch.log(xs_neg.clamp(min=eps))
+
+    if asymmetric_focus:
+        loss *= one_sided_w
 
     if valid_label_mask is not None:
         loss = loss * valid_label_mask
@@ -65,19 +74,22 @@ def asymmetric_loss_with_ignore(pred,
         weight = weight.float()
         if pred.dim() > 1:
             weight = weight.reshape(-1, 1)
+    if reduction != 'mean':
+        avg_factor = None
     loss = weight_reduce_loss(loss, weight, reduction, avg_factor)
     return loss
 
 
 @LOSSES.register_module()
-class AsymmetricLossWithIgnore(nn.Module):
-    """asymmetric loss
+class AsymmetricAngularLossWithIgnore(nn.Module):
+    """Asymmetric angular loss
     Args:
         gamma_pos (float): positive focusing parameter.
             Defaults to 0.0.
         gamma_neg (float): Negative focusing parameter. We
-            usually set gamma_neg > gamma_pos. Defaults to 4.0.
-        clip (float, optional): Probability margin. Defaults to 0.05.
+            usually set gamma_neg > gamma_pos. Defaults to 1.0.
+        k (float): positive balance parameter. Defaults to 0.8.
+        clip (float): Probability margin. Defaults to 0.05.
         reduction (str): The method used to reduce the loss into
             a scalar.
         loss_weight (float): Weight of loss. Defaults to 1.0.
@@ -85,13 +97,15 @@ class AsymmetricLossWithIgnore(nn.Module):
 
     def __init__(self,
                  gamma_pos=0.0,
-                 gamma_neg=4.0,
+                 gamma_neg=1.0,
+                 k=0.8,
                  clip=0.05,
-                 reduction='none',
+                 reduction='mean',
                  loss_weight=1.0):
-        super(AsymmetricLossWithIgnore, self).__init__()
+        super().__init__()
         self.gamma_pos = gamma_pos
         self.gamma_neg = gamma_neg
+        self.k = k
         self.clip = clip
         self.reduction = reduction
         self.loss_weight = loss_weight
@@ -103,18 +117,19 @@ class AsymmetricLossWithIgnore(nn.Module):
                 weight=None,
                 avg_factor=None,
                 reduction_override=None):
-        """asymmetric loss
+        """asymmetric angular loss
         """
         assert reduction_override in (None, 'none', 'mean', 'sum')
         reduction = (
             reduction_override if reduction_override else self.reduction)
-        loss_cls = self.loss_weight * asymmetric_loss_with_ignore(
+        loss_cls = self.loss_weight * asymmetric_angular_loss_with_ignore(
             pred,
             target,
             valid_label_mask,
             weight,
             gamma_pos=self.gamma_pos,
             gamma_neg=self.gamma_neg,
+            k=self.k,
             clip=self.clip,
             reduction=reduction,
             avg_factor=avg_factor)
