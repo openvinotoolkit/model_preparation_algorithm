@@ -34,7 +34,7 @@ class ModelEmaV2Hook(Hook):
             to update ema parameters. Defaults to 5.
     """
 
-    def __init__(self, ema_decay=0.9997, interval=1, start_epoch=1, **kwargs):
+    def __init__(self, ema_decay=0.999, interval=1, start_epoch=1, **kwargs):
         super().__init__(**kwargs)
         self.ema_decay = ema_decay
         self.interval = interval
