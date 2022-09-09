@@ -1,0 +1,19 @@
+_base_: _base_/ote_mobilenet_v3.py
+
+model:
+    type: SAMImageClassifier
+    task: classification
+    backbone:
+        mode: large
+    head:
+        type: CustomMultiLabelNonLinearClsHead
+        in_channels: 960
+        hid_channels: 1280
+        normalized: True
+        scale: 20.0
+        act_cfg:
+            type: PReLU
+        loss:
+            type: AsymmetricAngularLossWithIgnore
+            gamma_pos: 0.0
+            gamma_neg: 1.0

@@ -1,0 +1,23 @@
+_base_: _base_/ote_efficientnet_v2.py
+
+model:
+    type: SAMImageClassifier
+    task: classification
+    backbone:
+        version: s_21k
+    neck:
+        type: MLDecoder
+        in_channels: 1280
+        num_of_groups: 100
+        decoder_embedding: 768
+    head:
+        type: CustomMultiLabelGroupFCClsHead
+        in_groups: 100
+        in_embedding_size: 768
+        normalized: True
+        scale: 20.0
+        loss:
+            type: AsymmetricAngularLossWithIgnore
+            gamma_pos: 0.0
+            gamma_neg: 1.0
+            reduction: sum

@@ -5,12 +5,12 @@ _base_: [
     '../_base_/schedules/1cycle.py',
 ]
 
-optimizer: 
+optimizer:
     lr: 0.007
     momentum: 0.9
 
-runner: 
+runner:
     max_epochs: 60
 
-evaluation: 
+evaluation:
     metric: ['accuracy']

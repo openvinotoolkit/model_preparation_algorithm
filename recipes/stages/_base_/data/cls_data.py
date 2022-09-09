@@ -4,7 +4,6 @@ _base_ = [
 ]
 
 __dataset_type = 'ClsDirDataset'
-
 __train_pipeline = {{_base_.train_pipeline}}
 __test_pipeline = {{_base_.test_pipeline}}
 
