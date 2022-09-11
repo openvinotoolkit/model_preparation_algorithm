@@ -19,6 +19,8 @@ from mpa.registry import STAGES
 from .stage import DetectionStage
 from mpa.utils.logger import get_logger
 
+import mmcv
+
 logger = get_logger()
 
 
@@ -204,6 +206,8 @@ class DetectionInferrer(DetectionStage):
             saliency_maps = [None] * dataset.num_samples
             feature_vectors = [None] * dataset.num_samples
             eval_predictions = dataset.merge(eval_predictions)
+            if kwargs.get('performance_path'):
+                mmcv.dump(eval_predictions, kwargs.get('performance_path')+'.pkl')
 
         outputs = dict(
             classes=target_classes,
