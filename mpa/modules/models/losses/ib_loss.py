@@ -16,7 +16,7 @@ def ib_loss(input_values, ib):
 
 @LOSSES.register_module()
 class IBLoss(CrossEntropyLoss):
-    def __init__(self, num_classes, max_epoch=20, weight=None, alpha=10000., **kwargs):
+    def __init__(self, num_classes, max_epoch=20, weight=None, alpha=1000., **kwargs):
         super(IBLoss, self).__init__(loss_weight=1.0)
         assert alpha > 0
         self.alpha = alpha
