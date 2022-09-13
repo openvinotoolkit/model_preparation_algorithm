@@ -214,7 +214,10 @@ class ClsStage(Stage):
                             reduction='none',
                         )
                         """
-                        cfg.model.head.type = 'IBLossHead'
+                        if cfg.model.head.type == 'NonLinearClsHead':
+                            cfg.model.head.type = 'NonLinearIBLossHead'
+                        else:
+                            cfg.model.head.type = 'IBLossHead'
                         cfg.model.head.loss = ConfigDict(
                             type='IBLoss',
                             num_classes=cfg.model.head.num_classes,
