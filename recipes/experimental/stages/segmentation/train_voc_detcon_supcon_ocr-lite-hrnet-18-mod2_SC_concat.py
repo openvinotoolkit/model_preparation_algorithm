@@ -9,6 +9,7 @@ task = 'segmentation'
 
 model = dict(
     is_task_adapt=False,
+    downsample=4,
     input_transform='resize_concat',
     in_index=[0,1,2,3],
     projector=dict(
@@ -25,6 +26,10 @@ model = dict(
         norm_cfg=dict(type='BN1d', requires_grad=True),
         with_avg_pool=False
     ),
+    loss_weights={
+        'decode.loss_seg': 1.,
+        'detcon': 1.,
+    }
 )
 
 data = dict(

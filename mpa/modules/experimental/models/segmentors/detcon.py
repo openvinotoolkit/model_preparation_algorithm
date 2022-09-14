@@ -158,6 +158,7 @@ class DetConB(EncoderDecoder):
         input_transform=None,
         in_index=None,
         ignore_bg=False,
+        loss_weights=None,
         **kwargs
     ):
         assert projector and predictor
@@ -174,11 +175,13 @@ class DetConB(EncoderDecoder):
         if input_transform is not None:
             assert input_transform in ['resize_concat', 'multiple_select']
         
-        logger = get_root_logger()
+        self.logger = get_root_logger()
         self.input_transform = input_transform
         self.in_index = in_index
         self.base_momentum = base_momentum
         self.momentum = base_momentum
+        self.loss_weights = loss_weights
+
         self.num_classes = num_classes
         self.num_samples = num_samples
         self.downsample = downsample
@@ -187,7 +190,7 @@ class DetConB(EncoderDecoder):
         if pretrained:
             self.logger.info('load model from: {}'.format(pretrained))
             load_checkpoint(self.backbone, pretrained, strict=False, map_location='cpu', 
-                            logger=logger, revise_keys=[(r'^backbone\.', '')])
+                            logger=self.logger, revise_keys=[(r'^backbone\.', '')])
         
         self.online_net = self.backbone
         self.projector_online = DetConMLP(**projector)
@@ -344,7 +347,7 @@ class DetConB(EncoderDecoder):
 
 
 @SEGMENTORS.register_module()
-class DetConSupCon(DetConB):
+class DetConBSupCon(DetConB):
     def forward_train(self, img, img_metas, gt_semantic_seg, pixel_weights=None, **kwargs):
         """Forward function for training.
 
@@ -401,9 +404,33 @@ class DetConSupCon(DetConB):
             pind2=ids2,
             tind1=ema_ids1,
             tind2=ema_ids2)['loss']
-        losses.update(dict(detcon_loss=loss_detcon))
+        losses.update(dict(detcon=loss_detcon))
+        
+        if self.loss_weights:
+            reweights = dict()
+            if isinstance(self.loss_weights, (list, tuple)):
+                # TODO: refactoring
+                # If `loss_weights` is changed through cli and includes `decode.*`,
+                # all of params of loss_weights is included in new `loss_weights`.
+                # It also should be List and converting it to dict is required only first time.
+                # ex) hyperparams.model.loss_weights=\"['decode.loss_seg', 0.1, 'detcon', 1]\" in cli
+                #     --> self.loss_weights = {'decode.loss_seg': 0.1, 'detcon': 1}
+                self.loss_weights = {
+                    self.loss_weights[i*2]: self.loss_weights[i*2+1] 
+                    for i in range(len(self.loss_weights)//2)
+                }
 
-        if self.with_auxiliary_head:
-            raise ValueError()
+            for k, v in self.loss_weights.items():
+                if k not in losses:
+                    self.logger.warning(
+                        f'\'{k}\' is not in losses. Please check if \'loss_weights\' is set well.')
+                    continue
+                    
+                if 'loss_' in k:
+                    reweights.update({k: losses[k] * v})
+                else:
+                    reweights.update({'loss_'+k: losses[k] * v})
+
+            losses.update(reweights)
 
         return losses

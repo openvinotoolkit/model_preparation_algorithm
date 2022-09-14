@@ -26,6 +26,10 @@ model = dict(
         norm_cfg=dict(type='BN1d', requires_grad=True),
         with_avg_pool=False
     ),
+    loss_weights={
+        'decode.loss_seg': 1.,
+        'detcon': 1.,
+    }
 )
 
 data = dict(
