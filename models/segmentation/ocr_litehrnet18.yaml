@@ -1,4 +1,4 @@
-_base_: _base_/ocr_litehrnet18.py
+_base_: _base_/ocr_litehrnet18_mod2.py
 
 model:
     task: segmentation
