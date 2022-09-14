@@ -9,10 +9,10 @@ task = 'segmentation'
 
 model = dict(
     is_task_adapt=False,
-    input_transform=None,
-    in_index=None,
+    input_transform='resize_concat',
+    in_index=[0,1,2,3],
     projector=dict(
-        in_channels=40, # after multiple_select, output channel is 40
+        in_channels=600,
         hid_channels=256,
         out_channels=128,
         norm_cfg=dict(type='BN1d', requires_grad=True),

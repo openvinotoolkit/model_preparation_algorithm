@@ -1,7 +1,7 @@
 _base_ = [
     '../_base_/models/segmentors/seg_detcon_supcon.py',
     '../_base_/data/voc_detcon.py',
-    '../../../../models/segmentation/_base_/ocr_litehrnet18_mod2.py',
+    '../../../../models/segmentation/_base_/ocr_litehrnet_s_mod2.py',
     '../../../stages/segmentation/class_incr.py',
 ]
 
@@ -9,10 +9,11 @@ task = 'segmentation'
 
 model = dict(
     is_task_adapt=False,
-    input_transform=None,
-    in_index=None,
+    downsample=8,
+    input_transform='resize_concat',
+    in_index=[0,1,2],
     projector=dict(
-        in_channels=40, # after multiple_select, output channel is 40
+        in_channels=420,
         hid_channels=256,
         out_channels=128,
         norm_cfg=dict(type='BN1d', requires_grad=True),

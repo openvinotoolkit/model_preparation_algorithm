@@ -156,7 +156,7 @@ class DetConB(EncoderDecoder):
         num_samples=16,
         downsample=32,
         input_transform=None,
-        in_index=-1,
+        in_index=None,
         ignore_bg=False,
         **kwargs
     ):
@@ -171,20 +171,11 @@ class DetConB(EncoderDecoder):
             test_cfg=test_cfg,
             pretrained=None)
 
+        if input_transform is not None:
+            assert input_transform in ['resize_concat', 'multiple_select']
+        
         logger = get_root_logger()
-        if self.decode_head is None:
-            if input_transform != decode_head['input_transform']:
-                logger.warning(
-                    f"input_transform (={input_transform}) is not matched with "
-                    f"decode_head['input_transform'] (={decode_head['input_transform']}).")
-
-            if in_index != decode_head['in_index']:
-                logger.warning(
-                    f"in_index (={in_index}) is not matched with "
-                    f"decode_head['in_index'] (={decode_head['in_index']}).")
-
-            self.input_transform = input_transform
-
+        self.input_transform = input_transform
         self.in_index = in_index
         self.base_momentum = base_momentum
         self.momentum = base_momentum
@@ -194,13 +185,16 @@ class DetConB(EncoderDecoder):
         self.mask_pool = MaskPooling(num_classes, num_samples, downsample, ignore_bg)
 
         if pretrained:
+            self.logger.info('load model from: {}'.format(pretrained))
             load_checkpoint(self.backbone, pretrained, strict=False, map_location='cpu', 
                             logger=logger, revise_keys=[(r'^backbone\.', '')])
         
         self.online_net = self.backbone
-        self.target_net = builder.build_backbone(backbone)
         self.projector_online = DetConMLP(**projector)
+
+        self.target_net = builder.build_backbone(backbone)
         self.projector_target = DetConMLP(**projector)
+
         self.predictor = DetConMLP(**predictor)
 
         self.projector_online.init_weights(init_linear='kaiming') # projection
@@ -236,17 +230,20 @@ class DetConB(EncoderDecoder):
             param_tg.data = param_tg.data * self.momentum + \
                 param_ol.data * (1. - self.momentum)
 
-    def _forward_train(self, imgs, masks, net, projector):
-        embds = [net(img) for img in imgs]
-
-        if self.decode_head:
-            embds_for_detcon = [self.decode_head._transform_inputs(emb) for emb in embds]
-        elif self.input_transform:
-            embds_for_detcon = [self._transform_inputs(emb) for emb in embds]
+    def get_transformed_features(self, x):
+        if self.input_transform:
+            return self._transform_inputs(x)
         elif isinstance(self.in_index, int):
-            embds_for_detcon = [emb[self.in_index] for emb in embds]
+            return x[self.in_index]
+        elif self.decode_head:
+            return self.decode_head._transform_inputs(x)
         else:
             raise ValueError()
+
+    def _forward_train(self, imgs, masks, net, projector):
+        embds = [net(img) for img in imgs]
+        
+        embds_for_detcon = [self.get_transformed_features(emb) for emb in embds]
 
         bs, emb_d, emb_h, emb_w = embds_for_detcon[0].shape
         sampled_masks, sampled_mask_ids = self.mask_pool(masks)
@@ -254,16 +251,16 @@ class DetConB(EncoderDecoder):
         embds_for_detcon = [
             embd.reshape((bs, emb_d, emb_h*emb_w)).transpose(1, 2) for embd in embds_for_detcon
         ]
+        
         sampled_embds = [
             sampled_mask @ embd_for_detcon 
             for sampled_mask, embd_for_detcon in zip(sampled_masks, embds_for_detcon)
         ]
 
-        sampled_embds = [
-            sampled_embd.reshape((-1, emb_d)) 
-            for sampled_embd in sampled_embds
-        ]
+        sampled_embds = [sampled_embd.reshape((-1, emb_d)) for sampled_embd in sampled_embds]
+
         proj_outs = [projector([sampled_embd])[0] for sampled_embd in sampled_embds]
+
         return embds, proj_outs, sampled_mask_ids
 
     def forward_train(self, img, img_metas, gt_semantic_seg, pixel_weights=None, **kwargs):
@@ -374,7 +371,6 @@ class DetConSupCon(DetConB):
         
         # decode head
         # In SupCon, img1 is only used for supervised learning.
-        # TODO: data pipeline for SupCon
         e1, _ = embds
         loss_decode, _ = self._decode_head_forward_train(
             e1, img_metas, gt_semantic_seg=mask1, pixel_weights=pixel_weights)
