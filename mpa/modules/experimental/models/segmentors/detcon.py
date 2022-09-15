@@ -433,4 +433,7 @@ class DetConBSupCon(DetConB):
 
             losses.update(reweights)
 
+        else:
+            losses.update(dict(loss_detcon=loss_detcon))
+
         return losses
