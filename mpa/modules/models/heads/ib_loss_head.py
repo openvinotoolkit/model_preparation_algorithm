@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from mmcls.models.builder import HEADS
+from mmcls.models.builder import HEADS, build_loss
 from mmcls.models.heads import LinearClsHead, ClsHead
 from mpa.modules.models.heads.non_linear_cls_head import NonLinearClsHead
 

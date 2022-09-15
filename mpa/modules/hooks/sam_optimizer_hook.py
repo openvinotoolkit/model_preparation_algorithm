@@ -21,6 +21,13 @@ class SAMOptimizerHook(OptimizerHook):
         self.start_epoch = start_epoch
         if rho < 0.0:
             raise ValueError('rho should be greater than 0 for SAM optimizer')
+    
+    def before_train_epoch(self, runner):
+        super().before_train_epoch(runner)
+        print("BEFOR TRAIN EPOCH")
+        if hasattr(runner.model.head.loss, 'cur_epoch'):
+            print("UPDATE CUR EPOCH")
+            runner.model.head.loss.cur_epoch = runner.epoch
 
     def after_train_iter(self, runner):
         '''Perform SAM optimization

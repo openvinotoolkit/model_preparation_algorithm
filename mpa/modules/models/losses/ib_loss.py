@@ -23,15 +23,27 @@ class IBLoss(CrossEntropyLoss):
         self.epsilon = 0.001
         self.weight = weight
         self.num_classes = num_classes
-        self.cur_epoch = 0
-        self.start_epoch = int(max_epoch / 2)
+        self._cur_epoch = 0
+        self._start_epoch = int(max_epoch / 2)
         print("IB LOSS")
 
+    @property
+    def cur_epoch(self):
+        return self._cur_epoch
+
+    @cur_epoch.setter
+    def cur_epoch(self, epoch):
+        self._cur_epoch = epoch
+        print(f"CUR EPOCH : {self._cur_epoch}")
+
     def forward(self, input, target, features):
-        grads = torch.sum(torch.abs(F.softmax(input, dim=1) - F.one_hot(target, self.num_classes)),1) # N * 1
-        ib = grads * features.reshape(-1)
-        ib = self.alpha / (ib + self.epsilon)
-        ce_loss = super().forward(input, target, reduction_override='none', weight=self.weight)
-        loss = ce_loss * ib
-        return loss.mean()
+        if self._cur_epoch < self._start_epoch:
+            return super().forward(input, target)
+        else:
+            grads = torch.sum(torch.abs(F.softmax(input, dim=1) - F.one_hot(target, self.num_classes)),1) # N * 1
+            ib = grads * features.reshape(-1)
+            ib = self.alpha / (ib + self.epsilon)
+            ce_loss = super().forward(input, target, reduction_override='none', weight=self.weight)
+            loss = ce_loss * ib
+            return loss.mean()
 
