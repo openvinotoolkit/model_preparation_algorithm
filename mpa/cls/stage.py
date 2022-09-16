@@ -203,17 +203,13 @@ class ClsStage(Stage):
                     gamma = 2 if efficient_mode else 3
                     sampler_type = 'balanced'
 
-                    if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
+                    num_data = list(train_data_cfg.num_data.values())
+                    print(num_data)
+                    imb_ratio = float( min(num_data) / max(num_data) )
+                    print(imb_ratio)
+                    if imb_ratio > 0.5 and ( len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes) ):
                         cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
                     else:
-                        """
-                        cfg.model.head.loss = ConfigDict(
-                            type='SoftmaxFocalLoss',
-                            loss_weight=1.0,
-                            gamma=gamma,
-                            reduction='none',
-                        )
-                        """
                         if cfg.model.head.type == 'NonLinearClsHead':
                             cfg.model.head.type = 'NonLinearIBLossHead'
                         else:
@@ -226,7 +222,7 @@ class ClsStage(Stage):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
 
-                if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
+                if imb_ratio > 0.5 and ( len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes) ):
                     sampler_flag = False
                 else:
                     sampler_flag = True
