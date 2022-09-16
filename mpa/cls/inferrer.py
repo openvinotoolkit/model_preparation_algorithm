@@ -69,7 +69,8 @@ class ClsInferrer(ClsStage):
             workers_per_gpu=cfg.data.workers_per_gpu,
             dist=False,
             shuffle=False,
-            round_up=False)
+            round_up=False,
+            persistent_workers=False)
 
         # build the model and load checkpoint
         model = build_classifier(cfg.model)

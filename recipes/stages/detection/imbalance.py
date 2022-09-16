@@ -34,7 +34,7 @@ custom_hooks = [
 
 lr_config = dict(
     policy='ReduceLROnPlateau',
-    metric='bbox_mAP',
+    metric='mAP',
     patience=5,
     iteration_patience=0,
     interval=1,

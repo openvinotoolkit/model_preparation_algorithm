@@ -29,6 +29,7 @@ from mpa.cls.stage import ClsStage
 from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.modules.hooks.fp16_sam_optimizer_hook import Fp16SAMOptimizerHook
 from mpa.utils.logger import get_logger
+from mpa.utils.data_cpu import MMDataCPU
 
 logger = get_logger()
 
@@ -163,7 +164,8 @@ class ClsTrainer(ClsStage):
                         dist=distributed,
                         round_up=True,
                         seed=cfg.seed,
-                        drop_last=drop_last
+                        drop_last=drop_last,
+                        persistent_workers=False
                     ) for sub_ds in ds
                 ]
                 data_loaders.append(ComposedDL(sub_loaders))
@@ -178,7 +180,8 @@ class ClsTrainer(ClsStage):
                         dist=distributed,
                         round_up=True,
                         seed=cfg.seed,
-                        drop_last=drop_last
+                        drop_last=drop_last,
+                        persistent_workers=False
                     ))
         # put model on gpus
         if torch.cuda.is_available():
@@ -264,11 +267,12 @@ class ClsTrainer(ClsStage):
                 workers_per_gpu=cfg.data.workers_per_gpu,
                 dist=distributed,
                 shuffle=False,
-                round_up=True)
+                round_up=True,
+                persistent_workers=False)
             eval_cfg = cfg.get('evaluation', {})
             eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'
             eval_hook = DistCustomEvalHook if distributed else CustomEvalHook
-            runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority='HIGHEST')
+            runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority='ABOVE_NORMAL')
 
         if cfg.get('resume_from', False):
             runner.resume(cfg.resume_from)
@@ -287,71 +291,3 @@ class ClsTrainer(ClsStage):
             checkpoint_config.setdefault('type', 'CheckpointHook')
             hook = mmcv.build_from_cfg(checkpoint_config, HOOKS)
         return hook
-
-
-# Temporary copy from mmdet
-# TODO: refactor
-from mmcv.parallel.data_container import DataContainer
-from mmcv.parallel import MMDataParallel
-
-def scatter_cpu(inputs):
-    """Scatter inputs to cpu.
-    :type:`~mmcv.parallel.DataContainer`.
-    """
-
-    def scatter_map(obj):
-        if isinstance(obj, torch.Tensor):
-            return [obj]
-        if isinstance(obj, DataContainer):
-            return obj.data
-        if isinstance(obj, tuple) and len(obj) > 0:
-            return list(zip(*map(scatter_map, obj)))
-        if isinstance(obj, list) and len(obj) > 0:
-            out = list(map(list, zip(*map(scatter_map, obj))))
-            return out
-        if isinstance(obj, dict) and len(obj) > 0:
-            out = list(map(type(obj), zip(*map(scatter_map, obj.items()))))
-            return out
-        return [obj]
-
-    # After scatter_map is called, a scatter_map cell will exist. This cell
-    # has a reference to the actual function scatter_map, which has references
-    # to a closure that has a reference to the scatter_map cell (because the
-    # fn is recursive). To avoid this reference cycle, we set the function to
-    # None, clearing the cell
-    try:
-        return scatter_map(inputs)
-    finally:
-        scatter_map = None
-
-
-def scatter_kwargs(inputs, kwargs):
-    """Scatter with support for kwargs dictionary"""
-    inputs = scatter_cpu(inputs) if inputs else []
-    kwargs = scatter_cpu(kwargs) if kwargs else []
-    if len(inputs) < len(kwargs):
-        inputs.extend([() for _ in range(len(kwargs) - len(inputs))])
-    elif len(kwargs) < len(inputs):
-        kwargs.extend([{} for _ in range(len(inputs) - len(kwargs))])
-    inputs = tuple(inputs)
-    kwargs = tuple(kwargs)
-    return inputs, kwargs
-
-
-class MMDataCPU(MMDataParallel):
-    """Implementation of MMDataParallel to use CPU for training"""
-
-    def scatter(self, inputs, kwargs):
-        return scatter_kwargs(inputs, kwargs)
-
-    def train_step(self, *inputs, **kwargs):
-        inputs, kwargs = self.scatter(inputs, kwargs)
-        return self.module.train_step(*inputs[0], **kwargs[0])
-
-    def val_step(self, *inputs, **kwargs):
-        inputs, kwargs = self.scatter(inputs, kwargs)
-        return self.module.val_step(*inputs[0], **kwargs[0])
-
-    def forward(self, *inputs, **kwargs):
-        inputs, kwargs = self.scatter(inputs, kwargs)
-        return self.module(*inputs[0], **kwargs[0])
