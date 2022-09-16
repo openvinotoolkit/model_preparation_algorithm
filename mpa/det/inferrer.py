@@ -196,19 +196,15 @@ class DetectionInferrer(DetectionStage):
         metric = None
         if eval:
             metric = dataset.evaluate(eval_predictions, **cfg.evaluation)
-            if kwargs.get('performance_path'):
-                with open(kwargs.get('performance_path'), "w", encoding="UTF-8") as f:
-                    json.dump(metric, f)
-            metric = metric['mAP']
+            metric = metric['mAP'] if isinstance(cfg.evaluation.metric, list) else metric[cfg.evaluation.metric]
 
-        # TODO[EUGENE]: HOW TO HANDLE FEATURE MAP AND FEATURE VECTOR SINCE WE CROPPED ONE IMAGE TO TILES?
         if isinstance(dataset, ImageTilingDataset):
-            saliency_maps = [None] * dataset.num_samples
-            feature_vectors = [None] * dataset.num_samples
-            eval_predictions = dataset.merge(eval_predictions)
-
-        if kwargs.get('performance_path'):
-            mmcv.dump(eval_predictions, kwargs.get('performance_path')+'.pkl')
+            saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
+            feature_vectors = [feature_vectors[i] for i in range(dataset.num_samples)]
+            if not dataset.merged_results:
+                eval_predictions = dataset.merge(eval_predictions)
+            else:
+                eval_predictions = dataset.merged_results
 
         outputs = dict(
             classes=target_classes,
