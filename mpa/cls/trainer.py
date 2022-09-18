@@ -45,7 +45,6 @@ class ClsTrainer(ClsStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=True, **kwargs)
-
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment
@@ -89,7 +88,6 @@ class ClsTrainer(ClsStage):
             repr_ds = datasets[0][0]
         else:
             repr_ds = datasets[0]
-
         if cfg.checkpoint_config is not None:
             cfg.checkpoint_config.meta = dict(
                 mmcls_version=__version__)
@@ -153,10 +151,13 @@ class ClsTrainer(ClsStage):
 
         # updated to adapt list of dataset for the 'train'
         data_loaders = []
+        max_num_images = 0
         for ds in dataset:
             if isinstance(ds, list):
-                sub_loaders = [
-                    build_dataloader(
+                for sub_ds in ds:
+                    if len(sub_ds) > max_num_images:
+                        max_num_images = len(sub_ds)
+                    sub_dl = build_dataloader(
                         sub_ds,
                         sub_ds.samples_per_gpu if hasattr(sub_ds, 'samples_per_gpu') else cfg.data.samples_per_gpu,
                         sub_ds.workers_per_gpu if hasattr(sub_ds, 'workers_per_gpu') else cfg.data.workers_per_gpu,
@@ -166,10 +167,12 @@ class ClsTrainer(ClsStage):
                         seed=cfg.seed,
                         drop_last=drop_last,
                         persistent_workers=False
-                    ) for sub_ds in ds
-                ]
+                    )
+                    sub_loaders.append(sub_dl)
                 data_loaders.append(ComposedDL(sub_loaders))
             else:
+                if len(ds) > max_num_images:
+                    max_num_images = len(ds)
                 data_loaders.append(
                     build_dataloader(
                         ds,
@@ -229,6 +232,9 @@ class ClsTrainer(ClsStage):
 
         # an ugly walkaround to make the .log and .log.json filenames the same
         runner.timestamp = f'{timestamp}'
+
+        # remember the max number of train images. It is needed for EMA hook heuristic
+        runner.max_num_images = max_num_images
 
         # fp16 setting
         fp16_cfg = cfg.get('fp16', None)
