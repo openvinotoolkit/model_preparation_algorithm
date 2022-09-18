@@ -34,22 +34,26 @@ class ModelEmaV2Hook(Hook):
             to update ema parameters. Defaults to 5.
     """
 
-    def __init__(self, ema_decay=0.999, interval=1, start_epoch=1, **kwargs):
+    def __init__(self, ema_decay=0.9995, interval=1, start_epoch=1, switching_criteria=2000, **kwargs):
         super().__init__(**kwargs)
         self.ema_decay = ema_decay
         self.interval = interval
         self.start_epoch = start_epoch
+        self.switching_criteria = switching_criteria
 
     def before_run(self, runner):
         """Set up src & dst model parameters."""
-        model = runner.model
-        ema_model = ModelEmaV2(model, decay=self.ema_decay)
-        runner.ema_model = ema_model
-        runner.use_ema = True
-        logger.info("\t* EMA V2 Enable")
+        if runner.max_num_images >= self.switching_criteria:
+            model = runner.model
+            ema_model = ModelEmaV2(model, decay=self.ema_decay)
+            runner.ema_model = ema_model
+            logger.info("\t* EMA V2 Enable")
 
     def after_train_iter(self, runner):
         """Update ema parameter every self.interval iterations."""
+        if runner.max_num_images < self.switching_criteria:
+            return
+
         if runner.iter % self.interval != 0:
             # Skip update
             return
