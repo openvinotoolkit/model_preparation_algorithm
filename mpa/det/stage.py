@@ -46,6 +46,9 @@ class DetectionStage(Stage):
             logger.info(f'Overriding cfg.load_from -> {pretrained}')
             cfg.load_from = pretrained  # Overriding by stage input
 
+        if cfg.get('resume', False):
+            cfg.resume_from = cfg.load_from
+
         # Data
         if data_cfg:
             cfg.merge_from_dict(data_cfg)
@@ -294,11 +297,12 @@ class DetectionStage(Stage):
                     ConfigDict(
                         type='CustomModelEMAHook',
                         priority='ABOVE_NORMAL',
+                        resume_from=cfg.get("resume_from"),
                         **adaptive_ema
                     )
                 )
             else:
-                update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook', priority='ABOVE_NORMAL', momentum=0.1))
+                update_or_add_custom_hook(cfg, ConfigDict(type='EMAHook', priority='ABOVE_NORMAL', resume_from=cfg.get("resume_from"), momentum=0.1))
 
             adaptive_validation_interval = cfg.get('adaptive_validation_interval', {})
             if adaptive_validation_interval:
