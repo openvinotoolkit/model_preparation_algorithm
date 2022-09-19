@@ -14,6 +14,7 @@ from mpa.utils.logger import get_logger
 logger = get_logger()
 
 
+
 @HOOKS.register_module()
 class ModelEmaV2Hook(Hook):
     """
@@ -32,24 +33,31 @@ class ModelEmaV2Hook(Hook):
             Defaults to 1.
         start_epoch (int): During initial a few epochs, we just copy values
             to update ema parameters. Defaults to 5.
+        dataset_len_thr (int): number of train images in the dataset when to enable the EMA hook
     """
 
-    def __init__(self, ema_decay=0.999, interval=1, start_epoch=1, **kwargs):
+    def __init__(self, ema_decay=0.9995, interval=1, start_epoch=1, dataset_len_thr=2000, **kwargs):
         super().__init__(**kwargs)
         self.ema_decay = ema_decay
         self.interval = interval
         self.start_epoch = start_epoch
+        self.dataset_len_thr = dataset_len_thr
 
     def before_run(self, runner):
         """Set up src & dst model parameters."""
+        if runner.max_num_images < self.dataset_len_thr:
+            return
+
         model = runner.model
         ema_model = ModelEmaV2(model, decay=self.ema_decay)
         runner.ema_model = ema_model
-        runner.use_ema = True
         logger.info("\t* EMA V2 Enable")
 
     def after_train_iter(self, runner):
         """Update ema parameter every self.interval iterations."""
+        if runner.max_num_images < self.dataset_len_thr:
+            return
+
         if runner.iter % self.interval != 0:
             # Skip update
             return
