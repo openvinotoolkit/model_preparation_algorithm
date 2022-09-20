@@ -25,6 +25,7 @@ logger = get_logger()
 pretrained_root = "https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-effv2-weights/"
 pretrained_urls = {
     "efficientnetv2_s_21k": pretrained_root + "tf_efficientnetv2_s_21k-6337ad01.pth",
+    # "efficientnetv2_s_21k": "/home/kprokofi/deep-object-reid/efficientnetv2-s-oi.pth",
     "efficientnetv2_s_1k": pretrained_root + "tf_efficientnetv2_s_21ft1k-d7dafa41.pth",
 }
 
@@ -63,10 +64,9 @@ class TimmModelsWrapper(nn.Module):
                              else self.model.num_features)
         self.pooling_type = pooling_type
 
-    def forward(self, x, return_featuremaps=True, **kwargs):
+    def forward(self, x, **kwargs):
         y = self.extract_features(x)
-        if return_featuremaps:
-            return y
+        return y
 
     def extract_features(self, x):
         if self.is_mobilenet:

@@ -17,6 +17,7 @@ class SAMOptimizerHook(OptimizerHook):
 
     def __init__(self, rho=0.05, start_epoch=1, **kwargs):
         super().__init__(**kwargs)
+        print("HEREREREEEEEEEEEEEEEEEEEEEEEEEEEEE")
         self.rho = rho
         self.start_epoch = start_epoch
         if rho < 0.0:

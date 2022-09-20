@@ -24,8 +24,8 @@ task_adapt:
     op: 'REPLACE'
 
 custom_hooks:
-- type: NoBiasDecayHook
 - type: ModelEmaV2Hook
+- type: NoBiasDecayHook
 - type: LazyEarlyStoppingHook
   start: 0
   patience: 10
