@@ -6,18 +6,13 @@ model:
     backbone:
         version: s_21k
     neck:
-        type: MLDecoder
-        in_channels: 1280
-        num_of_groups: 100
-        decoder_embedding: 768
+        type: Skip
     head:
         type: CustomMultiLabelGroupFCClsHead
-        in_groups: 100
-        in_embedding_size: 768
         normalized: True
-        scale: 20.0
+        scale: 17.0
         loss:
             type: AsymmetricAngularLossWithIgnore
             gamma_pos: 0.0
-            gamma_neg: 1.0
+            gamma_neg: 0.0
             reduction: sum
