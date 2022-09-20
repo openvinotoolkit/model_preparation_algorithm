@@ -203,10 +203,13 @@ class ClsStage(Stage):
                     gamma = 2 if efficient_mode else 3
                     sampler_type = 'balanced'
 
-                    num_data = list(train_data_cfg.num_data.values())
-                    print(num_data)
-                    imb_ratio = float( min(num_data) / max(num_data) )
+                    print(train_data_cfg.num_data)
+                    print(dst_classes)
+                    cls_num_list = [ train_data_cfg.num_data[data_cls] for data_cls in dst_classes ]
+                    print(cls_num_list)
+                    imb_ratio = float( min(cls_num_list) / max(cls_num_list) )
                     print(imb_ratio)
+
                     if imb_ratio > 0.5 and ( len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes) ):
                         cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
                     else:
@@ -216,6 +219,7 @@ class ClsStage(Stage):
                             cfg.model.head.type = 'IBLossHead'
                         cfg.model.head.loss = ConfigDict(
                             type='IBLoss',
+                            cls_num_list=cls_num_list,
                             num_classes=cfg.model.head.num_classes,
                         )
                 else:
