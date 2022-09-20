@@ -8,6 +8,8 @@ import os.path as osp
 import time
 import warnings
 import torch
+import numpy as np
+import random
 
 import torch.multiprocessing as mp
 import torch.distributed as dist
@@ -33,6 +35,16 @@ from mpa.utils.data_cpu import MMDataCPU
 
 logger = get_logger()
 
+def set_random_seed(seed, deterministic=False):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    if deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
 
 @STAGES.register_module()
 class ClsTrainer(ClsStage):
@@ -45,7 +57,8 @@ class ClsTrainer(ClsStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=True, **kwargs)
-
+        cfg.seed = 5
+        set_random_seed(seed=cfg.seed)
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment
