@@ -49,7 +49,7 @@ class EarlyStoppingHook(Hook):
     init_value_map = {'greater': -inf, 'less': inf}
     greater_keys = [
         'acc', 'top', 'AR@', 'auc', 'precision', 'mAP', 'mDice', 'mIoU',
-        'mAcc', 'aAcc'
+        'mAcc', 'aAcc', 'MHAcc'
     ]
     less_keys = ['loss']
 
