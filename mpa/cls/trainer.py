@@ -32,18 +32,9 @@ from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.modules.hooks.fp16_sam_optimizer_hook import Fp16SAMOptimizerHook
 from mpa.utils.logger import get_logger
 from mpa.utils.data_cpu import MMDataCPU
+from mpa.utils.config_utils import set_random_seed
 
 logger = get_logger()
-
-def set_random_seed(seed, deterministic=False):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    if deterministic:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
 
 
 @STAGES.register_module()
@@ -57,7 +48,6 @@ class ClsTrainer(ClsStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=True, **kwargs)
-        cfg.seed = 5
         set_random_seed(seed=cfg.seed)
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
