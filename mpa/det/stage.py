@@ -237,8 +237,10 @@ class DetectionStage(Stage):
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
         if cfg.get('task', 'detection') == 'detection':
             bbox_head = cfg.model.bbox_head
+            num_classes = len(model_classes)
         else:
             bbox_head = cfg.model.roi_head.bbox_head
+            num_classes = len(model_classes) + 1
         if task_adapt_type == 'mpa':
             tr_data_cfg = self.get_train_data_cfg(cfg)
             if tr_data_cfg.type != 'MPADetDataset':
@@ -269,10 +271,17 @@ class DetectionStage(Stage):
                     self.add_yolox_hooks(cfg)
             # Ignore Mode
             if cfg.get('ignore', False):
+                # bbox_head.loss_cls = ConfigDict(
+                #         type='CrossSigmoidFocalLoss',
+                #         use_sigmoid=True,
+                #         num_classes=num_classes,
+                #         alpha=alpha,
+                #         gamma=gamma
+                # )
                 bbox_head.loss_cls = ConfigDict(
-                        type='CrossSigmoidFocalLoss',
+                        type='EqualizedFocalLoss',
                         use_sigmoid=True,
-                        num_classes=len(model_classes),
+                        num_classes=num_classes,
                         alpha=alpha,
                         gamma=gamma
                 )
