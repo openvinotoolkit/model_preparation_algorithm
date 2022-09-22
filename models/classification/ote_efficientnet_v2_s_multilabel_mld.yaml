@@ -9,10 +9,10 @@ model:
         type: Skip
     head:
         type: CustomMultiLabelGroupFCClsHead
-        normalized: True
-        scale: 17.0
+        normalized: False
+        scale: 1.0
         loss:
-            type: AsymmetricAngularLossWithIgnore
+            type: AsymmetricLossWithIgnore
             gamma_pos: 0.0
             gamma_neg: 0.0
-            reduction: sum
+            reduction: mean
