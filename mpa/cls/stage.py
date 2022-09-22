@@ -44,6 +44,9 @@ class ClsStage(Stage):
         if model_ckpt:
             cfg.load_from = self.get_model_ckpt(model_ckpt)
 
+        if cfg.get('resume', False):
+            cfg.resume_from = cfg.load_from
+
         self.configure_model(cfg, training, **kwargs)
 
         # OMZ-plugin
