@@ -1,10 +1,37 @@
+# _base_ = [
+#     './cls_data.py'
+# ]
+
+# __train_pipeline = {{_base_.train_rand_pipeline}}
+
+# data = dict(
+#     train=dict(
+#         type='ClsDirDataset',
+#         pipeline=__train_pipeline))
+
 _base_ = [
-    './cls_data.py'
+    './data.py',
+    './pipelines/semisl_pipeline.py'
 ]
 
-__train_pipeline = {{_base_.train_rand_pipeline}}
+__dataset_type = 'ClsDirDataset'
+__train_pipeline = {{_base_.train_pipeline}}
+__test_pipeline = {{_base_.test_pipeline}}
+
+__samples_per_gpu = 32
 
 data = dict(
+    samples_per_gpu=__samples_per_gpu,
+    workers_per_gpu=2,
     train=dict(
-        type='ClsDirDataset',
-        pipeline=__train_pipeline))
+        type=__dataset_type,
+        pipeline=__train_pipeline),
+    val=dict(
+        type=__dataset_type,
+        test_mode=True,
+        pipeline=__test_pipeline),
+    test=dict(
+        type=__dataset_type,
+        test_mode=True,
+        pipeline=__test_pipeline)
+)
