@@ -163,6 +163,7 @@ def update_or_add_custom_hook(cfg: Config, hook_cfg: ConfigDict):
         custom_hooks.append(hook_cfg)
     cfg['custom_hooks'] = custom_hooks
 
+
 def set_random_seed(seed, deterministic=True):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
