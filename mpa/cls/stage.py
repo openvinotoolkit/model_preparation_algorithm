@@ -204,19 +204,12 @@ class ClsStage(Stage):
 
                 if not cfg.model.get('multilabel', False) and not cfg.model.get('hierarchical', False):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
-                    gamma = 2 if efficient_mode else 3
                     sampler_type = 'balanced'
 
-                    print(train_data_cfg.num_data)
-                    print(dst_classes)
-                    cls_num_list = [ train_data_cfg.num_data[data_cls] for data_cls in dst_classes ]
-                    print(cls_num_list)
-                    imb_ratio = float( min(cls_num_list) / max(cls_num_list) )
-                    print(imb_ratio)
-
-                    if imb_ratio > 0.5 and ( len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes) ):
+                    if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
                         cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
                     else:
+                        cls_num_list = [train_data_cfg.num_data[data_cls] for data_cls in dst_classes]
                         if cfg.model.head.type == 'NonLinearClsHead':
                             cfg.model.head.type = 'NonLinearIBLossHead'
                         else:
@@ -230,7 +223,7 @@ class ClsStage(Stage):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
 
-                if imb_ratio > 0.5 and ( len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes) ):
+                if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
                     sampler_flag = False
                 else:
                     sampler_flag = True
