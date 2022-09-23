@@ -10,6 +10,7 @@ from .version import __version__, get_version
 from .builder import build, build_workflow_hook
 from .stage import Stage, get_available_types
 from .workflow import Workflow
+from . import cls
 
 
 class MPAConstants:

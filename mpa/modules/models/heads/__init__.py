@@ -3,3 +3,5 @@
 #
 
 # flake8: noqa
+
+from . import supcon_cls_head

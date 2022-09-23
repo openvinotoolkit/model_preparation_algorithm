@@ -1,8 +1,7 @@
 _base_: [
     './train.yaml',
-    '../_base_/data/cls_data.py',
-    '../_base_/models/classifiers/classifier.py',
-]
+    '../_base_/data/supcon_data.py',
+    '../_base_/models/cls_supcon.py',]
 
 runner:
     max_epochs: 1
@@ -14,10 +13,10 @@ optimizer:
     type: SGD
     lr: 0.01
     momentum: 0.9
-    weight_decay: 0.0005
+    weight_decay: 0.0001
 
-evaluation: 
-    metric: ['accuracy', 'class_accuracy']
+# evaluation:
+    # metric: ['accuracy', 'class_accuracy']
 
 # task_adapt:
 #     type: 'mpa'

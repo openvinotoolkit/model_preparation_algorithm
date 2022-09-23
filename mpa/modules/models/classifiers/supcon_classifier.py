@@ -1,0 +1,30 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+import torch
+import torch.nn as nn
+
+from mmcls.models.builder import CLASSIFIERS
+
+from mpa.modules.models.classifiers.sam_classifier import ImageClassifier
+
+
+@CLASSIFIERS.register_module()
+class SupConClassifier(ImageClassifier):
+    def __init__(self, backbone, neck=None, head=None, pretrained=None):
+        super(SupConClassifier, self).__init__(
+            backbone, neck=neck, head=head, pretrained=pretrained
+        )
+
+    def forward_train(self, img, gt_label, **kwargs):
+        x = self.extract_feat(img)
+        losses = dict()
+        loss = self.head.forward_train(x, gt_label, fc_only=False)
+        losses.update(loss)
+        return losses
+
+    def extract_prob(self, img):
+        """Test without augmentation."""
+        x = self.extract_feat(img)
+        return nn.functional.softmax(self.head.fc(x)), x

@@ -13,6 +13,7 @@ import mpa.modules.datasets.pipelines.transforms.augmix
 import mpa.modules.datasets.pipelines.transforms.ote_transforms
 import mpa.modules.datasets.pipelines.transforms.random_augment
 import mpa.modules.datasets.pipelines.transforms.random_ratio_crop
+import mpa.modules.datasets.pipelines.transforms.two_crop_transform
 
 import mpa.modules.datasets.cls_csv_dataset
 import mpa.modules.datasets.cls_csv_incr_dataset
@@ -36,8 +37,10 @@ import mpa.modules.models.heads.custom_hierarchical_non_linear_cls_head
 
 import mpa.modules.models.heads.semisl_cls_head
 import mpa.modules.models.heads.task_incremental_classifier_head
+import mpa.modules.models.heads.supcon_cls_head
+
 import mpa.modules.models.losses.class_balanced_losses
 import mpa.modules.models.losses.cross_entropy_loss
 import mpa.modules.models.losses.asymmetric_loss_with_ignore
 import mpa.modules.models.losses.triplet_loss
-
+import mpa.modules.models.losses.supcon_loss
