@@ -6,6 +6,7 @@ import torch
 from mmcv.runner import HOOKS, Fp16OptimizerHook
 from mmcv.parallel import is_module_wrapper
 
+
 @HOOKS.register_module()
 class Fp16SAMOptimizerHook(Fp16OptimizerHook):
     '''Sharpness-aware Minimization optimizer hook
@@ -24,10 +25,8 @@ class Fp16SAMOptimizerHook(Fp16OptimizerHook):
 
     def before_train_epoch(self, runner):
         super().before_train_epoch(runner)
-        print("BEFOR TRAIN EPOCH")
         model = self._get_model(runner)
         if hasattr(model.head.compute_loss, 'cur_epoch'):
-            print("UPDATE CUR EPOCH")
             model.head.compute_loss.cur_epoch = runner.epoch
 
     def after_train_iter(self, runner):
@@ -86,13 +85,13 @@ class Fp16SAMOptimizerHook(Fp16OptimizerHook):
         runner.meta.setdefault(
                 'fp16', {})['loss_scaler'] = self.loss_scaler.state_dict()
         runner.log_buffer.update({'sharpness': float(max_loss - curr_loss), 'max_loss': float(max_loss)})
-    
+
     def _get_model(self, runner):
         model = runner.model
         if is_module_wrapper(model):
             model = model.module
         return model
-    
+
     def _get_current_batch(self, model):
         if hasattr(model, 'module'):
             model = model.module

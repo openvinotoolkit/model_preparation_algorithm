@@ -3,17 +3,18 @@
 #
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
 from mmcls.models.builder import LOSSES
 from mmcls.models.losses import CrossEntropyLoss
 
+
 def ib_loss(input_values, ib):
-    """Computes the focal loss"""
+    """Computes the ib loss"""
     loss = input_values * ib
     return loss.mean()
+
 
 @LOSSES.register_module()
 class IBLoss(CrossEntropyLoss):
@@ -26,7 +27,6 @@ class IBLoss(CrossEntropyLoss):
         self.num_classes = num_classes
         self._cur_epoch = 0
         self._start_epoch = start
-        print("IB LOSS")
 
     def get_weight(self, cls_num_list):
         if cls_num_list is None:
@@ -43,17 +43,14 @@ class IBLoss(CrossEntropyLoss):
     @cur_epoch.setter
     def cur_epoch(self, epoch):
         self._cur_epoch = epoch
-        print(f"CUR EPOCH : {self._cur_epoch}")
 
     def forward(self, input, target, features):
         if self._cur_epoch < self._start_epoch:
             return super().forward(input, target)
         else:
-            grads = torch.sum(torch.abs(F.softmax(input, dim=1) - F.one_hot(target, self.num_classes)),1) # N * 1
+            grads = torch.sum(torch.abs(F.softmax(input, dim=1) - F.one_hot(target, self.num_classes)), 1)
             ib = grads * features.reshape(-1)
             ib = self.alpha / (ib + self.epsilon)
             ce_loss = F.cross_entropy(input, target, weight=self.weight.to(input.get_device()), reduction='none')
-            #ce_loss = super().forward(input, target, reduction_override='none', weight=self.weight)
             loss = ce_loss * ib
             return loss.mean()
-
