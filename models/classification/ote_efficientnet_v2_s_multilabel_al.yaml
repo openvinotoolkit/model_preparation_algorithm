@@ -8,7 +8,7 @@ model:
     head:
         type: CustomMultiLabelNonLinearClsHead
         normalized: True
-        scale: 20.0
+        scale: 7.0
         act_cfg:
             type: PReLU
         loss:
