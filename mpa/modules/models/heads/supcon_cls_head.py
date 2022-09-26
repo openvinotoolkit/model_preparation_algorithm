@@ -76,11 +76,11 @@ class SupConClsHead(BaseHead):
                 _, loss = self.compute_loss(None, gt_labels, fc_feats=fc_feats)
                 losses.update(loss)
                 return losses
+
         bsz = gt_labels.shape[0]
         mlp_feats = F.normalize(self.mlp(x), dim=1)
         f1, f2 = torch.split(mlp_feats, [bsz, bsz], dim=0)
-        mlp_feats = torch.cat(f1.unsqueze(1), f2.unsqueeze(2), dim=1)
-        loss_sc, loss_ce = self.compute_loss(mlp_feats, gt_labels, fc_feats=fc_feats)
-        loss = loss_sc + self.lamda * loss_ce
+        mlp_feats = torch.cat([f1.unsqueeze(1), f2.unsqueeze(1)], dim=1)
+        loss = self.compute_loss(mlp_feats, gt_labels, fc_feats=fc_feats)
         losses.update(loss)
         return losses

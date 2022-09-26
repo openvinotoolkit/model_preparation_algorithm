@@ -16,12 +16,13 @@ class SupConLoss(nn.Module):
     Code adapted from https://github.com/HobbitLong/SupContrast.
     """
     def __init__(self, loss_weight=1.0, temperature=0.07, contrast_mode='all',
-                 base_temperature=0.07):
+                 base_temperature=0.07, lamda=1.0):
         super(SupConLoss, self).__init__()
         self.loss_weight = loss_weight
         self.temperature = temperature
         self.contrast_mode = contrast_mode
         self.base_temperature = base_temperature
+        self.lamda = lamda
 
     def forward(self, features, labels=None, mask=None, fc_feats=None, fc_only=False):
         """Compute loss for model. If both `labels` and `mask` are None,
@@ -41,13 +42,19 @@ class SupConLoss(nn.Module):
                   if features.is_cuda
                   else torch.device('cpu'))
 
+        losses = dict()
+        losses['loss'] = 0
+
         if fc_feats is not None:
             if fc_feats.shape[0] == labels.shape[0] * 2:
-                ce_loss = nll_loss(log_softmax(fc_feats, dim=1), torch.cat([labels, labels], dim=0))
+                losses['loss'] = nll_loss(log_softmax(fc_feats, dim=1), torch.cat([labels, labels], dim=0))
             else:
-                ce_loss = nll_loss(log_softmax(fc_feats, dim=1), labels)
+                losses['loss'] = nll_loss(log_softmax(fc_feats, dim=1), labels)
+
+            losses['loss'] = losses['loss'] * self.loss_weight
+
             if fc_only:
-                return None, self.loss_weight * ce_loss
+                return losses
 
         if len(features.shape) < 3:
             raise ValueError('`features` needs to be [bsz, n_views, ...],'
@@ -109,7 +116,5 @@ class SupConLoss(nn.Module):
         loss = -(self.temperature / self.base_temperature) * mean_log_prob_pos
         loss = loss.view(anchor_count, batch_size).mean()
 
-        if fc_feats is None:
-            return self.loss_weight * loss, None
-        else:
-            return self.loss_weight * loss, self.loss_weight * ce_loss
+        losses['loss'] += self.loss_weight * self.lamda * loss
+        return losses

@@ -13,6 +13,23 @@ from mmcv.utils import build_from_cfg
 
 
 @PIPELINES.register_module()
+class PairToTensor(object):
+
+    def __init__(self, keys):
+        self.keys = keys
+        assert(len(keys) == 2)
+
+    def __call__(self, results):
+        results['img'] = to_tensor(np.ascontiguousarray(
+            np.stack((results[self.keys[0]], results[self.keys[1]]), axis=0).transpose(0, 3, 1, 2)))
+        return results
+
+    def __repr__(self):
+        return self.__class__.__name__ + f'(keys={self.keys})'
+
+
+
+@PIPELINES.register_module()
 class TwoCropTransform(object):
     def __init__(self, pipeline):
         self.pipeline1 = Compose([build_from_cfg(p, PIPES) for p in pipeline])
@@ -25,4 +42,8 @@ class TwoCropTransform(object):
         data = deepcopy(data1)
         data['img'] = to_tensor(np.ascontiguousarray(
             np.stack((data1['img'], data2['img']), axis=0).transpose(0, 3, 1, 2)))
+
+        # data = deepcopy(data1)
+        # data['img1'] = data.pop('img')
+        # data['img2'] = deepcopy(data2['img'])
         return data
