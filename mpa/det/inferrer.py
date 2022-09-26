@@ -199,7 +199,7 @@ class DetectionInferrer(DetectionStage):
             metric = metric['mAP'] if isinstance(cfg.evaluation.metric, list) else metric[cfg.evaluation.metric]
 
         # Check and unwrap ImageTilingDataset object from TaskAdaptEvalDataset
-        while dataset.get('dataset'):
+        while hasattr(dataset, 'dataset'):
             dataset = dataset.dataset
             if isinstance(dataset, ImageTilingDataset):
                 saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
