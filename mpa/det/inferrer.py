@@ -198,13 +198,16 @@ class DetectionInferrer(DetectionStage):
             metric = dataset.evaluate(eval_predictions, **cfg.evaluation)
             metric = metric['mAP'] if isinstance(cfg.evaluation.metric, list) else metric[cfg.evaluation.metric]
 
-        if isinstance(dataset, ImageTilingDataset):
-            saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
-            feature_vectors = [feature_vectors[i] for i in range(dataset.num_samples)]
-            if not dataset.merged_results:
-                eval_predictions = dataset.merge(eval_predictions)
-            else:
-                eval_predictions = dataset.merged_results
+        # Check and unwrap ImageTilingDataset object from TaskAdaptEvalDataset
+        while dataset.get('dataset'):
+            dataset = dataset.dataset
+            if isinstance(dataset, ImageTilingDataset):
+                saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
+                feature_vectors = [feature_vectors[i] for i in range(dataset.num_samples)]
+                if not dataset.merged_results:
+                    eval_predictions = dataset.merge(eval_predictions)
+                else:
+                    eval_predictions = dataset.merged_results
 
         outputs = dict(
             classes=target_classes,
