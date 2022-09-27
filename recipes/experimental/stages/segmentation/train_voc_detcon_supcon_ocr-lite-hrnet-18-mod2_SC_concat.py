@@ -53,6 +53,20 @@ lr_config = dict(warmup_iters=100)
 log_config = dict(interval=1)
 evaluation = dict(save_best='mDice')
 
+custom_hooks = [
+    dict(type='LazyEarlyStoppingHook',
+         patience=8,
+         iteration_patience=0,
+         metric='mDice',
+         interval=1,
+         priority=75,
+         start=1
+         ),
+    dict(type='SwitchPipelineHook',
+         interval=1
+         ),
+]
+
 task_adapt = None
 
 seed = 42

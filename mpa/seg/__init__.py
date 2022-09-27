@@ -14,6 +14,7 @@ import mpa.modules.datasets.seg_incr_voc_dataset
 import mpa.modules.datasets.seg_task_adapt_dataset
 
 import mpa.modules.hooks
+import mpa.modules.experimental.hooks
 
 import mpa.modules.models.segmentors
 import mpa.modules.models.heads.custom_fcn_head

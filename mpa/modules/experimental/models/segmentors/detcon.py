@@ -159,7 +159,6 @@ class DetConB(EncoderDecoder):
         in_index=None,
         ignore_bg=False,
         loss_weights=None,
-        loss_interval=None,
         **kwargs
     ):
         assert projector and predictor
@@ -182,10 +181,6 @@ class DetConB(EncoderDecoder):
         self.base_momentum = base_momentum
         self.momentum = base_momentum
         self.loss_weights = loss_weights
-        self.loss_interval = loss_interval
-        if self.loss_interval:
-            assert isinstance(self.loss_interval, int) and self.loss_interval >= 1
-            self.loss_interval_cnt = 0
 
         self.num_classes = num_classes
         self.num_samples = num_samples
@@ -373,28 +368,30 @@ class DetConBSupCon(DetConB):
         """
 
         losses = dict()
-        img1, img2 = img[:, 0], img[:, 1]
-        mask1, mask2 = gt_semantic_seg[:, 0], gt_semantic_seg[:, 1]
-        embds, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
+
+        if img.ndim == 4:
+            # supervised learning with interval
+            e1 = self.online_net(img)
+
+            # decode head
+            loss_decode, _ = self._decode_head_forward_train(
+                e1, img_metas, gt_semantic_seg=gt_semantic_seg, pixel_weights=pixel_weights)
+
+            losses.update(loss_decode)
+
+        else:
+            # supcon training
+            img1, img2 = img[:, 0], img[:, 1]
+            mask1, mask2 = gt_semantic_seg[:, 0], gt_semantic_seg[:, 1]
+            embds, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
         
-        # decode head
-        # In SupCon, img1 is only used for supervised learning.
-        e1, _ = embds
-        loss_decode, _ = self._decode_head_forward_train(
-            e1, img_metas, gt_semantic_seg=mask1, pixel_weights=pixel_weights)
+            # decode head
+            e1, _ = embds
+            loss_decode, _ = self._decode_head_forward_train(
+                e1, img_metas, gt_semantic_seg=mask1, pixel_weights=pixel_weights)
             
-        losses.update(loss_decode)
-
-        if self.loss_interval:
-            self.loss_interval_cnt += 1
-
-        if self.loss_interval is None or \
-            (self.loss_interval and self.loss_interval_cnt == self.loss_interval):
-            # Cases to use detcon loss
-            #   1. self.loss_interval was not set
-            #       : always use detcon loss
-            #   2. self.loss_interval.cnt == self.loss_interval
-            #       : use detcon loss once per {self.loss_interval} epoch
+            losses.update(loss_decode)
+            
             with torch.no_grad():
                 self._momentum_update()
                 _, (ema_proj1, ema_proj2), (ema_ids1, ema_ids2) = \
@@ -450,9 +447,5 @@ class DetConBSupCon(DetConB):
 
             else:
                 losses.update(dict(loss_detcon=loss_detcon))
-
-            if self.loss_interval:
-                # reset self.loss_interval_cnt after applying detcon loss
-                self.loss_interval_cnt = 0
 
         return losses
