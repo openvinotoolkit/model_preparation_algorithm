@@ -56,7 +56,6 @@ class SupConClsHead(BaseHead):
         )
 
         self.lamda = lamda
-        # self.loss = SupConLoss(temperature, contrast_mode, base_temperature)
 
     def forward_train(self, x, gt_labels, fc_only=False):
         """forward_train head using the Supervised Contrastive Loss

@@ -18,10 +18,6 @@ optimizer:
 # evaluation:
     # metric: ['accuracy', 'class_accuracy']
 
-# task_adapt:
-#     type: 'mpa'
-#     op: 'REPLACE'
-
 custom_hooks:
 - type: NoBiasDecayHook
 - type: ModelEmaV2Hook
