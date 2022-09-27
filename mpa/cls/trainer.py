@@ -32,7 +32,6 @@ from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.modules.hooks.fp16_sam_optimizer_hook import Fp16SAMOptimizerHook
 from mpa.utils.logger import get_logger
 from mpa.utils.data_cpu import MMDataCPU
-from mpa.utils.config_utils import set_random_seed
 
 logger = get_logger()
 
@@ -48,7 +47,6 @@ class ClsTrainer(ClsStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=True, **kwargs)
-        set_random_seed(seed=cfg.seed)
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment

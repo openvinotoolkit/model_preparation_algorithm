@@ -26,12 +26,5 @@ task_adapt:
 custom_hooks:
 - type: NoBiasDecayHook
   priority: 45
-- type: LazyEarlyStoppingHook
-  start: 0
-  patience: 10
-  iteration_patience: 0
-  metric: 'mAP'
-  interval: 1
-  priority: 75
 
 seed: 5
