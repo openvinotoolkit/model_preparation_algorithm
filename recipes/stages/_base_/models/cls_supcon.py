@@ -22,7 +22,8 @@ model = dict(
             type='SupConLoss',
             temperature=0.07,
             contrast_mode='all',
-            base_temperature=0.07
+            base_temperature=0.07,
+            lamda=1.0
         )
     )
 )

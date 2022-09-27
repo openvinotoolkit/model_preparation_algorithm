@@ -4,14 +4,14 @@ _base_: [
     '../_base_/models/cls_supcon.py',]
 
 runner:
-    max_epochs: 1
+    max_epochs: 100
 
 optimizer_config:
     type: SAMOptimizerHook
 
 optimizer:
     type: SGD
-    lr: 0.01
+    lr: 0.2
     momentum: 0.9
     weight_decay: 0.0001
 
