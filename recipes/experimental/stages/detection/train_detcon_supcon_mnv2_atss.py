@@ -29,6 +29,10 @@ custom_hooks = [
         interval=1,
         priority=75,
     ),
+    dict(
+        type='SwitchPipelineHook',
+        interval=1
+    ),
 ]
 
 lr_config = dict(
