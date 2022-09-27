@@ -157,8 +157,7 @@ class ClsTrainer(ClsStage):
         for ds in dataset:
             if isinstance(ds, list):
                 for sub_ds in ds:
-                    if len(sub_ds) > max_num_images:
-                        max_num_images = len(sub_ds)
+                    max_num_images = max(len(sub_ds), max_num_images)
                     sub_dl = build_dataloader(
                         sub_ds,
                         sub_ds.samples_per_gpu if hasattr(sub_ds, 'samples_per_gpu') else cfg.data.samples_per_gpu,
@@ -173,8 +172,7 @@ class ClsTrainer(ClsStage):
                     sub_loaders.append(sub_dl)
                 data_loaders.append(ComposedDL(sub_loaders))
             else:
-                if len(ds) > max_num_images:
-                    max_num_images = len(ds)
+                max_num_images = max(max_num_images, len(ds))
                 data_loaders.append(
                     build_dataloader(
                         ds,

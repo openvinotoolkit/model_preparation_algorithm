@@ -10,5 +10,5 @@ model:
         loss:
             type: AsymmetricLossWithIgnore
             gamma_pos: 0.0
-            gamma_neg: 4.0
-            reduction: sum
+            gamma_neg: 0.0
+            reduction: mean

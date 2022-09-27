@@ -14,5 +14,5 @@ model:
         loss:
             type: AsymmetricAngularLossWithIgnore
             gamma_pos: 0.0
-            gamma_neg: 0.0
+            gamma_neg: 1.0
             reduction: sum

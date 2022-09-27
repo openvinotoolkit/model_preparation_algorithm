@@ -78,8 +78,6 @@ class ClsStage(Stage):
             if 'num_classes' not in cfg.data:
                 cfg.data.num_classes = len(cfg.data.train.get('classes', []))
             cfg.model.head.num_classes = cfg.data.num_classes
-            if cfg.model.neck.type == 'MLDecoder':
-                cfg.model.neck.num_classes = cfg.data.num_classes
 
         if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
             cfg.model.head.topk = (1,) if cfg.model.head.num_classes < 5 else (1, 5)
@@ -157,12 +155,8 @@ class ClsStage(Stage):
         data_classes = Stage.get_data_classes(cfg)
         if model_classes:
             cfg.model.head.num_classes = len(model_classes)
-            if cfg.model.neck.type == 'MLDecoder':
-                cfg.model.neck.num_classes = len(model_classes)
         elif data_classes:
             cfg.model.head.num_classes = len(data_classes)
-            if cfg.model.neck.type == 'MLDecoder':
-                cfg.model.neck.num_classes = len(data_classes)
         model_meta['CLASSES'] = model_classes
 
         if not train_data_cfg.get('new_classes', False):  # when train_data_cfg doesn't have 'new_classes' key
@@ -207,8 +201,6 @@ class ClsStage(Stage):
 
                 # model configuration update
                 cfg.model.head.num_classes = len(dst_classes)
-                if cfg.model.neck.type == 'MLDecoder':
-                    cfg.model.neck.num_classes = len(dst_classes)
 
                 if not cfg.model.get('multilabel', False) and not cfg.model.get('hierarchical', False):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
@@ -254,8 +246,6 @@ class ClsStage(Stage):
             elif train_data_cfg.get('new_classes'):
                 dst_classes, _ = refine_cls(train_data_cfg, data_classes, model_meta, adapt_type)
                 cfg.model.head.num_classes = len(dst_classes)
-                if cfg.model.neck.type == 'MLDecoder':
-                    cfg.model.neck.num_classes = len(dst_classes)
 
         # Pseudo label augmentation
         pre_stage_res = kwargs.get('pre_stage_res', None)
