@@ -13,6 +13,14 @@ from mmcls.models.losses import CrossEntropyLoss
 @LOSSES.register_module()
 class IBLoss(CrossEntropyLoss):
     def __init__(self, num_classes, start=5, alpha=1000., **kwargs):
+        """IB Loss
+        https://arxiv.org/abs/2110.02444
+
+        Args:
+            num_classes (int): Number of classes in dataset
+            start (int): Epoch to start finetuning with IB loss
+            alpha (float): Alpha for IB loss
+        """
         super(IBLoss, self).__init__(loss_weight=1.0)
         assert alpha > 0
         self.alpha = alpha

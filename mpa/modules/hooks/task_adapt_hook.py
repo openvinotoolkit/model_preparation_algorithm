@@ -41,7 +41,7 @@ class TaskAdaptHook(Hook):
         logger.info(f'Task Adaptation: {self.src_classes} => {self.dst_classes}')
         logger.info(f'- Efficient Mode: {self.efficient_mode}')
         logger.info(f'- Sampler type: {self.sampler_type}')
-        logger.info(f'- Sampler flag : {self.sampler_flag}')
+        logger.info(f'- Sampler flag: {self.sampler_flag}')
 
     def before_epoch(self, runner):
         if self.sampler_flag:

@@ -9,6 +9,12 @@ from mmcv.parallel import is_module_wrapper
 @HOOKS.register_module()
 class IBLossHook(Hook):
     def __init__(self, dst_classes):
+        """Hook for IB loss.
+        It passes the number of data per class and current epoch to IB loss class.
+
+        Args:
+        dst_classes (list): A list of classes including new_classes to be newly learned
+        """
         self.cls_num_list = None
         self.dst_classes = dst_classes
 
