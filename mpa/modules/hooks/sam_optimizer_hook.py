@@ -4,7 +4,6 @@
 
 import torch
 from mmcv.runner import HOOKS, OptimizerHook
-from mmcv.parallel import is_module_wrapper
 
 
 @HOOKS.register_module()
@@ -22,12 +21,6 @@ class SAMOptimizerHook(OptimizerHook):
         self.start_epoch = start_epoch
         if rho < 0.0:
             raise ValueError('rho should be greater than 0 for SAM optimizer')
-
-    def before_train_epoch(self, runner):
-        super().before_train_epoch(runner)
-        model = self._get_model(runner)
-        if hasattr(model.head.compute_loss, 'cur_epoch'):
-            model.head.compute_loss.cur_epoch = runner.epoch
 
     def after_train_iter(self, runner):
         '''Perform SAM optimization
@@ -80,12 +73,6 @@ class SAMOptimizerHook(OptimizerHook):
         # Shaprpness-aware param update
         runner.optimizer.step()  # param -= lr * sam_grad
         runner.log_buffer.update({'sharpness': float(max_loss - curr_loss), 'max_loss': float(max_loss)})
-
-    def _get_model(self, runner):
-        model = runner.model
-        if is_module_wrapper(model):
-            model = model.module
-        return model
 
     def _get_current_batch(self, model):
         if hasattr(model, 'module'):
