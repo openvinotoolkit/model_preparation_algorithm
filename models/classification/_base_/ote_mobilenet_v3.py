@@ -8,7 +8,7 @@ model = dict(
         width_mult=1.0),
     neck=dict(type='GlobalAveragePooling'),
     head=dict(
-        type='NonLinearClsHead',
+        type='CustomNonLinearClsHead',
         num_classes=1000,
         in_channels=576,
         hid_channels=1024,

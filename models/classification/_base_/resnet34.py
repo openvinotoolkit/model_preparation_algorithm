@@ -9,7 +9,7 @@ model = dict(
         style='pytorch'),
     neck=dict(type='GlobalAveragePooling'),
     head=dict(
-        type='LinearClsHead',
+        type='CustomLinearClsHead',
         in_channels=512,
         num_classes=10,
         loss=dict(type='CrossEntropyLoss', loss_weight=1.0),

@@ -1,5 +1,5 @@
 model:
     head:
-        type: NonLinearClsHead
+        type: CustomNonLinearClsHead
         act_cfg:
             type: HSwish

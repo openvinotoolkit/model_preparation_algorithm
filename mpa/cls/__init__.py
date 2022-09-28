@@ -27,9 +27,8 @@ import mpa.modules.models.backbones.mobilenetv3
 import mpa.modules.models.backbones.wideresnet
 import mpa.modules.models.classifiers
 import mpa.modules.models.heads.cls_incremental_head
-import mpa.modules.models.heads.ib_loss_head
 import mpa.modules.models.heads.multi_classifier_head
-import mpa.modules.models.heads.non_linear_cls_head
+import mpa.modules.models.heads.custom_cls_head
 import mpa.modules.models.heads.custom_multi_label_linear_cls_head
 import mpa.modules.models.heads.custom_multi_label_non_linear_cls_head
 import mpa.modules.models.heads.custom_hierarchical_linear_cls_head

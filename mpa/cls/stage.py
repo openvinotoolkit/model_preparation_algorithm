@@ -209,16 +209,15 @@ class ClsStage(Stage):
                     if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
                         cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
                     else:
-                        cls_num_list = [train_data_cfg.num_data[data_cls] for data_cls in dst_classes]
-                        if cfg.model.head.type == 'NonLinearClsHead':
-                            cfg.model.head.type = 'NonLinearIBLossHead'
-                        else:
-                            cfg.model.head.type = 'IBLossHead'
                         cfg.model.head.loss = ConfigDict(
                             type='IBLoss',
-                            cls_num_list=cls_num_list,
                             num_classes=cfg.model.head.num_classes,
                         )
+                        ib_loss_hook = ConfigDict(
+                            type='IBLossHook',
+                            dst_classes=dst_classes,
+                        )
+                        update_or_add_custom_hook(cfg, ib_loss_hook)
                 else:
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
