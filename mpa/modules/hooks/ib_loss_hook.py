@@ -13,7 +13,7 @@ class IBLossHook(Hook):
         It passes the number of data per class and current epoch to IB loss class.
 
         Args:
-        dst_classes (list): A list of classes including new_classes to be newly learned
+            dst_classes (list): A list of classes including new_classes to be newly learned
         """
         self.cls_num_list = None
         self.dst_classes = dst_classes
