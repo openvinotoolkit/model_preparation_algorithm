@@ -191,6 +191,10 @@ class DetConB(EncoderDecoder):
             self.logger.info('load model from: {}'.format(pretrained))
             load_checkpoint(self.backbone, pretrained, strict=False, map_location='cpu', 
                             logger=self.logger, revise_keys=[(r'^backbone\.', '')])
+        else:
+            self.logger.warn((
+                '`pretrained` is None. If `load_from` is set, '
+                'weights of online network and target network will not be matched!'))
         
         self.online_net = self.backbone
         self.projector_online = DetConMLP(**projector)

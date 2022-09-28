@@ -74,17 +74,21 @@ class RegionCLM(EncoderDecoder):
         self.input_transform = input_transform
         self.align_corners = align_corners
 
-        self.backbone = self.encoder_q = builder.build_backbone(backbone)
+        if pretrained is not None:
+            self.logger.info('load model from: {}'.format(pretrained))
+            load_checkpoint(self.backbone, pretrained, strict=False, map_location='cpu', 
+                            logger=self.logger, revise_keys=[(r'^backbone\.', '')])
+        else:
+            self.logger.warn((
+                '`pretrained` is None. If `load_from` is set, '
+                'weights of online network and target network will not be matched!'))
+        
+        self.encoder_q = self.backbone
         self.head_q = builder.build_head(head)
 
         self.encoder_k = builder.build_backbone(backbone)    
         self.head_k = builder.build_head(head)
 
-        if pretrained is not None:
-            self.logger.info('load model from: {}'.format(pretrained))
-            load_checkpoint(self.backbone, pretrained, strict=False, map_location='cpu', 
-                            logger=self.logger, revise_keys=[(r'^backbone\.', '')])
-        
         self.head_q.init_weights(init_linear='kaiming')
         for param_q, param_k in zip(self.encoder_q.parameters(),
                                     self.encoder_k.parameters()):

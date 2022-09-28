@@ -27,4 +27,4 @@ stages:
     #   mode: eval
     #   config: {{ fileDirname }}/stages/segmentation/train_voc_detcon_supcon_ocr-lite-hrnet-18-mod2_SC.py
 
-load_from: https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/custom_semantic_segmentation/litehrnet18_imagenet1k_rsc.pth
+# load_from: https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/custom_semantic_segmentation/litehrnet18_imagenet1k_rsc.pth

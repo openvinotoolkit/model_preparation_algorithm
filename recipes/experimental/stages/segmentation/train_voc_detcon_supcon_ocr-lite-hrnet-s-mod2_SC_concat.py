@@ -8,6 +8,7 @@ _base_ = [
 task = 'segmentation'
 
 model = dict(
+    pretrained='https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/custom_semantic_segmentation/litehrnetsv2_imagenet1k_rsc.pth',
     is_task_adapt=False,
     downsample=8,
     input_transform='resize_concat',
