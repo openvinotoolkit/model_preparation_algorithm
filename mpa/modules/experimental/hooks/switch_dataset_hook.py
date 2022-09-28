@@ -28,7 +28,8 @@ class SwitchPipelineHook(Hook):
             raise NotImplementedError(
                 'Switching pipeline for each specific iteration is not implemented.')
 
-        assert not (iteration != 0 and interval != 1), \
+        assert not (iteration < 0 or interval < 1)
+        assert not (iteration != 0 and interval > 1), \
             'Both methods cannot be use at the same time.'
 
         self.iteration = iteration
@@ -47,7 +48,7 @@ class SwitchPipelineHook(Hook):
 
     @check_input_parameters_type()
     def before_train_epoch(self, runner: BaseRunner):
-        if self.interval > 1 and self.cnt == self.interval-1:
+        if self.cnt == self.interval-1:
             # start supcon training
             # TODO : not using list index for stability
             dataset = self.get_dataset(runner)
@@ -60,7 +61,7 @@ class SwitchPipelineHook(Hook):
 
     @check_input_parameters_type()
     def before_train_iter(self, runner: BaseRunner):
-        if self.interval > 1 and self.cnt == self.interval-1:
+        if self.cnt == self.interval-1:
             # start supcon training
             # TODO : not using list index for stability
             dataset = self.get_dataset(runner)
@@ -73,10 +74,10 @@ class SwitchPipelineHook(Hook):
 
     @check_input_parameters_type()
     def after_train_iter(self, runner: BaseRunner):
-        if self.interval > 1 and self.cnt < self.interval-1:
+        if self.cnt < self.interval-1:
             self.cnt += 1
 
-        elif self.interval > 1 and self.cnt == self.interval-1:
+        elif self.cnt == self.interval-1:
             # end supcon training
             # TODO : not using list index for stability
             dataset = self.get_dataset(runner)
