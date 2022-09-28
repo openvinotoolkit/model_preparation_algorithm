@@ -1,8 +1,6 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-import json
-import os
 from typing import List, Tuple
 
 import torch
@@ -19,7 +17,6 @@ from mpa.registry import STAGES
 from .stage import DetectionStage
 from mpa.utils.logger import get_logger
 
-import mmcv
 
 logger = get_logger()
 
@@ -199,15 +196,16 @@ class DetectionInferrer(DetectionStage):
             metric = metric['mAP'] if isinstance(cfg.evaluation.metric, list) else metric[cfg.evaluation.metric]
 
         # Check and unwrap ImageTilingDataset object from TaskAdaptEvalDataset
-        while hasattr(dataset, 'dataset'):
+        while hasattr(dataset, 'dataset') and not isinstance(dataset, ImageTilingDataset):
             dataset = dataset.dataset
-            if isinstance(dataset, ImageTilingDataset):
-                saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
-                feature_vectors = [feature_vectors[i] for i in range(dataset.num_samples)]
-                if not dataset.merged_results:
-                    eval_predictions = dataset.merge(eval_predictions)
-                else:
-                    eval_predictions = dataset.merged_results
+
+        if isinstance(dataset, ImageTilingDataset):
+            saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
+            feature_vectors = [feature_vectors[i] for i in range(dataset.num_samples)]
+            if not dataset.merged_results:
+                eval_predictions = dataset.merge(eval_predictions)
+            else:
+                eval_predictions = dataset.merged_results
 
         outputs = dict(
             classes=target_classes,
