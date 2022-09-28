@@ -52,7 +52,7 @@ class DetectionInferrer(DetectionStage):
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         outputs = self.infer(cfg, eval=eval, dump_features=dump_features,
-                             dump_saliency_map=dump_saliency_map, **kwargs)
+                             dump_saliency_map=dump_saliency_map)
 
         # Save outputs
         # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
@@ -75,7 +75,7 @@ class DetectionInferrer(DetectionStage):
         print(json_dump)
         """
 
-    def infer(self, cfg, eval=False, dump_features=False, dump_saliency_map=False, **kwargs):
+    def infer(self, cfg, eval=False, dump_features=False, dump_saliency_map=False):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'

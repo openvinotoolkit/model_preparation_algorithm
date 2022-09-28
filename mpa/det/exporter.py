@@ -35,10 +35,6 @@ class DetectionExporter(DetectionStage):
         output_path = os.path.join(cfg.work_dir, 'export')
         os.makedirs(output_path, exist_ok=True)
 
-        # TODO[EUGENE]: Disable NMS model tracing for tiling, since we are running NMS after merging
-        # if cfg['train_dataset']['type'] == "ImageTilingDataset":
-        #    cfg.model.test_cfg = None
-
         model = build_detector(cfg.model)
         if model_ckpt:
             load_checkpoint(model=model, filename=model_ckpt, map_location='cpu')
