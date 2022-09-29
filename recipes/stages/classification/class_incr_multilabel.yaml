@@ -1,6 +1,6 @@
 _base_: [
     './train_multilabel.yaml',
-    '../_base_/data/multicls_data.py',
+    '../_base_/data/cls_data.py',
     '../_base_/models/classifiers/classifier.py',
 ]
 
