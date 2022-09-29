@@ -47,6 +47,7 @@ class ClsTrainer(ClsStage):
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=True, **kwargs)
+
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment
@@ -90,6 +91,7 @@ class ClsTrainer(ClsStage):
             repr_ds = datasets[0][0]
         else:
             repr_ds = datasets[0]
+
         if cfg.checkpoint_config is not None:
             cfg.checkpoint_config.meta = dict(
                 mmcls_version=__version__)
