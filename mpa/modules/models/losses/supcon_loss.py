@@ -51,7 +51,7 @@ class SupConLoss(nn.Module):
             else:
                 losses['loss'] = nll_loss(log_softmax(fc_feats, dim=1), labels)
 
-            losses['loss'] = losses['loss'] * self.loss_weight
+            losses['loss'] *= self.loss_weight
 
             if fc_only:
                 return losses
