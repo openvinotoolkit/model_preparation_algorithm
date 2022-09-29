@@ -1,0 +1,18 @@
+_base_: _base_/ote_efficientnet.py
+
+model:
+    type: SAMImageClassifier
+    task: classification
+    backbone:
+        version: b0
+    head:
+        type: CustomMultiLabelNonLinearClsHead
+        normalized: True
+        scale: 7.0
+        act_cfg:
+            type: PReLU
+        loss:
+            type: AsymmetricAngularLossWithIgnore
+            gamma_pos: 0.0
+            gamma_neg: 1.0
+            reduction: sum
