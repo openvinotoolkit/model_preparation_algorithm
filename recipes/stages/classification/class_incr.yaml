@@ -28,3 +28,4 @@ custom_hooks:
   priority: 45
 
 seed: 5
+deterministic: True

@@ -44,8 +44,6 @@ class CustomEvalHook(Hook):
                 self.metric = 'top-1'
 
     def after_train_epoch(self, runner):
-        # TODO move this atribute to runner class
-        runner.save_ema_model = False
         if not self.by_epoch or not self.every_n_epochs(runner, self.interval):
             return
         results = single_gpu_test(runner.model, self.dataloader)
@@ -90,6 +88,7 @@ class CustomEvalHook(Hook):
                 score += val
                 div += 1
         return score / div
+
 
 def single_gpu_test(model, data_loader):
     model.eval()

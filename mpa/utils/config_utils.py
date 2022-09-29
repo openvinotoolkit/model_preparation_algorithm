@@ -2,14 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import os
 import os.path as osp
 import platform
 import shutil
 import sys
-import torch
-import numpy as np
-import random
 import tempfile
 import warnings
 from importlib import import_module
