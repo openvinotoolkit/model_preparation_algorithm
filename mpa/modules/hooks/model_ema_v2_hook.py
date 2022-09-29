@@ -32,7 +32,7 @@ class ModelEmaV2Hook(Hook):
         dataset_len_thr (int): number of train images in the dataset when to enable the EMA hook
     """
 
-    def __init__(self, ema_decay=0.9995, interval=1, start_epoch=1, dataset_len_thr=2000, **kwargs):
+    def __init__(self, ema_decay=0.9995, interval=1, start_epoch=0, dataset_len_thr=2000, **kwargs):
         super().__init__(**kwargs)
         self.ema_decay = ema_decay
         self.interval = interval
