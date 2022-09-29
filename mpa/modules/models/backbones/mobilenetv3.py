@@ -26,7 +26,6 @@ pretrained_root = (
 pretrained_urls = {
     "mobilenetv3_small": pretrained_root + "mobilenetv3-small-55df8e1f.pth?raw=true",
     "mobilenetv3_large": pretrained_root + "mobilenetv3-large-1cd25616.pth?raw=true",
-    #"mobilenetv3_large": "/home/vsovraso/mobilenetv3_large_100_oi_cls.pth",
     "mobilenetv3_large_075": pretrained_root
     + "mobilenetv3-large-0.75-9632d2a8.pth?raw=true",
 }
