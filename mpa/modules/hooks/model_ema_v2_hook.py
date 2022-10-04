@@ -39,19 +39,21 @@ class ModelEmaV2Hook(Hook):
         self.start_epoch = start_epoch
         self.dataset_len_thr = dataset_len_thr
 
-    def before_run(self, runner):
-        """Set up src & dst model parameters."""
-        if runner.max_num_images < self.dataset_len_thr:
-            return
+    def before_train_epoch(self, runner):
+        if not hasattr(self, "use_ema"):
+            self.use_ema = len(runner.data_loader.dataset) > self.dataset_len_thr
 
-        model = runner.model
-        ema_model = ModelEmaV2(model, decay=self.ema_decay, dataset_len_thr=self.dataset_len_thr)
-        runner.ema_model = ema_model
+        if self.use_ema and not hasattr(runner, "ema_model"):
+            model = runner.model
+            ema_model = ModelEmaV2(model, decay=self.ema_decay, dataset_len_thr=self.dataset_len_thr)
+            runner.ema_model = ema_model
+
+    def before_run(self, runner):
         logger.info("\t* EMA V2 Enable")
 
     def after_train_iter(self, runner):
         """Update ema parameter every self.interval iterations."""
-        if len(runner.data_loader.dataset) < self.dataset_len_thr:
+        if not self.use_ema:
             return
 
         if runner.iter % self.interval != 0:
@@ -61,7 +63,7 @@ class ModelEmaV2Hook(Hook):
         if runner.epoch < self.start_epoch:
             # Just copy parameters before start epoch
             return
-        # EMA
+
         runner.ema_model.update()
 
 

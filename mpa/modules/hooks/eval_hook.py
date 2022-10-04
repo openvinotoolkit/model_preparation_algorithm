@@ -47,8 +47,7 @@ class CustomEvalHook(Hook):
         if not self.by_epoch or not self.every_n_epochs(runner, self.interval):
             return
         results = single_gpu_test(runner.model, self.dataloader)
-        if (hasattr(runner, "ema_model") and (runner.epoch >= self.ema_eval_start_epoch)
-            and len(runner.data_loader.dataset) > runner.ema_model.dataset_len_thr):
+        if hasattr(runner, "ema_model") and (runner.epoch >= self.ema_eval_start_epoch):
             results_ema = single_gpu_test(runner.ema_model.module, self.dataloader)
             self.evaluate(runner, results, results_ema)
         else:
@@ -64,16 +63,19 @@ class CustomEvalHook(Hook):
     def evaluate(self, runner, results, results_ema=None):
         eval_res = self.dataloader.dataset.evaluate(
             results, logger=runner.logger, **self.eval_kwargs)
-        if results_ema:
-            eval_res_ema = self.dataloader.dataset.evaluate(
-                results_ema, logger=runner.logger, **self.eval_kwargs)
-            if self.call_score(eval_res_ema) > self.call_score(eval_res):
-                eval_res = eval_res_ema
-                runner.save_ema_model = True
-
         score = self.call_score(eval_res)
         for name, val in eval_res.items():
             runner.log_buffer.output[name] = val
+
+        if results_ema:
+            eval_res_ema = self.dataloader.dataset.evaluate(
+                results_ema, logger=runner.logger, **self.eval_kwargs)
+            score_ema = self.call_score(eval_res_ema)
+            for name, val in eval_res_ema.items():
+                runner.log_buffer.output[name + "_EMA"] = val
+            if score_ema > score:
+                runner.save_ema_model = True
+
         runner.log_buffer.ready = True
         if score >= self.best_score:
             self.best_score = score

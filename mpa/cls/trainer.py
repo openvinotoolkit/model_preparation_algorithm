@@ -156,12 +156,10 @@ class ClsTrainer(ClsStage):
         # updated to adapt list of dataset for the 'train'
         data_loaders = []
         sub_loaders = []
-        max_num_images = 0
         for ds in dataset:
             if isinstance(ds, list):
-                for sub_ds in ds:
-                    max_num_images = max(len(sub_ds), max_num_images)
-                    sub_dl = build_dataloader(
+                sub_loaders = [
+                    build_dataloader(
                         sub_ds,
                         sub_ds.samples_per_gpu if hasattr(sub_ds, 'samples_per_gpu') else cfg.data.samples_per_gpu,
                         sub_ds.workers_per_gpu if hasattr(sub_ds, 'workers_per_gpu') else cfg.data.workers_per_gpu,
@@ -171,11 +169,10 @@ class ClsTrainer(ClsStage):
                         seed=cfg.seed,
                         drop_last=drop_last,
                         persistent_workers=False
-                    )
-                    sub_loaders.append(sub_dl)
+                    ) for sub_ds in ds
+                ]
                 data_loaders.append(ComposedDL(sub_loaders))
             else:
-                max_num_images = max(max_num_images, len(ds))
                 data_loaders.append(
                     build_dataloader(
                         ds,
@@ -189,6 +186,7 @@ class ClsTrainer(ClsStage):
                         drop_last=drop_last,
                         persistent_workers=False
                     ))
+
         # put model on gpus
         if torch.cuda.is_available():
             model = model.cuda()
@@ -235,9 +233,6 @@ class ClsTrainer(ClsStage):
 
         # an ugly walkaround to make the .log and .log.json filenames the same
         runner.timestamp = f'{timestamp}'
-
-        # remember the max number of train images. It is needed for EMA hook heuristic
-        runner.max_num_images = max_num_images
 
         # fp16 setting
         fp16_cfg = cfg.get('fp16', None)
