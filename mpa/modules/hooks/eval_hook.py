@@ -19,13 +19,13 @@ class CustomEvalHook(Hook):
         interval (int): Evaluation interval (by epochs). Default: 1.
     """
 
-    def __init__(self, dataloader, interval=1, by_epoch=True, ema_start_eval=10, **eval_kwargs):
+    def __init__(self, dataloader, interval=1, by_epoch=True, ema_eval_start_epoch=10, **eval_kwargs):
         if not isinstance(dataloader, DataLoader):
             raise TypeError('dataloader must be a pytorch DataLoader, but got'
                             f' {type(dataloader)}')
         self.dataloader = dataloader
         self.interval = interval
-        self.ema_start_eval = ema_start_eval
+        self.ema_eval_start_epoch = ema_eval_start_epoch
         self.eval_kwargs = eval_kwargs
         self.by_epoch = by_epoch
         self.best_loss = 9999999.0
@@ -47,7 +47,9 @@ class CustomEvalHook(Hook):
         if not self.by_epoch or not self.every_n_epochs(runner, self.interval):
             return
         results = single_gpu_test(runner.model, self.dataloader)
-        if hasattr(runner, "ema_model") and (runner.epoch > self.ema_start_eval):
+        breakpoint()
+        if (hasattr(runner, "ema_model") and (runner.epoch >= self.ema_eval_start_epoch)
+            and len(runner.data_loader.dataset) > runner.ema_model.dataset_len_thr):
             results_ema = single_gpu_test(runner.ema_model.module, self.dataloader)
             self.evaluate(runner, results, results_ema)
         else:

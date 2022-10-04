@@ -45,13 +45,13 @@ class ModelEmaV2Hook(Hook):
             return
 
         model = runner.model
-        ema_model = ModelEmaV2(model, decay=self.ema_decay)
+        ema_model = ModelEmaV2(model, decay=self.ema_decay, dataset_len_thr=self.dataset_len_thr)
         runner.ema_model = ema_model
         logger.info("\t* EMA V2 Enable")
 
     def after_train_iter(self, runner):
         """Update ema parameter every self.interval iterations."""
-        if runner.max_num_images < self.dataset_len_thr:
+        if len(runner.data_loader.dataset) < self.dataset_len_thr:
             return
 
         if runner.iter % self.interval != 0:
@@ -84,7 +84,7 @@ class ModelEmaV2(nn.Module):
     GPU assignment and distributed training wrappers.
     """
 
-    def __init__(self, model, decay=0.9999, device=None):
+    def __init__(self, model, decay=0.9999, dataset_len_thr=None, device=None):
         super(ModelEmaV2, self).__init__()
         # make a copy of the model for accumulating moving average of weights
         self.module = deepcopy(model)
@@ -93,6 +93,7 @@ class ModelEmaV2(nn.Module):
         self.dst_model = self.module.state_dict()
         self.decay = decay
         self.device = device  # perform ema on different device from model if set
+        self.dataset_len_thr = dataset_len_thr
         if self.device is not None:
             self.module.to(device=device)
 

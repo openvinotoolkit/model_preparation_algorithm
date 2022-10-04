@@ -1,10 +1,6 @@
-_base_: _base_/ote_efficientnet_v2.py
+_base_: ./ote_efficientnet_v2_s_multilabel.yaml
 
 model:
-    type: SAMImageClassifier
-    task: classification
-    backbone:
-        version: s_21k
     head:
         type: CustomMultiLabelNonLinearClsHead
         normalized: True

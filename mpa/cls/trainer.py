@@ -155,6 +155,7 @@ class ClsTrainer(ClsStage):
 
         # updated to adapt list of dataset for the 'train'
         data_loaders = []
+        sub_loaders = []
         max_num_images = 0
         for ds in dataset:
             if isinstance(ds, list):

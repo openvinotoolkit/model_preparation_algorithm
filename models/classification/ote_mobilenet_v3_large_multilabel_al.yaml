@@ -1,10 +1,6 @@
-_base_: _base_/ote_mobilenet_v3.py
+_base_: ./ote_mobilenet_v3_large_multilabel.yaml
 
 model:
-    type: SAMImageClassifier
-    task: classification
-    backbone:
-        mode: large
     head:
         type: CustomMultiLabelNonLinearClsHead
         in_channels: 960
