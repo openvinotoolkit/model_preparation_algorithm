@@ -172,3 +172,15 @@ def remove_custom_hook(cfg: Config, hook_type: str):
                 break
         if idx_to_del is not None:
             del custom_hooks[idx_to_del]
+
+def get_cls_distribution(cfg: ConfigDict):
+    cls_distribution = {}
+    for label in cfg.labels:
+        cls_distribution[int(label.id)] = 0
+    for item in cfg.ote_dataset:
+        annots = item.get_annotations()
+        for annot in annots:
+            labels = list(annot.get_label_ids())
+            for label in labels:
+                cls_distribution[int(label)] += 1
+    return list(cls_distribution.values())

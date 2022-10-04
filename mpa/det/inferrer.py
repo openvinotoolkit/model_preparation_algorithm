@@ -137,6 +137,19 @@ class DetectionInferrer(DetectionStage):
 
         # Checkpoint
         if cfg.get('load_from', None):
+            weight_info = torch.load(cfg.load_from)
+            if weight_info.get('meta', None):
+                if weight_info['meta'].get('calib_scale', None):
+                    calib_scale = torch.Tensor(torch.load(cfg.load_from)['meta']['calib_scale'])
+                    calib_scale = cfg.NorCal * torch.log(calib_scale)
+                    if torch.cuda.is_available:
+                        calib_scale = calib_scale.cuda(cfg.gpu_ids[0])
+                    if hasattr(model, 'roi_head') and hasattr(model.roi_head, 'bbox_head'):
+                        model.roi_head.bbox_head.calib_scale = calib_scale
+                    elif hasattr(model, 'bbox_head'):
+                        model.bbox_head.calib_scale = calib_scale
+                    else:
+                        raise NotImplementedError(f'{model.type} do not support NorCal')
             load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         model.eval()

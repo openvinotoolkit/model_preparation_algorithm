@@ -15,7 +15,7 @@ evaluation = dict(
     metric='mAP',
     save_best='mAP',
     iou_thr=[
-        0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95
+        0.5#, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95
     ]
 )
 
@@ -40,3 +40,5 @@ optimizer_config = dict(
 ignore = True
 adaptive_validation_interval = dict(max_interval=5)
 adaptive_ema = dict(epoch_momentum=0.4)
+seed = 2222
+NorCal=0.6
