@@ -23,11 +23,10 @@ class IBLossHook(Hook):
         model_loss = self._get_model_loss(runner)
 
         # pass the number of data per class and current epoch to IB loss
-        dataset = runner.data_loader.dataset
-        num_data = self._get_num_data(dataset)
-        if self.cls_num_list != num_data:
-            self.cls_num_list = num_data
-            model_loss.update_weight(self.cls_num_list)
+        if runner.epoch == 0:
+            dataset = runner.data_loader.dataset
+            num_data = self._get_num_data(dataset)
+            model_loss.update_weight(num_data)
         model_loss.cur_epoch = runner.epoch
 
     def _get_num_data(self, dataset):

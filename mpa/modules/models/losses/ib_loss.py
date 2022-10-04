@@ -19,10 +19,11 @@ class IBLoss(CrossEntropyLoss):
         Args:
             num_classes (int): Number of classes in dataset
             start (int): Epoch to start finetuning with IB loss
-            alpha (float): Alpha for IB loss
+            alpha (float): Hyper-parameter for an adjustment for IB loss re-weighting
         """
         super(IBLoss, self).__init__(loss_weight=1.0)
-        assert alpha > 0
+        if alpha < 0:
+            raise ValueError("Alpha for IB loss should be bigger than 0")
         self.alpha = alpha
         self.epsilon = 0.001
         self.num_classes = num_classes
