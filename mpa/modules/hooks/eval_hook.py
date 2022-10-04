@@ -47,7 +47,6 @@ class CustomEvalHook(Hook):
         if not self.by_epoch or not self.every_n_epochs(runner, self.interval):
             return
         results = single_gpu_test(runner.model, self.dataloader)
-        breakpoint()
         if (hasattr(runner, "ema_model") and (runner.epoch >= self.ema_eval_start_epoch)
             and len(runner.data_loader.dataset) > runner.ema_model.dataset_len_thr):
             results_ema = single_gpu_test(runner.ema_model.module, self.dataloader)

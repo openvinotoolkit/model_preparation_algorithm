@@ -33,14 +33,3 @@ train_pipeline_strong = [
     dict(type="ToTensor", keys=["gt_label"]),
     dict(type="Collect", keys=["img", "gt_label"]),
 ]
-
-train_rand_pipeline = [
-    dict(type="Resize", size=__resize_target_size),
-    dict(type="RandomFlip", flip_prob=0.5, direction="horizontal"),
-    dict(type="RandAugment", n=2, m=10),
-    dict(type="ToNumpy"),
-    dict(type='Normalize', **img_norm_cfg),
-    dict(type='ImageToTensor', keys=['img']),
-    dict(type="ToTensor", keys=["gt_label"]),
-    dict(type="Collect", keys=["img", "gt_label"]),
-]
