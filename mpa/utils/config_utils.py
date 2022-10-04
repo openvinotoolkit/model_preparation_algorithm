@@ -173,6 +173,7 @@ def remove_custom_hook(cfg: Config, hook_type: str):
         if idx_to_del is not None:
             del custom_hooks[idx_to_del]
 
+
 def get_cls_distribution(cfg: ConfigDict):
     cls_distribution = {}
     for label in cfg.labels:
