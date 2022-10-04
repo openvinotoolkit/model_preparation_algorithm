@@ -128,4 +128,26 @@ class NormalizeL2V0(Operation):
     ATTRIBUTE_FACTORY = NormalizeL2V0Attribute
 
     def forward(self, input, axes):
-        raise NotImplementedError
+        eps = self.attrs.eps
+        eps_mode = self.attrs.eps_mode
+
+        # normalization layer convert to FP32 in FP16 training
+        input_float = input.float()
+        if axes.numel() == 0:
+            norm = input_float
+        elif axes.numel() == 1:
+            axes = axes.item()
+            norm = input_float.pow(2).sum(axes, keepdim=True).sqrt()
+        elif axes.numel() == input_float.dim():
+            norm = input_float.pow(2).sum().sqrt()
+        else:
+            raise ValueError
+
+        if eps_mode == "add":
+            norm = norm + eps
+        elif eps_mode == "max":
+            norm = max(norm, eps)
+        else:
+            raise ValueError
+
+        return (input_float / norm).type_as(input)

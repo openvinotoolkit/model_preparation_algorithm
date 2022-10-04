@@ -185,41 +185,44 @@ class Graph(nx.MultiDiGraph):
             ops_dict[op_name] = node
 
             children_dict[op_name] = []
-            for out_port_id, out_port in enumerate(ov_op.outputs()):
-                for in_port in list(out_port.get_target_inputs()):
+            for out_port in ov_op.outputs():
+                out_port_id = out_port.get_index()
+                for in_port in out_port.get_target_inputs():
+                    in_port_id = in_port.get_index()
                     children_dict[op_name].append(
-                        [out_port_id, get_op_name(in_port.get_node())]
+                        [out_port_id, in_port_id, get_op_name(in_port.get_node())]
                     )
 
             parents_dict[op_name] = []
-            for in_port_id, in_port in enumerate(ov_op.inputs()):
+            for in_port in ov_op.inputs():
+                in_port_id = in_port.get_index()
                 out_port = in_port.get_source_output()
+                out_port_id = out_port.get_index()
                 parents_dict[op_name].append(
-                    [in_port_id, get_op_name(out_port.get_node())]
+                    [out_port_id, in_port_id, get_op_name(out_port.get_node())]
                 )
 
-        # check validity
+        # validate graph
         for node, children in children_dict.items():
-            for _, child in children:
+            for _, _, child in children:
                 assert node in [
-                    i[1] for i in parents_dict[child]
+                    i[-1] for i in parents_dict[child]
                 ], f"{node} is not a parent of {child}"
         for node, parents in parents_dict.items():
-            for _, parent in parents:
+            for _, _, parent in parents:
                 assert node in [
-                    i[1] for i in children_dict[parent]
+                    i[-1] for i in children_dict[parent]
                 ], f"{node} is not a child of {parent}"
 
         # add edges
         for src, tgts in children_dict.items():
-            for out_port, tgt in tgts:
-                indices = [i for i, j in enumerate(parents_dict[tgt]) if j[1] == src]
-                in_port = parents_dict[tgt][indices[out_port]][0]
+            for out_port_id, in_port_id, tgt in tgts:
                 graph.add_edge(
-                    ops_dict[src], ops_dict[tgt], in_port=in_port, out_port=out_port
+                    ops_dict[src],
+                    ops_dict[tgt],
+                    in_port=in_port_id,
+                    out_port=out_port_id,
                 )
-                if len(indices) != 1:
-                    print(src, tgt, in_port, out_port)
 
         # freeze normalization nodes
         graph._freeze_normalize_nodes()
@@ -338,9 +341,7 @@ class Graph(nx.MultiDiGraph):
         self,
         node: Operation,
         with_edge_data: bool = False,
-    ) -> Generator[
-        Union[Tuple[Operation, Optional[List]], Operation], None, None
-    ]:
+    ) -> Generator[Union[Tuple[Operation, Optional[List]], Operation], None, None]:
         for predecessor in super().predecessors(node):
             if with_edge_data:
                 yield (predecessor, self.get_edge_data(predecessor, node))
@@ -351,9 +352,7 @@ class Graph(nx.MultiDiGraph):
         self,
         node: Operation,
         with_edge_data: bool = False,
-    ) -> Generator[
-        Union[Tuple[Operation, Optional[List]], Operation], None, None
-    ]:
+    ) -> Generator[Union[Tuple[Operation, Optional[List]], Operation], None, None]:
         for successor in super().successors(node):
             if with_edge_data:
                 yield (successor, self.get_edge_data(node, successor))

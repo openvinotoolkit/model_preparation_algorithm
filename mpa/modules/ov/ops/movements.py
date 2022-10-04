@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import math
 from dataclasses import dataclass, field
 from typing import List
-import math
 
 import torch
 from torch.nn import functional as F
@@ -56,8 +56,14 @@ class PadV1(Operation):
         return [val for tup in zip(pads_begin[::-1], pads_end[::-1]) for val in tup]
 
     def forward(self, input, pads_begin, pads_end, pad_value=0):
-        pads_begin = pads_begin.detach().cpu().tolist()
-        pads_end = pads_end.detach().cpu().tolist()
+        pads_begin = (
+            pads_begin
+            if isinstance(pads_begin, list)
+            else pads_begin.detach().cpu().tolist()
+        )
+        pads_end = (
+            pads_end if isinstance(pads_end, list) else pads_end.detach().cpu().tolist()
+        )
         pad = self.get_torch_pad_dim(pads_begin, pads_end)
         pad = list(map(math.ceil, pad))
         return F.pad(input=input, pad=pad, mode=self._pad_mode, value=pad_value)
@@ -179,11 +185,16 @@ class StridedSliceV1(Operation):
             # end index is exclusive
             e = torch.clamp(e, -length - 1, length)
 
-            indices = torch.arange(b, e, s, device=input.device)
-            if any([b < 0, e < 0, s < 0]):
-                if not all([b < 0, e < 0, s < 0]):
-                    raise ValueError
+            if s > 0:
+                b = b + length if b < 0 else b
+                e = e + length if e < 0 else e
+                indices = torch.arange(b, e, s, device=input.device)
+            else:
+                b = b - length if b >= 0 else b
+                e = e - length if e >= 0 else e
+                indices = torch.arange(b, e, s, device=input.device)
                 indices += length
+
             output = torch.index_select(output, i, indices)
 
         for i, mask in enumerate(self.attrs.new_axis_mask[::-1]):
@@ -214,7 +225,84 @@ class SplitV1(Operation):
 
     def forward(self, input, axis):
         return torch.split(
-            tensor=input,
-            split_size_or_sections=self.attrs.num_splits,
-            dim=axis
+            tensor=input, split_size_or_sections=self.attrs.num_splits, dim=axis
         )
+
+
+@dataclass
+class VariadicSplitV1Attribute(Attribute):
+    pass
+
+
+@OPS.register()
+class VariadicSplitV1(Operation):
+    TYPE = "VariadicSplit"
+    VERSION = 1
+    ATTRIBUTE_FACTORY = VariadicSplitV1Attribute
+
+    def forward(self, input, axis, split_lengths):
+        idx = [i for i, j in enumerate(split_lengths) if j == -1]
+        if idx:
+            assert len(idx) == 1
+            idx = idx[0]
+            split_lengths[idx] = input.size(axis) - sum(split_lengths) - 1
+        assert input.size(axis) == sum(split_lengths)
+        outputs = []
+        start_idx = 0
+        for length in split_lengths:
+            outputs.append(
+                torch.index_select(
+                    input,
+                    axis,
+                    torch.arange(start_idx, start_idx + length, device=input.device),
+                )
+            )
+            start_idx += length
+        return tuple(outputs)
+
+
+@dataclass
+class ShuffleChannelsV0Attribute(Attribute):
+    axis: int = field(default=1)
+    group: int = field(default=1)
+
+
+@OPS.register()
+class ShuffleChannelsV0(Operation):
+    TYPE = "ShuffleChannels"
+    VERSION = 0
+    ATTRIBUTE_FACTORY = ShuffleChannelsV0Attribute
+
+    def forward(self, input):
+        #  n, c, h, w = input.shape
+        origin_shape = input.shape
+        origin_dim = input.dim()
+        assert origin_shape[self.attrs.axis] % self.attrs.group == 0
+
+        axis = self.attrs.axis
+        axis = axis if axis >= 0 else axis + input.dim()
+
+        target_shape = [
+            0,
+            self.attrs.group,
+            int(origin_shape[axis] / self.attrs.group),
+            0,
+        ]
+        if axis == 0:
+            target_shape[0] = 1
+            target_shape[-1] = math.prod(
+                [origin_shape[i] for i in range(axis + 1, origin_dim)]
+            )
+        elif axis == input.dim() - 1:
+            target_shape[0] = math.prod([origin_shape[i] for i in range(0, axis)])
+            target_shape[-1] = 1
+        else:
+            target_shape[0] = math.prod([origin_shape[i] for i in range(0, axis)])
+            target_shape[-1] = math.prod(
+                [origin_shape[i] for i in range(axis + 1, origin_dim)]
+            )
+
+        output = input.reshape(target_shape)
+        output = output.permute([0, 2, 1, 3])
+        output = output.reshape(origin_shape)
+        return output

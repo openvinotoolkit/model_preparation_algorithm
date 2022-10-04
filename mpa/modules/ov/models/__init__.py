@@ -17,4 +17,11 @@ except ImportError:
 else:
     from . import mmdet
 
+try:
+    import mmseg as mmseg_import_test
+except ImportError:
+    pass
+else:
+    from . import mmseg
+
 from .ov_model import OVModel

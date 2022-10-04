@@ -18,3 +18,4 @@ from .shape_manipulations import *
 from .type_conversions import *
 from .object_detections import *
 from .image_processings import *
+from .sorting_maximization import *

@@ -7,11 +7,16 @@ from dataclasses import dataclass, field
 from typing import Tuple, Optional
 
 import torch
+import numpy as np
+from mpa.utils.logger import get_logger
 
 from .builder import OPS
 from .op import Attribute, Operation
 from .type_conversions import ConvertV0
 from .utils import get_dynamic_shape
+
+
+logger = get_logger()
 
 
 @dataclass
@@ -20,6 +25,7 @@ class ParameterV0Attribute(Attribute):
 
     layout: Optional[Tuple[str]] = field(default=None)
     permute: Optional[Tuple[int]] = field(default=None)
+    verify_shape: bool = field(default=True)
 
     def __post_init__(self):
         super().__post_init__()
@@ -46,14 +52,15 @@ class ParameterV0(Operation):
     def forward(self, input):
         # TODO: validate shape
         # need to handle new generated op from reshaped model
-        ov_shape = self.shape[0]
-        torch_shape = list(input.shape)
-        for ov_shape_, torch_shape_ in zip(ov_shape, torch_shape):
-            if ov_shape_ == -1:
-                continue
-            assert (
-                ov_shape_ == torch_shape_
-            ), f"input shape {torch_shape} does not match with ov shape {ov_shape}"
+        if self.attrs.verify_shape:
+            ov_shape = self.shape[0]
+            torch_shape = list(input.shape)
+            for ov_shape_, torch_shape_ in zip(ov_shape, torch_shape):
+                if ov_shape_ == -1:
+                    continue
+                assert (
+                    ov_shape_ == torch_shape_
+                ), f"input shape {torch_shape} does not match with ov shape {ov_shape}"
 
         if self.attrs.permute:
             input = input.permute(self.attrs.permute)
@@ -187,7 +194,14 @@ class ConstantV0(Operation):
         attrs = ov_op.get_attributes()
         attrs["shape"] = tuple(attrs["shape"])
 
-        data = torch.from_numpy(ov_op.get_data())
+        data = ov_op.get_data()
+        if data.dtype == np.uint64:
+            data_ = data.astype(np.int64)
+            if not np.array_equal(data, data_):
+                logger.warning(f"Overflow detected in {op_name}")
+            data = torch.from_numpy(data_)
+        else:
+            data = torch.from_numpy(data)
 
         in_port_indices = []
         for out_port in ov_op.outputs():

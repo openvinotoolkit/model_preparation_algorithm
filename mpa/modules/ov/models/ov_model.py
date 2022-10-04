@@ -30,9 +30,10 @@ class OVModel(torch.nn.Module):
         outputs: Union[str, List[str]] = [],
         features_to_keep: Optional[List] = None,
         remove_normalize: bool = False,
-        merge_bn: bool = True,
-        paired_bn: bool = True,
+        merge_bn: bool = False,
+        paired_bn: bool = False,
         init_weight: Union[bool, Callable] = False,
+        verify_shape: bool = True,
     ):
         super().__init__()
         self._model_path = model_path
@@ -42,6 +43,7 @@ class OVModel(torch.nn.Module):
         self._merge_bn = merge_bn
         self._paired_bn = paired_bn
         self._init_weight = init_weight
+        self._verify_shape = verify_shape
 
         self._inputs = []
         self._outputs = []
@@ -114,6 +116,8 @@ class OVModel(torch.nn.Module):
                                     )
 
             self.model.apply(init_weight)
+        for node in self._graph.get_nodes_by_types(["Parameter"]):
+            node.attrs.verify_shape = verify_shape
 
         input_shapes = {}
         output_shapes = {}
@@ -259,9 +263,15 @@ class OVModel(torch.nn.Module):
                     for edge_attrs in edges_attrs:
                         edge_attrs["out_port"] = 0
 
-                    input_parameter = cls_param(
-                        input_parameter, shape=predecessor.shape
-                    )
+                    # TODO: here, we force the batch dim to be dynamic
+                    # it is assumed to be dim 0
+                    new_shape = []
+                    for shape in predecessor.shape:
+                        new_shape.append(
+                            [-1 if j == 0 else k for j, k in enumerate(shape)]
+                        )
+                    new_shape = tuple(tuple(shape) for shape in new_shape)
+                    input_parameter = cls_param(input_parameter, shape=new_shape)
                     for edge_attrs in edges_attrs:
                         edges_to_add.append(
                             {"node_from": input_parameter, "node_to": tgt, **edge_attrs}

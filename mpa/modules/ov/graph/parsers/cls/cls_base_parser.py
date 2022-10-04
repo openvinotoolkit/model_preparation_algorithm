@@ -16,7 +16,7 @@ logger = get_logger()
 def cls_base_parser(
     graph, component: str = "backbone"
 ) -> Optional[Dict[str, List[str]]]:
-    assert component in ["backbone", "neck"]
+    assert component in ["backbone", "neck", "head"]
 
     possible_neck_input_types = ["ReduceMean", "MaxPool", "AvgPool"]
 
@@ -37,6 +37,18 @@ def cls_base_parser(
         logger.debug("Can not determine the output of backbone.")
         return None
 
+    part_of_neck_types = ["Reshape", "Squeeze", "Unsqueeze", "Concat", "Convert", "ShapeOf", "StridedSlice"]
+    neck_output = neck_input
+    for node_from, node_to in graph.bfs(neck_input, False, 10):
+        done = False
+        for node_to_ in node_to:
+            if node_to_.type not in part_of_neck_types:
+                done = True
+                break
+        neck_output = node_from
+        if done:
+            break
+
     if component == "backbone":
         outputs = [
             node.name for node in graph.predecessors(neck_input) if node.type != "Constant"
@@ -56,14 +68,33 @@ def cls_base_parser(
         )
 
     elif component == "neck":
-        part_of_neck_types = ["Reshape"]
-        neck_output = neck_input
-        for node in graph.successors(neck_input):
-            if node.type not in part_of_neck_types:
-                break
-            else:
-                neck_output = node
         return dict(
             inputs=[neck_input.name],
             outputs=[neck_output.name],
+        )
+
+    elif component == "head":
+        inputs = list(graph.successors(neck_output))
+        if len(inputs) != 1:
+            logger.debug(f"neck_output {neck_output.name} has more than one successors.")
+            return None
+
+        outputs = graph.get_nodes_by_types(["Result"])
+        if len(outputs) != 1:
+            logger.debug("more than one network output are found.")
+            return None
+        for node_from, node_to in graph.bfs(outputs[0], True, 5):
+            if node_to.type == "Softmax":
+                outputs = [node_from]
+                break
+
+        if not graph.has_path(inputs[0], outputs[0]):
+            logger.debug(
+                f"input({inputs[0].name}) and output({outputs[0].name}) are reversed"
+            )
+            return None
+
+        return dict(
+            inputs=[input.name for input in inputs],
+            outputs=[output.name for output in outputs],
         )

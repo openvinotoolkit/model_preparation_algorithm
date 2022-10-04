@@ -3,6 +3,4 @@
 #
 
 # flake8: noqa
-from . import backbones
-from . import necks
-from . import heads
+from .mmov_neck import MMOVNeck

@@ -4,3 +4,6 @@
 
 # flake8: noqa
 from . import backbones
+from . import necks
+from . import dense_heads
+from . import roi_heads

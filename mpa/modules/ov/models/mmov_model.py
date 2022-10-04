@@ -4,6 +4,8 @@
 
 from typing import List, Optional, Union, Dict
 
+import torch
+
 from .ov_model import OVModel
 from .parser_mixin import ParserMixin
 
@@ -43,13 +45,18 @@ class MMOVModel(OVModel, ParserMixin):
         )
 
     def forward(self, inputs, gt_label=None):
-        assert len(self.inputs) == 1
+        if isinstance(inputs, torch.Tensor):
+            inputs = (inputs,)
+        assert len(inputs) == len(self.inputs)
+        feed_dict = dict()
+        for key, input in zip(self.inputs, inputs):
+            feed_dict[key] = input
 
         if gt_label is not None:
             assert "gt_label" not in self.features
             self.features["gt_label"] = gt_label
 
-        outputs = super().forward(**{self.inputs[0]: inputs})
+        outputs = super().forward(**feed_dict)
         outputs = tuple(outputs.values())
         if len(outputs) == 1:
             outputs = outputs[0]

@@ -68,6 +68,7 @@ class ROIPoolingV0Attribute(Attribute):
     pooled_w: int
     spatial_scale: float
     method: str = field(default="max")
+    output_size: List[int] = field(default_factory=lambda: [])
 
     def __post_init__(self):
         super().__post_init__()

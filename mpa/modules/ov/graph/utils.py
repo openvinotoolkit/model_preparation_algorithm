@@ -182,7 +182,7 @@ def handle_paired_batchnorm(
         if len(set(input_shape)) == 1 and input_shape[0] == 1:
             logger.info(
                 f"Skip a paired batch normalization for {node.name} "
-                f"becuase input shape to iit is {input_shape}."
+                f"becuase input shape to it is {input_shape}."
             )
             continue
 
