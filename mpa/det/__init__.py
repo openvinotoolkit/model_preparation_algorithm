@@ -29,3 +29,8 @@ import mpa.modules.models.heads.custom_roi_head
 import mpa.modules.models.heads.custom_yolox_head
 import mpa.modules.models.losses.cross_focal_loss
 import mpa.modules.models.losses.l2sp_loss
+
+import mpa.modules.experimental.datasets.pipelines.selfsl_compose
+import mpa.modules.experimental.datasets.pipelines.transforms.selfsl_transforms
+import mpa.modules.experimental.models.detectors.supcon_atss_detector
+import mpa.modules.experimental.models.losses.detcon_loss

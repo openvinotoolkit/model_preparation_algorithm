@@ -1,0 +1,8 @@
+stages:
+    - name: train
+      type: DetectionTrainer
+      task: detection
+      mode: train
+      config: {{ fileDirname }}/stages/detection/supcon.py
+      output:
+        - final_ckpt

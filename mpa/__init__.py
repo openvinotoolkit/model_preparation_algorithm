@@ -11,6 +11,7 @@ from .builder import build, build_workflow_hook
 from .stage import Stage, get_available_types
 from .workflow import Workflow
 
+from . import det
 
 class MPAConstants:
     PACKAGE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
