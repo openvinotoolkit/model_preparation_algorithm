@@ -8,7 +8,7 @@ import torch
 from mmcv import ConfigDict
 from mmdet.datasets import build_dataset
 from mpa.stage import Stage
-from mpa.utils.config_utils import update_or_add_custom_hook
+from mpa.utils.config_utils import update_or_add_custom_hook, get_cls_distribution
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -148,7 +148,7 @@ class DetectionStage(Stage):
             self.configure_anchor(cfg)
 
         # Incremental learning
-        self.configure_task_cls_incr(cfg, task_adapt_type, org_model_classes, model_classes)
+        self.configure_task_cls_incr(cfg, task_adapt_type, org_model_classes, model_classes, training)
 
     def configure_task_classes(self, cfg, task_adapt_type, task_adapt_op):
 
@@ -231,7 +231,7 @@ class DetectionStage(Stage):
         )
         update_or_add_custom_hook(cfg, task_adapt_hook)
 
-    def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
+    def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes, training):
         if cfg.get('task', 'detection') == 'detection':
             bbox_head = cfg.model.bbox_head
         else:
@@ -306,6 +306,29 @@ class DetectionStage(Stage):
                     cfg,
                     ConfigDict(type='AdaptiveTrainSchedulingHook', **adaptive_validation_interval)
                 )
+
+            norcal_gamma = cfg.get('NorCal', None)
+            if norcal_gamma is not None:
+                device='cuda' if torch.cuda.is_available() else 'cpu'
+                if training:
+                    cls_distribution = get_cls_distribution(Stage.get_train_data_cfg(cfg))
+                    calib_scale = torch.Tensor(cls_distribution).log().to(device)
+                    calib_scale = norcal_gamma * calib_scale
+                    logger.info(f'NorCal calibration scale: {calib_scale}')
+                    if cfg.model.get('roi_head', None) and cfg.model.roi_head.get('bbox_head', None):
+                        cfg.model.roi_head.bbox_head.calib_scale = calib_scale
+                    elif cfg.model.get('bbox_head', None):
+                        cfg.model.bbox_head.calib_scale = calib_scale
+                    else:
+                        raise NotImplementedError(f'{cfg.model.type} do not support NorCal' )
+                    cfg.runner['meta'] = {'calib_scale': calib_scale.cpu().tolist()}
+                else:
+                    if ('roi_head' in cfg.model
+                            and 'bbox_head' in cfg.model.roi_head
+                            and 'calib_scale' in cfg.model.roi_head.bbox_head):
+                        cfg.model.roi_head.bbox_head.calib_scale = cfg.model.roi_head.bbox_head.calib_scale.to(device)
+                    elif 'bbox_head' in cfg.model and 'calib_scale' in cfg.model.bbox_head:
+                        cfg.model.bbox_head.calib_scale = cfg.model.bbox_head.calib_scale.to(device)
         else:
             src_data_cfg = Stage.get_train_data_cfg(cfg)
             src_data_cfg.pop('old_new_indices', None)

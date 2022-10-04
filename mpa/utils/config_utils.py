@@ -158,3 +158,16 @@ def update_or_add_custom_hook(cfg: Config, hook_cfg: ConfigDict):
     if not custom_hooks_updated:
         custom_hooks.append(hook_cfg)
     cfg['custom_hooks'] = custom_hooks
+
+
+def get_cls_distribution(cfg: ConfigDict):
+    cls_distribution = {}
+    for label in cfg.labels:
+        cls_distribution[int(label.id)] = 0
+    for item in cfg.ote_dataset:
+        annots = item.get_annotations()
+        for annot in annots:
+            labels = list(annot.get_label_ids())
+            for label in labels:
+                cls_distribution[int(label)] += 1
+    return list(cls_distribution.values())

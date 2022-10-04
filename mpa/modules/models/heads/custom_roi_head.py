@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import torch
+import torch.nn.functional as F
 from mmcv.runner import force_fp32
-from mmdet.core import bbox2roi, multi_apply
+from mmdet.core import bbox2roi, multi_apply, multiclass_nms
+from mmdet.core.utils.misc import arange
 from mmdet.integration.nncf.utils import no_nncf_trace
 from mmdet.models.builder import HEADS, build_head, build_roi_extractor
 from mmdet.models.losses import accuracy
 from mmdet.models.roi_heads.bbox_heads.convfc_bbox_head import Shared2FCBBoxHead
 from mmdet.models.roi_heads.standard_roi_head import StandardRoIHead
+from mmdet.models.roi_heads.mask_heads.fcn_mask_head import FCNMaskHead
 from mpa.modules.models.heads.cross_dataset_detector_head import (
     CrossDatasetDetectorHead,
 )
@@ -23,6 +26,11 @@ class CustomRoIHead(StandardRoIHead):
         if bbox_head.type == 'Shared2FCBBoxHead':
             bbox_head.type = 'CustomConvFCBBoxHead'
         self.bbox_head = build_head(bbox_head)
+
+    def init_mask_head(self, mask_roi_extractor, mask_head):
+        if mask_head.type == 'FCNMaskHead':
+            mask_head.type = 'CustomFCNMaskHead'
+        super(CustomRoIHead, self).init_mask_head(mask_roi_extractor, mask_head)
 
     def _bbox_forward_train(self, x, sampling_results, gt_bboxes, gt_labels,
                             img_metas):
@@ -43,6 +51,13 @@ class CustomRoIHead(StandardRoIHead):
 
 @HEADS.register_module()
 class CustomConvFCBBoxHead(Shared2FCBBoxHead, CrossDatasetDetectorHead):
+    def __init__(self,
+                 *args,
+                 calib_scale=0,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.calib_scale = calib_scale
+
     def get_targets(self,
                     sampling_results,
                     gt_bboxes,
@@ -174,3 +189,64 @@ class CustomConvFCBBoxHead(Shared2FCBBoxHead, CrossDatasetDetectorHead):
                 else:
                     losses['loss_bbox'] = bbox_pred[pos_inds].sum()
             return losses
+
+    @force_fp32(apply_to=('cls_score', 'bbox_pred'))
+    def get_bboxes(self,
+                   rois,
+                   cls_score,
+                   bbox_pred,
+                   img_shape,
+                   scale_factor,
+                   rescale=False,
+                   cfg=None):
+        if isinstance(cls_score, list):
+            cls_score = sum(cls_score) / float(len(cls_score))
+        cls_score[:, :self.num_classes] = cls_score[:, :self.num_classes] - self.calib_scale
+        scores = F.softmax(cls_score, dim=1) if cls_score is not None else None
+
+        if bbox_pred is not None:
+            bboxes = self.bbox_coder.decode(
+                rois[:, 1:], bbox_pred, max_shape=img_shape)
+        else:
+            bboxes = rois[:, 1:].clone()
+            if img_shape is not None:
+                bboxes[:, [0, 2]].clamp_(min=0, max=img_shape[1])
+                bboxes[:, [1, 3]].clamp_(min=0, max=img_shape[0])
+
+        # Remove data for background.
+        scores = scores[:, :self.num_classes]
+        if not self.reg_class_agnostic:
+            bboxes = bboxes[:, :self.num_classes * 4]
+
+        if rescale and bboxes.size(0) > 0:
+            if isinstance(scale_factor, float):
+                bboxes /= scale_factor
+            else:
+                scale_factor = bboxes.new_tensor(scale_factor)
+                bboxes = (bboxes.view(bboxes.size(0), -1, 4) /
+                          scale_factor).view(bboxes.size()[0], -1)
+
+        if cfg is None:
+            return bboxes, scores
+        else:
+            det_bboxes, det_labels = multiclass_nms(bboxes, scores,
+                                                    cfg.score_thr, cfg.nms,
+                                                    cfg.max_per_img)
+
+            return det_bboxes, det_labels
+
+
+@HEADS.register_module()
+class CustomFCNMaskHead(FCNMaskHead):
+    def __init__(self,
+                 *args,
+                 calib_scale=0,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.calib_scale = calib_scale
+
+    def get_seg_masks(self, mask_pred, det_bboxes, det_labels, rcnn_test_cfg,
+                      ori_shape, scale_factor, rescale):
+
+        segm_result = mask_pred[arange(end=det_labels.shape[0], device=mask_pred.device), det_labels].sigmoid()
+        return segm_result
