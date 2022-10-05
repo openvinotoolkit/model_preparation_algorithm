@@ -25,13 +25,3 @@ task_adapt:
 
 custom_hooks:
 - type: ModelEmaV2Hook
-- type: LazyEarlyStoppingHook
-  start: 0
-  patience: 10
-  iteration_patience: 0
-  metric: 'mAP'
-  interval: 1
-  priority: 75
-
-seed: 5
-deterministic: True

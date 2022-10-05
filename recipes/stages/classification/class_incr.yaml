@@ -26,6 +26,3 @@ task_adapt:
 custom_hooks:
 - type: NoBiasDecayHook
   priority: 45
-
-seed: 5
-deterministic: True
