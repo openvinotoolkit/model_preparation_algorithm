@@ -23,6 +23,3 @@ task_adapt:
     type: 'mpa'
     op: 'REPLACE'
 
-custom_hooks:
-- type: NoBiasDecayHook
-  priority: 45
