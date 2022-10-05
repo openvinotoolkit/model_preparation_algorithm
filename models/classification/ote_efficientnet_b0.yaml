@@ -7,7 +7,6 @@ model:
         version: b0
     head:
         type: CustomLinearClsHead
-        in_channels: 1280
         loss:
             type: CrossEntropyLoss
             loss_weight: 1.0
