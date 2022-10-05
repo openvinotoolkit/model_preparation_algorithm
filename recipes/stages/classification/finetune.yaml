@@ -6,7 +6,7 @@ _base_: [
 model:
     type: SAMImageClassifier
     head:
-        type: 'CustomLinearClsHead'
+        type: 'LinearClsHead'
         in_channels: -1
         num_classes: -1
         loss:
