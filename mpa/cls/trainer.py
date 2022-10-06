@@ -8,6 +8,8 @@ import os.path as osp
 import time
 import warnings
 import torch
+import numpy as np
+import random
 
 import torch.multiprocessing as mp
 import torch.distributed as dist
@@ -153,6 +155,7 @@ class ClsTrainer(ClsStage):
 
         # updated to adapt list of dataset for the 'train'
         data_loaders = []
+        sub_loaders = []
         for ds in dataset:
             if isinstance(ds, list):
                 sub_loaders = [
@@ -183,6 +186,7 @@ class ClsTrainer(ClsStage):
                         drop_last=drop_last,
                         persistent_workers=False
                     ))
+
         # put model on gpus
         if torch.cuda.is_available():
             model = model.cuda()
