@@ -3,6 +3,6 @@ stages:
       type: DetectionTrainer
       task: detection
       mode: train
-      config: {{ fileDirname }}/stages/detection/supcon.py
+      config: {{ fileDirname }}/stages/detection/train_mnv2_atss.py
       output:
         - final_ckpt

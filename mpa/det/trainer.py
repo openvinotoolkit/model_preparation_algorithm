@@ -50,7 +50,8 @@ class DetectionTrainer(DetectionStage):
 
         # # Work directory
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-
+        cfg.dump(os.path.join(cfg.work_dir, os.path.basename(cfg.filename)))
+        # cfg.dump('external/model-preparation-algorithm/submodule/work_dirs/supcon/detection/otx_cfg_atts.py')
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment

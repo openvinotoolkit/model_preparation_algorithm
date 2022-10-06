@@ -1,17 +1,17 @@
 from copy import deepcopy
+
 import torch
 import torch.nn as nn
-from mmcv.cnn import kaiming_init, normal_init, build_norm_layer
-from mmcv.runner import load_checkpoint
-
-
-from mpa.utils.logger import get_logger
-from mmdet.models.builder import DETECTORS
-from mmdet.models import builder, detectors
 import torch.nn.functional as F
-from mpa.modules.models.detectors.custom_atss_detector import CustomATSS
+from mmcv.cnn import build_norm_layer, kaiming_init, normal_init
+from mmcv.runner import load_checkpoint
+from mmdet.models import builder
+from mmdet.models.builder import DETECTORS
+from mpa.modules.models.detectors.sam_detector_mixin import SAMDetectorMixin
+from mpa.modules.models.detectors.l2sp_detector_mixin import L2SPDetectorMixin
+from mmdet.models.detectors.single_stage import SingleStageDetector
+from mpa.utils.logger import get_logger
 
-logger = get_logger()
 
 class MaskPooling(nn.Module):
     def __init__(
@@ -142,7 +142,7 @@ class DetConMLP(nn.Module):
 
 
 @DETECTORS.register_module()
-class DetConB(CustomATSS):
+class DetConB(SAMDetectorMixin, L2SPDetectorMixin, SingleStageDetector):
     def __init__(
         self,
         backbone,
@@ -164,6 +164,9 @@ class DetConB(CustomATSS):
         pretrained=None,
         **kwargs
     ):
+
+        assert projector and predictor
+
         super(DetConB, self).__init__(
             backbone=backbone,
             neck=neck,
@@ -171,16 +174,12 @@ class DetConB(CustomATSS):
             train_cfg=train_cfg,
             test_cfg=test_cfg,
             pretrained=pretrained,
-            **kwargs
         )
 
         if input_transform is not None:
             assert input_transform in ['resize_concat', 'multiple_select']
 
-        if pretrained is not None:
-            logger.info('load model from: {}'.format(pretrained))
-            load_checkpoint(self, pretrained, strict=False, map_location='cpu', logger=logger)
-
+        self.logger = get_logger()
         self.input_transform = input_transform
         self.in_index = in_index
         self.base_momentum = base_momentum
@@ -191,6 +190,15 @@ class DetConB(CustomATSS):
         self.num_samples = num_samples
         self.downsample = downsample
         self.mask_pool = MaskPooling(num_classes, num_samples, downsample, ignore_bg)
+
+        if pretrained is not None:
+            self.logger.info('load model from: {}'.format(pretrained))
+            load_checkpoint(self.backbone, pretrained, strict=False, map_location='cpu',
+                            logger=self.logger, revise_keys=[(r'^backbone\.', '')])
+        else:
+            self.logger.warn((
+                '`pretrained` is None. If `load_from` is set, '
+                'weights of online network and target network will not be matched!'))
         
         self.online_net = self.backbone
         self.projector_online = DetConMLP(**projector)
@@ -201,7 +209,6 @@ class DetConB(CustomATSS):
 
         self.projector_online.init_weights(init_linear='kaiming') # projection
         self.predictor.init_weights()
-        
         for param_ol, param_tgt in zip(self.online_net.parameters(), 
                                        self.target_net.parameters()):
             param_tgt.data.copy_(param_ol.data)
@@ -214,7 +221,6 @@ class DetConB(CustomATSS):
 
         self.detcon_loss = builder.build_loss(detcon_loss_cfg)
         
-
     @torch.no_grad()
     def _momentum_update(self):
         """Momentum update of the target network."""
@@ -238,7 +244,7 @@ class DetConB(CustomATSS):
         else:
             raise ValueError()
 
-    def forward_detconb(self, imgs, masks, net, projector):
+    def _forward_train(self, imgs, masks, net, projector):
         embds = [net(img) for img in imgs]
         
         embds_for_detcon = [self.get_transformed_features(emb) for emb in embds]
@@ -261,7 +267,7 @@ class DetConB(CustomATSS):
 
         return embds, proj_outs, sampled_mask_ids
 
-    def _forward_train(self, img, img_metas, gt_semantic_seg, pixel_weights=None, **kwargs):
+    def forward_train(self, img, img_metas, gt_semantic_seg, pixel_weights=None, **kwargs):
         """Forward function for training.
         Args:
             img (Tensor): Input images.
@@ -281,12 +287,12 @@ class DetConB(CustomATSS):
         losses = dict()
         img1, img2 = img[:, 0], img[:, 1]
         mask1, mask2 = gt_semantic_seg[:, 0], gt_semantic_seg[:, 1]
-        _, projs, ids = self.forward_detconb([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
+        _, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
 
         with torch.no_grad():
             self._momentum_update()
             _, (ema_proj1, ema_proj2), (ema_ids1, ema_ids2) = \
-                self.forward_detconb([img1, img2], [mask1, mask2], self.target_net, self.projector_target)
+                self._forward_train([img1, img2], [mask1, mask2], self.target_net, self.projector_target)
             
         # predictor
         proj1, proj2 = projs
@@ -349,11 +355,11 @@ class DetConBSupCon(DetConB):
             masks[int(y1):int(y2), int(x1):int(x2)] = label+1
         return masks
 
-    def _prepare_masks_from_boxes(self, imgs1, imgs2, bboxes1, bboxes2, labels1, labels2):
+    def _prepare_masks_from_boxes(self, img1, img2, bboxes1, bboxes2, labels1, labels2):
         """
         Generates mask images by using bbox information
         """
-        bs, _, h, w = imgs1.shape
+        bs, _, h, w = img1.shape
         
         mask_canvas1 = torch.zeros((bs, 1, h, w), dtype=torch.int8).cuda()
         mask_canvas2 = torch.zeros((bs, 1, h, w), dtype=torch.int8).cuda()
@@ -387,6 +393,7 @@ class DetConBSupCon(DetConB):
         """
 
         losses = dict()
+
         # supcon training
         img1, img2 = img[0], img[1]
         img_metas1, _ = img_metas[0], img_metas[1]
@@ -394,9 +401,10 @@ class DetConBSupCon(DetConB):
         gt_labels1, gt_labels2 = gt_labels[0], gt_labels[1]
 
         mask1, mask2 = self._prepare_masks_from_boxes(img1, img2, gt_bboxes1, gt_bboxes2, gt_labels1, gt_labels2)
-        embds, projs, ids = self.forward_detconb([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
+
+        embds, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
         
-        # detection head
+        # bbox head
         e1, _ = embds
         loss_atss = self.bbox_head.forward_train(self.neck(e1), img_metas1, gt_bboxes1, gt_labels1, gt_bboxes_ignore=None, **kwargs)
         losses.update(loss_atss)
@@ -404,7 +412,7 @@ class DetConBSupCon(DetConB):
         with torch.no_grad():
             self._momentum_update()
             _, (ema_proj1, ema_proj2), (ema_ids1, ema_ids2) = \
-                self.forward_detconb([img1, img2], [mask1, mask2], self.target_net, self.projector_target)
+                self._forward_train([img1, img2], [mask1, mask2], self.target_net, self.projector_target)
             
         # predictor
         proj1, proj2 = projs
@@ -443,7 +451,7 @@ class DetConBSupCon(DetConB):
 
             for k, v in self.loss_weights.items():
                 if k not in losses:
-                    logger.warning(
+                    self.logger.warning(
                         f'\'{k}\' is not in losses. Please check if \'loss_weights\' is set well.')
                     continue
                     

@@ -19,8 +19,8 @@ class SelfSLCompose(object):
 
     def __call__(self, data):
         data1 = self.pipeline1(deepcopy(data))
-        #h1, w1, _ = data1['img_metas'].data['img_shape']
-        #self.pipeline2.transforms[1].img_scale = [(w1, h1)]
+        h1, w1, _ = data1['img_metas'].data['img_shape']
+        self.pipeline2.transforms[1].img_scale = [(w1, h1)]
         
         data2 = self.pipeline2(deepcopy(data))        
         

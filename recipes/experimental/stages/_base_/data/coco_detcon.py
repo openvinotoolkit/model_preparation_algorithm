@@ -2,7 +2,7 @@ __dataset_type = 'CocoDataset'
 __data_root = 'data/coco/'
 
 img_size = (992, 736)
-img_norm_cfg = dict(mean=[0, 0, 0], std=[255, 255, 255], to_rgb=True)
+img_norm_cfg = dict(mean=[0, 0, 0], std=[255, 255, 255], to_rgb=False)
 
 __train_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -81,10 +81,9 @@ __test_pipeline = [
         ])
 ]
 
-__samples_per_gpu = 8
 data = dict(
-    samples_per_gpu=__samples_per_gpu,
-    workers_per_gpu=2,
+    samples_per_gpu=8,
+    workers_per_gpu=0,
     train=dict(
         type=__dataset_type,
         ann_file=__data_root + 'annotations/instances_train2017.json',

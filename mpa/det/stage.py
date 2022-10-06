@@ -54,6 +54,10 @@ class DetectionStage(Stage):
             cfg.merge_from_dict(data_cfg)
         self.configure_data(cfg, training, **kwargs)
 
+        # Other hyper-parameters
+        if 'hyperparams' in cfg:
+            self.configure_hyperparams(cfg, training, **kwargs)
+
         # Task
         if 'task_adapt' in cfg:
             self.configure_task(cfg, training, **kwargs)
@@ -61,10 +65,6 @@ class DetectionStage(Stage):
         # Regularization
         if training:
             self.configure_regularization(cfg)
-
-        # Other hyper-parameters
-        if 'hyperparams' in cfg:
-            self.configure_hyperparams(cfg, training, **kwargs)
 
         # Hooks
         self.configure_hook(cfg)
@@ -367,15 +367,21 @@ class DetectionStage(Stage):
         return outputs
 
     def configure_hyperparams(self, cfg, training, **kwargs):
-        hyperparams = kwargs.get('hyperparams', None)
-        if hyperparams is not None:
-            bs = hyperparams.get('bs', None)
-            if bs is not None:
-                cfg.data.samples_per_gpu = bs
+        if cfg.get('hyperparams', None):
+            cfg.merge_from_dict(cfg.hyperparams)
 
-            lr = hyperparams.get('lr', None)
-            if lr is not None:
-                cfg.optimizer.lr = lr
+        if kwargs.get('hyperparams', None):
+            cfg.merge_from_dict(kwargs.hyperparams)
+
+        # hyperparams = kwargs.get('hyperparams', None)
+        # if hyperparams is not None:
+        #     bs = hyperparams.get('bs', None)
+        #     if bs is not None:
+        #         cfg.data.samples_per_gpu = bs
+
+        #     lr = hyperparams.get('lr', None)
+        #     if lr is not None:
+        #         cfg.optimizer.lr = lr
 
     @staticmethod
     def add_yolox_hooks(cfg):

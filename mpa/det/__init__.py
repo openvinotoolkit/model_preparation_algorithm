@@ -32,5 +32,5 @@ import mpa.modules.models.losses.l2sp_loss
 
 import mpa.modules.experimental.datasets.pipelines.selfsl_compose
 import mpa.modules.experimental.datasets.pipelines.transforms.selfsl_transforms
-import mpa.modules.experimental.models.detectors.supcon_atss_detector
+import mpa.modules.experimental.models.detectors.detcon
 import mpa.modules.experimental.models.losses.detcon_loss
