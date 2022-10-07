@@ -63,10 +63,9 @@ class TimmModelsWrapper(nn.Module):
                              else self.model.num_features)
         self.pooling_type = pooling_type
 
-    def forward(self, x, return_featuremaps=True, **kwargs):
+    def forward(self, x, **kwargs):
         y = self.extract_features(x)
-        if return_featuremaps:
-            return y
+        return y
 
     def extract_features(self, x):
         if self.is_mobilenet:

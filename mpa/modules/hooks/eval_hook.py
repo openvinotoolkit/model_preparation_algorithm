@@ -19,12 +19,13 @@ class CustomEvalHook(Hook):
         interval (int): Evaluation interval (by epochs). Default: 1.
     """
 
-    def __init__(self, dataloader, interval=1, by_epoch=True, **eval_kwargs):
+    def __init__(self, dataloader, interval=1, by_epoch=True, ema_eval_start_epoch=10, **eval_kwargs):
         if not isinstance(dataloader, DataLoader):
             raise TypeError('dataloader must be a pytorch DataLoader, but got'
                             f' {type(dataloader)}')
         self.dataloader = dataloader
         self.interval = interval
+        self.ema_eval_start_epoch = ema_eval_start_epoch
         self.eval_kwargs = eval_kwargs
         self.by_epoch = by_epoch
         self.best_loss = 9999999.0
@@ -46,7 +47,11 @@ class CustomEvalHook(Hook):
         if not self.by_epoch or not self.every_n_epochs(runner, self.interval):
             return
         results = single_gpu_test(runner.model, self.dataloader)
-        self.evaluate(runner, results)
+        if hasattr(runner, "ema_model") and (runner.epoch >= self.ema_eval_start_epoch):
+            results_ema = single_gpu_test(runner.ema_model.module, self.dataloader)
+            self.evaluate(runner, results, results_ema)
+        else:
+            self.evaluate(runner, results)
 
     def after_train_iter(self, runner):
         if self.by_epoch or not self.every_n_iters(runner, self.interval):
@@ -55,18 +60,28 @@ class CustomEvalHook(Hook):
         results = single_gpu_test(runner.model, self.dataloader)
         self.evaluate(runner, results)
 
-    def evaluate(self, runner, results):
+    def evaluate(self, runner, results, results_ema=None):
         eval_res = self.dataloader.dataset.evaluate(
             results, logger=runner.logger, **self.eval_kwargs)
+        score = self.call_score(eval_res)
         for name, val in eval_res.items():
             runner.log_buffer.output[name] = val
+
+        if results_ema:
+            eval_res_ema = self.dataloader.dataset.evaluate(
+                results_ema, logger=runner.logger, **self.eval_kwargs)
+            score_ema = self.call_score(eval_res_ema)
+            for name, val in eval_res_ema.items():
+                runner.log_buffer.output[name + "_EMA"] = val
+            if score_ema > score:
+                runner.save_ema_model = True
+
         runner.log_buffer.ready = True
-        score = self.cal_score(eval_res)
         if score >= self.best_score:
             self.best_score = score
             runner.save_ckpt = True
 
-    def cal_score(self, res):
+    def call_score(self, res):
         score = 0
         div = 0
         for key, val in res.items():
