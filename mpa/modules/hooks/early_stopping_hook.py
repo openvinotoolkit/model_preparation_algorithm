@@ -2,17 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import math
 from math import inf, isnan
 from typing import Optional
 from mmcv.runner.hooks import HOOKS, Hook
 from mmcv.runner import BaseRunner, LrUpdaterHook
 from mmcv.utils import print_log
 
-from mmcls.utils.logger import get_root_logger
+from mpa.utils.logger import get_logger
 
 
-logger = get_root_logger()
+logger = get_logger()
 
 
 # Temp copy from detection_task
