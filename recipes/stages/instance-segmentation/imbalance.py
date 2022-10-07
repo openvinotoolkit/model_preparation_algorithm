@@ -6,10 +6,6 @@ _base_ = [
 
 task = 'instance-segmentation'
 
-data = dict(
-    train=dict(super_type=None),
-)
-
 evaluation = dict(
     interval=1,
     metric='mAP',

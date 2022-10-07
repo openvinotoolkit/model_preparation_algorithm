@@ -2,11 +2,9 @@ _base_: ./ote_efficientnet_v2_s_multilabel.yaml
 
 model:
     head:
-        type: CustomMultiLabelNonLinearClsHead
+        type: CustomMultiLabelLinearClsHead
         normalized: True
         scale: 7.0
-        act_cfg:
-            type: PReLU
         loss:
             type: AsymmetricAngularLossWithIgnore
             gamma_pos: 0.0

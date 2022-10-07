@@ -23,7 +23,7 @@ test_pipeline = [
 
 train_pipeline_strong = [
     dict(type="Resize", size=__resize_target_size),
-    dict(type="RandAugment", n=2, m=10),
+    dict(type="MPARandAugment", n=2, m=10),
     dict(type="RandomFlip", flip_prob=0.5, direction="horizontal"),
     dict(type="AugMixAugment", config_str="augmix-m5-w3"),
     dict(type="RandomRotate", p=0.35, angle=(-10, 10)),
