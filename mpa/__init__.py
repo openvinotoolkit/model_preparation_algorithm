@@ -4,13 +4,11 @@
 
 # flake8: noqa
 import os
-from pathlib import Path
 
 from .version import __version__, get_version
 from .builder import build, build_workflow_hook
 from .stage import Stage, get_available_types
 from .workflow import Workflow
-import utils
 
 
 class MPAConstants:
@@ -26,6 +24,5 @@ __all__ = [
     get_version, __version__,
     build, build_workflow_hook,
     Stage, get_available_types,
-    Workflow, MPAConstants,
-    "utils"
+    Workflow, MPAConstants
 ]
