@@ -8,8 +8,6 @@ from typing import Optional
 from mmcv.runner.hooks import HOOKS, Hook
 from mmcv.runner import BaseRunner, LrUpdaterHook
 from mmcv.utils import print_log
-from ote_sdk.utils.argument_checks import check_input_parameters_type
-from ote_sdk.usecases.reporting.time_monitor_callback import TimeMonitorCallback
 
 from mmcls.utils.logger import get_root_logger
 
@@ -53,7 +51,6 @@ class EarlyStoppingHook(Hook):
     ]
     less_keys = ['loss']
 
-    @check_input_parameters_type()
     def __init__(self,
                  interval: int,
                  metric: str = 'bbox_mAP',
@@ -111,7 +108,6 @@ class EarlyStoppingHook(Hook):
         self.key_indicator = key_indicator
         self.compare_func = self.rule_map[self.rule]
 
-    @check_input_parameters_type()
     def before_run(self, runner: BaseRunner):
         self.by_epoch = False if runner.max_epochs is None else True
         for hook in runner.hooks:
@@ -119,13 +115,11 @@ class EarlyStoppingHook(Hook):
                 self.warmup_iters = hook.warmup_iters
                 break
 
-    @check_input_parameters_type()
     def after_train_iter(self, runner: BaseRunner):
         """Called after every training iter to evaluate the results."""
         if not self.by_epoch:
             self._do_check_stopping(runner)
 
-    @check_input_parameters_type()
     def after_train_epoch(self, runner: BaseRunner):
         """Called after every training epoch to evaluate the results."""
         if self.by_epoch:
@@ -172,67 +166,6 @@ class EarlyStoppingHook(Hook):
             # No evaluation during the interval.
             return False
         return True
-
-
-@HOOKS.register_module()
-class OTEProgressHook(Hook):
-    @check_input_parameters_type()
-    def __init__(self, time_monitor: TimeMonitorCallback, verbose: bool = False):
-        super().__init__()
-        self.time_monitor = time_monitor
-        self.verbose = verbose
-        self.print_threshold = 1
-
-    @check_input_parameters_type()
-    def before_run(self, runner: BaseRunner):
-        total_epochs = runner.max_epochs if runner.max_epochs is not None else 1
-        self.time_monitor.total_epochs = total_epochs
-        self.time_monitor.train_steps = runner.max_iters // total_epochs if total_epochs else 1
-        self.time_monitor.steps_per_epoch = self.time_monitor.train_steps + self.time_monitor.val_steps
-        self.time_monitor.total_steps = max(math.ceil(self.time_monitor.steps_per_epoch * total_epochs), 1)
-        self.time_monitor.current_step = 0
-        self.time_monitor.current_epoch = 0
-        self.time_monitor.on_train_begin()
-
-    @check_input_parameters_type()
-    def before_epoch(self, runner: BaseRunner):
-        self.time_monitor.on_epoch_begin(runner.epoch)
-
-    @check_input_parameters_type()
-    def after_epoch(self, runner: BaseRunner):
-        runner.log_buffer.output['current_iters'] = runner.iter
-        self.time_monitor.on_epoch_end(runner.epoch, runner.log_buffer.output)
-
-    @check_input_parameters_type()
-    def before_iter(self, runner: BaseRunner):
-        self.time_monitor.on_train_batch_begin(1)
-
-    @check_input_parameters_type()
-    def after_iter(self, runner: BaseRunner):
-        runner.log_buffer.output['current_iters'] = runner.iter
-        self.time_monitor.on_train_batch_end(1)
-        if self.verbose:
-            progress = self.progress
-            if progress >= self.print_threshold:
-                logger.warning(f'training progress {progress:.0f}%')
-                self.print_threshold = (progress + 10) // 10 * 10
-
-    @check_input_parameters_type()
-    def before_val_iter(self, runner: BaseRunner):
-        self.time_monitor.on_test_batch_begin(1)
-
-    @check_input_parameters_type()
-    def after_val_iter(self, runner: BaseRunner):
-        self.time_monitor.on_test_batch_end(1)
-
-    @check_input_parameters_type()
-    def after_run(self, runner: BaseRunner):
-        self.time_monitor.on_train_end(1)
-        self.time_monitor.update_progress_callback(int(self.time_monitor.get_progress()))
-
-    @property
-    def progress(self):
-        return self.time_monitor.get_progress()
 
 
 @HOOKS.register_module()
@@ -305,7 +238,6 @@ class ReduceLROnPlateauLrUpdaterHook(LrUpdaterHook):
     ]
     less_keys = ['loss']
 
-    @check_input_parameters_type()
     def __init__(self,
                  min_lr: float,
                  interval: int,
@@ -373,7 +305,6 @@ class ReduceLROnPlateauLrUpdaterHook(LrUpdaterHook):
             return False
         return True
 
-    @check_input_parameters_type()
     def get_lr(self, runner: BaseRunner, base_lr: float):
         if not self._should_check_stopping(
                 runner) or self.warmup_iters > runner.iter:
@@ -416,7 +347,6 @@ class ReduceLROnPlateauLrUpdaterHook(LrUpdaterHook):
             self.current_lr = max(self.current_lr * self.factor, self.min_lr)
         return self.current_lr
 
-    @check_input_parameters_type()
     def before_run(self, runner: BaseRunner):
         # TODO: remove overloaded method after fixing the issue
         #  https://github.com/open-mmlab/mmdetection/issues/6572
@@ -434,7 +364,6 @@ class ReduceLROnPlateauLrUpdaterHook(LrUpdaterHook):
 @HOOKS.register_module()
 class StopLossNanTrainingHook(Hook):
 
-    @check_input_parameters_type()
     def after_train_iter(self, runner: BaseRunner):
         if isnan(runner.outputs['loss'].item()):
             logger.warning('Early Stopping since loss is NaN')
