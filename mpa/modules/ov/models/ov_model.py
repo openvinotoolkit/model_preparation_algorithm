@@ -30,8 +30,8 @@ class OVModel(torch.nn.Module):
         outputs: Union[str, List[str]] = [],
         features_to_keep: Optional[List] = None,
         remove_normalize: bool = False,
-        merge_bn: bool = False,
-        paired_bn: bool = False,
+        merge_bn: bool = True,
+        paired_bn: bool = True,
         init_weight: Union[bool, Callable] = False,
         verify_shape: bool = True,
     ):
@@ -286,6 +286,7 @@ class OVModel(torch.nn.Module):
         # handle duplicated predecessors
         if len(set(nodes_to_remove)) != len(nodes_to_remove):
             done = [False for _ in nodes_to_remove]
+            input_pop_indices = []
             for tgt_idx, tgt in enumerate(nodes_to_remove):
                 if done[tgt_idx]:
                     continue
@@ -307,7 +308,9 @@ class OVModel(torch.nn.Module):
                 for i, (edge_idx, idx) in enumerate(need_to_update[::-1]):
                     edges_to_add[edge_idx]["node_from"] = tgt_edge["node_from"]
                     done[idx] = True
-                    inputs.pop(edge_idx)
+                    input_pop_indices.append(edge_idx)
+            for idx in sorted(input_pop_indices, reverse=True):
+                inputs.pop(idx)
 
         for node in set(nodes_to_remove):
             graph.remove_node(node)

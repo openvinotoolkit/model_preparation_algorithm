@@ -52,6 +52,18 @@ def handle_merging_into_batchnorm(
         if not nodes:
             continue
 
+        is_normalize = False
+        for normalize_nodes in graph._normalize_nodes:
+            if set(nodes).intersection(normalize_nodes):
+                is_normalize = True
+                break
+        if is_normalize:
+            logger.info(
+                f"Skip merging {[i.name for i in nodes]} "
+                f"becuase they are part of normalization (preprocessing of IR)"
+            )
+            continue
+
         shapes = []
         constants = []
         is_valid = True
