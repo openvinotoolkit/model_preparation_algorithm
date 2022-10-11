@@ -17,5 +17,6 @@ htmlcov/
 /data
 /logs
 /work_dirs
+/runs
 venv/
 *.so

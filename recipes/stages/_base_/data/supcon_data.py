@@ -8,7 +8,7 @@ __dataset_type = 'ClsDirDataset'
 __train_pipeline = {{_base_.train_pipeline}}
 __test_pipeline = {{_base_.test_pipeline}}
 
-__samples_per_gpu = 512
+__samples_per_gpu = 32
 
 data = dict(
     samples_per_gpu=__samples_per_gpu,

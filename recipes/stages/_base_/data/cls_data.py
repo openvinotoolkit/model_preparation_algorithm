@@ -12,7 +12,7 @@ __samples_per_gpu = 32
 
 data = dict(
     samples_per_gpu=__samples_per_gpu,
-    workers_per_gpu=2,
+    workers_per_gpu=16,
     train=dict(
         type=__dataset_type,
         pipeline=__train_pipeline),

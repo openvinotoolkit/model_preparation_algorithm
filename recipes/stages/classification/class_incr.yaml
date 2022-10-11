@@ -5,7 +5,7 @@ _base_: [
 ]
 
 runner:
-    max_epochs: 1
+    max_epochs: 20
 
 optimizer_config:
     type: SAMOptimizerHook
@@ -16,12 +16,12 @@ optimizer:
     momentum: 0.9
     weight_decay: 0.0005
 
-evaluation: 
+evaluation:
     metric: ['accuracy', 'class_accuracy']
 
-task_adapt:
-    type: 'mpa'
-    op: 'REPLACE'
+# task_adapt:
+#     type: 'mpa'
+#     op: 'REPLACE'
 
 custom_hooks:
 - type: NoBiasDecayHook
