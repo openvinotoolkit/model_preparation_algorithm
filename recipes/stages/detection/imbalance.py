@@ -4,10 +4,6 @@ _base_ = [
     '../_base_/models/detectors/detector.py'
 ]
 
-data = dict(
-    train=dict(super_type=None),
-)
-
 task_adapt = dict(
     type='mpa',
     op='REPLACE',
