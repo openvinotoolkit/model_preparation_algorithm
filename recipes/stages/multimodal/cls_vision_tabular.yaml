@@ -1,0 +1,27 @@
+_base_: [
+    './train.yaml',
+    '../_base_/models/multimodal/cls_model.py'
+]
+
+model:
+    type: MultimodalModel
+    visual_encoder:
+        type: 'SAMImageClassifier'
+    tabular_encoder:
+        type: 'MLP'
+
+### same with base classification
+optimizer:
+    lr: 0.001
+    momentum: 0.9
+    weight_decay: 0.0005
+
+optimizer_config:
+    type: SAMOptimizerHook
+
+custom_hooks:
+- type: NoBiasDecayHook
+- type: ModelEmaV2Hook
+
+deterministic: False
+seed: 1234

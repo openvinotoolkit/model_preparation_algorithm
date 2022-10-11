@@ -1,0 +1,32 @@
+workflow_hooks:
+    - type: WFProfileHook
+      name: profile_hook
+
+stages:
+  - name: train
+    type: MultimodalTrainer
+    task: multimodal
+    mode: train
+    config: {{ fileDirname }}/stages/multimodal/reg_vision_tabular.yaml
+    output:
+      - final_ckpt
+
+  - name: final-eval
+    type: MultimodalEvaluator
+    task: multimodal
+    mode: train
+    config: {{ fileDirname }}/stages/multimodal/reg_vision_tabular.yaml
+    input:
+      pretrained:
+        stage_name: train
+        output_key: final_ckpt
+
+  - name: eval-only
+    type: MultimodalEvaluator
+    task: multimodal
+    mode: eval
+    config: {{ fileDirname }}/stages/multimodal/reg_vision_tabular.yaml
+    input:
+      pretrained:
+        stage_name: final-eval
+        output_key: final_ckpt

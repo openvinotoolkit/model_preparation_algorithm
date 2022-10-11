@@ -3,6 +3,7 @@ img_norm_cfg = dict(
 __resize_target_size = 224
 
 train_pipeline = [
+    dict(type="LoadImageFromFile"),
     dict(type="Resize", size=__resize_target_size),
     dict(type="RandomFlip", flip_prob=0.5, direction="horizontal"),
     dict(type="AugMixAugment", config_str="augmix-m5-w3"),
@@ -14,12 +15,14 @@ train_pipeline = [
     dict(type="Collect", keys=["img", "gt_label"]),
 ]
 test_pipeline = [
+    dict(type="LoadImageFromFile"),
     dict(type='Resize', size=224),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     dict(type='Collect', keys=['img'])
 ]
 train_pipeline_strong = [
+    dict(type="LoadImageFromFile"),
     dict(type="Resize", size=__resize_target_size),
     dict(type="RandAugment", n=2, m=10),
     dict(type="RandomFlip", flip_prob=0.5, direction="horizontal"),
