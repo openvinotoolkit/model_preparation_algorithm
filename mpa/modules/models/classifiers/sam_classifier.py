@@ -171,7 +171,7 @@ class SAMImageClassifier(ImageClassifier):
                         k = k.replace('asl', 'fc')
                         v = v.t()
                 state_dict[k] = v
-        
+
         elif backbone_type == 'OTEEfficientNetV2':
             for k in list(state_dict.keys()):
                 v = state_dict.pop(k)
@@ -222,7 +222,7 @@ class SAMImageClassifier(ImageClassifier):
         for model_name in param_names:
             model_param = model_dict[model_name].clone()
             if backbone_type == 'OTEMobileNetV3':
-                chkpt_name = 'head.'+model_name.replace('4', '3')
+                chkpt_name = 'head.' + model_name.replace('4', '3')
                 if model.multilabel:
                     model_param = model_param.t()
             elif backbone_type in 'OTEEfficientNet':
