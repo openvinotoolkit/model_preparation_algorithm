@@ -16,13 +16,14 @@ optimizer:
     momentum: 0.9
     weight_decay: 0.0005
 
-evaluation:
+evaluation: 
     metric: ['accuracy', 'class_accuracy']
 
-# task_adapt:
+# task_adapt: 
 #     type: 'mpa'
 #     op: 'REPLACE'
 
 custom_hooks:
 - type: NoBiasDecayHook
 - type: ModelEmaV2Hook
+
