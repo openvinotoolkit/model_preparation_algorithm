@@ -26,4 +26,3 @@ evaluation:
 custom_hooks:
 - type: NoBiasDecayHook
 - type: ModelEmaV2Hook
-
