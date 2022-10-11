@@ -5,7 +5,7 @@
 # from datetime import datetime as dt
 
 from mpa.stage import Stage
-from .utils.config_utils import copy_config
+from mpa.utils.config_utils import copy_config
 
 
 class Workflow(object):

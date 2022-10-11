@@ -14,8 +14,8 @@ import torch
 from mmcv import Config, ConfigDict
 from mmcv.runner import CheckpointLoader
 
-from .utils.config_utils import MPAConfig, update_or_add_custom_hook
-from .utils.logger import config_logger, get_logger
+from mpa.utils.config_utils import MPAConfig, update_or_add_custom_hook
+from mpa.utils.logger import config_logger, get_logger
 
 from .registry import STAGES
 

@@ -14,8 +14,8 @@ from mmcv import build_from_cfg
 from .workflow import Workflow
 from mpa.modules.hooks.workflow_hooks import WorkflowHook, build_workflow_hook
 
-from .utils.logger import config_logger, get_logger
-from .utils.config_utils import MPAConfig
+from mpa.utils.logger import config_logger, get_logger
+from mpa.utils.config_utils import MPAConfig
 
 from mpa.registry import STAGES
 from mpa.stage import get_available_types
