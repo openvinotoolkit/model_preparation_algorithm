@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import subprocess
 import sys
 import warnings
 import os
@@ -19,16 +18,9 @@ TORCH_VERSION = None
 
 def get_requirements(filename='requirements.txt'):
     here = os.path.dirname(os.path.realpath(__file__))
-    # with open(osp.join(here, filename), 'r') as f:
-    #     requires = [line.replace('\n', '') for line in f.readlines()]
-    requirements = []
-    with open(os.path.join(here, filename), "r", encoding="utf8") as file:
-            for line in file:
-                package = line.strip()
-                if package and not package.startswith(("#", "-f")):
-                    req = Requirement.parse(package)
-                    requirements.append(req)
-    return requirements
+    with open(os.path.join(here, filename), 'r') as f:
+        requires = [line.replace('\n', '') for line in f.readlines()]
+    return requires
 
 
 def get_mpa_version():
@@ -180,28 +172,7 @@ def update_requirement(requirement, cuda_version=None):
                 f"For example it could be torch>=1.8.1 or torch>=1.8.1, <=1.9.1\n"
                 f"Got {specs} instead."
             )
-    # if name == "mmcv-full":
-    #     suffix = "https://download.openmmlab.com/mmcv/dist/cpu/torch1.9.0/index.html"
-    #     if get_cuda_version() and cuda_version:
-    #         cuda_cat = {"10": "102", "11": "111"}
-    #         suffix = f"https://download.openmmlab.com/mmcv/dist/cu{cuda_cat[cuda_version[:2]]}/torch1.9.0/index.html"
-    #     updated_requirement += f" -f {suffix}"
 
-    return updated_requirement
-
-
-def get_updated_requirements():
-    req = get_requirements("requirements.txt")
-    updated_requirement = []
-    mmcv_req = None
-    for r in req:
-        if r.name == "mmcv":
-            mmcv_req = r
-            continue
-        updated_requirement.append(update_requirement(r))
-    if mmcv_req:
-        cuda_version = get_cuda_version()
-        updated_requirement.append(update_requirement(mmcv_req, cuda_version=cuda_version))
     return updated_requirement
 
 
@@ -213,5 +184,5 @@ if __name__ == '__main__':
         packages=find_packages(include=('mpa', 'recipes', 'samples')),
         description='Model Preperation Algorithms',
         long_description=long_description,
-        install_requires=get_updated_requirements()
+        install_requires=get_requirements(),
     )
