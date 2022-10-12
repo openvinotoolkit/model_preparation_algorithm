@@ -30,7 +30,6 @@ if __name__ == "__main__":
         url="https://github.com/openvinotoolkit/model_preparation_algorithm",
         packages=find_packages(exclude=("tests")),
         package_dir={
-            "mpa": ["mpa/*"],
             "recipes": ["recipes/*"],
             "samples": ["samples/*"]
         },
