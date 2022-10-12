@@ -4,6 +4,7 @@
 
 import os
 from setuptools import setup, find_packages
+from distutils import util
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -28,12 +29,7 @@ if __name__ == "__main__":
         name="mpa",
         version=get_mpa_version(),
         url="https://github.com/openvinotoolkit/model_preparation_algorithm",
-        packages=find_packages(include=('mpa', 'mpa.*')),
-        package_data={
-            "mpa.recipes": ["recipes", "recipes.*"],
-            "mpa.samples": ["samples", "samples.*"],
-            "mpa.models": ["models", "models.*"]
-        },
+        packages=find_packages(include=('mpa', 'mpa.*', 'recipes')),
         description="Model Preperation Algorithms",
         long_description=long_description,
         install_requires=get_requirements(),
