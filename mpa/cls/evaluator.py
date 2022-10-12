@@ -37,6 +37,8 @@ class ClsEvaluator(ClsInferrer):
 
         # Inference
         infer_results = super()._infer(cfg)
+        if type(infer_results) is dict and 'eval_predictions' in infer_results:
+            infer_results = infer_results['eval_predictions']
 
         eval_cfg = cfg.get('evaluation', {})
         eval_cfg.pop('by_epoch', False)
