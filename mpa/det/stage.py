@@ -147,6 +147,7 @@ class DetectionStage(Stage):
         self.configure_task_adapt_hook(cfg, org_model_classes, model_classes)
 
         # Anchor setting
+        # TODO[JAEGUK]: configure_anchor is not working
         if cfg['task_adapt'].get('use_mpa_anchor', False):
             self.configure_anchor(cfg)
 
