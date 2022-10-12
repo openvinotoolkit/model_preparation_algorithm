@@ -4,7 +4,11 @@ _base_ = [
 
 model = dict(
     type='SupConClassifier',
-    backbone=dict(type='OTEEfficientNetV2'),
+    backbone=dict(
+        type='OTEMobileNetV3',
+        pretrained=True,
+        mode='small',
+        width_mult=1.0),
     neck=dict(type='GlobalAveragePooling'),
     head=dict(
         type='SupConClsHead',
