@@ -30,9 +30,9 @@ if __name__ == "__main__":
         url="https://github.com/openvinotoolkit/model_preparation_algorithm",
         packages=find_packages(include=('mpa', 'mpa.*')),
         package_data={
-            "mpa.recipes": ["recipes/*"],
-            "mpa.samples": ["samples/*"],
-            "mpa.models": ["models/*"]
+            "mpa.recipes": ["recipes", "recipes.*"],
+            "mpa.samples": ["samples", "samples.*"],
+            "mpa.models": ["models", "models.*"]
         },
         description="Model Preperation Algorithms",
         long_description=long_description,
