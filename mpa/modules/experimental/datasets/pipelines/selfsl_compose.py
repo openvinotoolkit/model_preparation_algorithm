@@ -16,18 +16,25 @@ class SelfSLCompose(object):
     def __init__(self, pipeline1, pipeline2):
         self.pipeline1 = Compose([build_from_cfg(p, PIPELINES) for p in pipeline1])
         self.pipeline2 = Compose([build_from_cfg(p, PIPELINES) for p in pipeline2])
+        self.is_supervised = False
 
     def __call__(self, data):
-        data1 = self.pipeline1(deepcopy(data))
-        h1, w1, _ = data1['img_metas'].data['img_shape']
-        self.pipeline2.transforms[1].img_scale = [(w1, h1)]
-        
-        data2 = self.pipeline2(deepcopy(data))        
-        
-        data = deepcopy(data1)
-        data['img'] = (data1['img'], data2['img'])
-        data['img_metas'] = (data1['img_metas'], data2['img_metas'])
-        data['gt_bboxes'] = (data1['gt_bboxes'], data2['gt_bboxes'])
-        data['gt_labels'] = (data1['gt_labels'], data2['gt_labels'])
+        if self.is_supervised:
+            data = self.pipeline1(data)
+            
+        else:
+            data1 = self.pipeline1(deepcopy(data))
+            h1, w1, _ = data1['img_metas'].data['img_shape']
+            self.pipeline2.transforms[1].img_scale = [(w1, h1)]
+            
+            data2 = self.pipeline2(deepcopy(data))        
+            
+            data = deepcopy(data1)
+            data['img'] = (data1['img'], data2['img'])
+            data['img_metas'] = (data1['img_metas'], data2['img_metas'])
+            data['gt_bboxes'] = (data1['gt_bboxes'], data2['gt_bboxes'])
+            data['gt_labels'] = (data1['gt_labels'], data2['gt_labels'])
+
+        data['is_supervised'] = self.is_supervised
 
         return data

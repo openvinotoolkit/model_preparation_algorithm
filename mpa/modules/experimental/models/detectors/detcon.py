@@ -394,75 +394,86 @@ class DetConBSupCon(DetConB):
 
         losses = dict()
 
-        # supcon training
-        img1, img2 = img[0], img[1]
-        img_metas1, _ = img_metas[0], img_metas[1]
-        gt_bboxes1, gt_bboxes2 = gt_bboxes[0], gt_bboxes[1]
-        gt_labels1, gt_labels2 = gt_labels[0], gt_labels[1]
+        if not isinstance(img, (list, tuple)):
+            # supervised learning with interval
+            e1 = self.online_net(img)
 
-        mask1, mask2 = self._prepare_masks_from_boxes(img1, img2, gt_bboxes1, gt_bboxes2, gt_labels1, gt_labels2)
+            # bbox head
+            loss_bbox = self.bbox_head.forward_train(
+                self.neck(e1), img_metas, gt_bboxes, gt_labels, gt_bboxes_ignore=None, **kwargs)
 
-        embds, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
-        
-        # bbox head
-        e1, _ = embds
-        loss_atss = self.bbox_head.forward_train(self.neck(e1), img_metas1, gt_bboxes1, gt_labels1, gt_bboxes_ignore=None, **kwargs)
-        losses.update(loss_atss)
-
-        with torch.no_grad():
-            self._momentum_update()
-            _, (ema_proj1, ema_proj2), (ema_ids1, ema_ids2) = \
-                self._forward_train([img1, img2], [mask1, mask2], self.target_net, self.projector_target)
-            
-        # predictor
-        proj1, proj2 = projs
-        pred1, pred2 = self.predictor([proj1])[0], self.predictor([proj2])[0]
-        pred1 = pred1.reshape((-1, self.num_samples, pred1.shape[-1]))
-        pred2 = pred2.reshape((-1, self.num_samples, pred2.shape[-1]))
-        ema_proj1 = ema_proj1.reshape((-1, self.num_samples, ema_proj1.shape[-1]))
-        ema_proj2 = ema_proj2.reshape((-1, self.num_samples, ema_proj2.shape[-1]))
-        
-        # decon loss
-        ids1, ids2 = ids
-        loss_detcon = self.detcon_loss(
-            pred1=pred1, 
-            pred2=pred2,
-            target1=ema_proj1,
-            target2=ema_proj2,
-            pind1=ids1,
-            pind2=ids2,
-            tind1=ema_ids1,
-            tind2=ema_ids2)['loss']
-        losses.update(dict(detcon=loss_detcon))
-
-        if self.loss_weights:
-            reweights = dict()
-            if isinstance(self.loss_weights, (list, tuple)):
-                # TODO: refactoring
-                # If `loss_weights` is changed through cli and includes `decode.*`,
-                # all of params of loss_weights is included in new `loss_weights`.
-                # It also should be List and converting it to dict is required only first time.
-                # ex) hyperparams.model.loss_weights=\"['decode.loss_seg', 0.1, 'detcon', 1]\" in cli
-                #     --> self.loss_weights = {'decode.loss_seg': 0.1, 'detcon': 1}
-                self.loss_weights = {
-                    self.loss_weights[i*2]: self.loss_weights[i*2+1] 
-                    for i in range(len(self.loss_weights)//2)
-                }
-
-            for k, v in self.loss_weights.items():
-                if k not in losses:
-                    self.logger.warning(
-                        f'\'{k}\' is not in losses. Please check if \'loss_weights\' is set well.')
-                    continue
-                    
-                if 'loss_' in k:
-                    reweights.update({k: losses[k] * v})
-                else:
-                    reweights.update({'loss_'+k: losses[k] * v})
-
-            losses.update(reweights)
+            losses.update(loss_bbox)
 
         else:
-            losses.update(dict(loss_detcon=loss_detcon))
+            # supcon training
+            img1, img2 = img[0], img[1]
+            img_metas1, _ = img_metas[0], img_metas[1]
+            gt_bboxes1, gt_bboxes2 = gt_bboxes[0], gt_bboxes[1]
+            gt_labels1, gt_labels2 = gt_labels[0], gt_labels[1]
+
+            mask1, mask2 = self._prepare_masks_from_boxes(img1, img2, gt_bboxes1, gt_bboxes2, gt_labels1, gt_labels2)
+
+            embds, projs, ids = self._forward_train([img1, img2], [mask1, mask2], self.online_net, self.projector_online)
+            
+            # bbox head
+            e1, _ = embds
+            loss_bbox = self.bbox_head.forward_train(self.neck(e1), img_metas1, gt_bboxes1, gt_labels1, gt_bboxes_ignore=None, **kwargs)
+            losses.update(loss_bbox)
+
+            with torch.no_grad():
+                self._momentum_update()
+                _, (ema_proj1, ema_proj2), (ema_ids1, ema_ids2) = \
+                    self._forward_train([img1, img2], [mask1, mask2], self.target_net, self.projector_target)
+                
+            # predictor
+            proj1, proj2 = projs
+            pred1, pred2 = self.predictor([proj1])[0], self.predictor([proj2])[0]
+            pred1 = pred1.reshape((-1, self.num_samples, pred1.shape[-1]))
+            pred2 = pred2.reshape((-1, self.num_samples, pred2.shape[-1]))
+            ema_proj1 = ema_proj1.reshape((-1, self.num_samples, ema_proj1.shape[-1]))
+            ema_proj2 = ema_proj2.reshape((-1, self.num_samples, ema_proj2.shape[-1]))
+            
+            # decon loss
+            ids1, ids2 = ids
+            loss_detcon = self.detcon_loss(
+                pred1=pred1, 
+                pred2=pred2,
+                target1=ema_proj1,
+                target2=ema_proj2,
+                pind1=ids1,
+                pind2=ids2,
+                tind1=ema_ids1,
+                tind2=ema_ids2)['loss']
+            losses.update(dict(detcon=loss_detcon))
+
+            if self.loss_weights:
+                reweights = dict()
+                if isinstance(self.loss_weights, (list, tuple)):
+                    # TODO: refactoring
+                    # If `loss_weights` is changed through cli and includes `decode.*`,
+                    # all of params of loss_weights is included in new `loss_weights`.
+                    # It also should be List and converting it to dict is required only first time.
+                    # ex) hyperparams.model.loss_weights=\"['decode.loss_seg', 0.1, 'detcon', 1]\" in cli
+                    #     --> self.loss_weights = {'decode.loss_seg': 0.1, 'detcon': 1}
+                    self.loss_weights = {
+                        self.loss_weights[i*2]: self.loss_weights[i*2+1] 
+                        for i in range(len(self.loss_weights)//2)
+                    }
+
+                for k, v in self.loss_weights.items():
+                    if k not in losses:
+                        self.logger.warning(
+                            f'\'{k}\' is not in losses. Please check if \'loss_weights\' is set well.')
+                        continue
+                        
+                    if 'loss_' in k:
+                        reweights.update({k: losses[k] * v})
+                    else:
+                        reweights.update({'loss_'+k: losses[k] * v})
+
+                losses.update(reweights)
+
+            else:
+                losses.update(dict(loss_detcon=loss_detcon))
 
         return losses
