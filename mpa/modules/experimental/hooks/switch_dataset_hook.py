@@ -41,6 +41,7 @@ class SwitchPipelineHook(Hook):
         if hasattr(runner.data_loader.dataset, 'dataset'):
             # for RepeatDataset
             dataset = runner.data_loader.dataset.dataset
+
         else:
             dataset = runner.data_loader.dataset
 
@@ -48,20 +49,24 @@ class SwitchPipelineHook(Hook):
 
     @check_input_parameters_type()
     def before_train_epoch(self, runner: BaseRunner):
+        dataset = self.get_dataset(runner)
+
         if self.cnt == self.interval-1:
             # start supcon training
             # TODO : not using list index for stability
-            dataset = self.get_dataset(runner)
             dataset.pipeline.transforms[2].is_supervised = False
 
         else:
             # TODO : not using list index for stability
-            dataset = self.get_dataset(runner)
             dataset.pipeline.transforms[2].is_supervised = True
 
     @check_input_parameters_type()
     def after_train_iter(self, runner: BaseRunner):
-        if self.cnt < self.interval-1:
+        if self.interval == 1:
+            dataset = self.get_dataset(runner)
+            dataset.pipeline.transforms[2].is_supervised = False
+
+        elif self.cnt < self.interval-1:
             self.cnt += 1
             if self.cnt == self.interval-1:
                 dataset = self.get_dataset(runner)
