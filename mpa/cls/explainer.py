@@ -1,14 +1,5 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
-
-from os import path as osp
-
-from mpa.registry import STAGES
-from .inferrer import ClsInferrer
-
-from mpa.utils.logger import get_logger
-from contextlib import nullcontext
 
 import os.path as osp
 import numpy as np
@@ -20,12 +11,11 @@ from mmcv.runner import load_checkpoint, wrap_fp16_model
 
 from mmcls.datasets import build_dataloader, build_dataset
 from mmcls.models import build_classifier
+from mpa.modules.xai.builder import build_explainer
 
 from mpa.registry import STAGES
-from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, SaliencyMapHook
 from mpa.utils.logger import get_logger
-from mpa.modules.xai.builder import build_explainer
+from mpa.cls.stage import ClsStage
 
 logger = get_logger()
 
