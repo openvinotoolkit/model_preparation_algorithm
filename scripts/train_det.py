@@ -14,16 +14,16 @@ for DATASET in DATASETS:
     DATAROOT = f'data/{DATASET}'
     if DATASET == 'fish':
         REAL_CLASSES = '"["fish"]"'
-        NUM_CLASSES = 1
+        NUM_CLASSES = 2
     elif DATASET == 'bccd':
         REAL_CLASSES = '"["WBC", "RBC", "Platelets"]"'
-        NUM_CLASSES = 3
+        NUM_CLASSES = 4
     elif DATASET == 'pothole':
         REAL_CLASSES = '"["pothole"]"'
-        NUM_CLASSES = 1
+        NUM_CLASSES = 2
     elif DATASET == 'vitens':
         REAL_CLASSES = '"["object"]"'
-        NUM_CLASSES = 1
+        NUM_CLASSES = 2
     else:
         raise ValueError()
 
@@ -32,13 +32,13 @@ for DATASET in DATASETS:
             for BATCHSIZE in BATCHSIZES[NUM_DATA]:
                 for INTERVAL in INTERVALS:
                     for LAMBDA in LAMBDAS:
-                        for seed in [1]:
+                        for seed in [1, 2, 3, 4, 5]:
                             # set command
                             if 'supcon' in MODEL:
                                 PARAMS_MODEL = (
                                     f'hyperparams.model.num_classes={NUM_CLASSES} '
-                                    # f'hyperparams.model.loss_weights.detcon={LAMBDA} '
-                                    # f'hyperparams.custom_hooks.1.interval={INTERVAL} '
+                                    f'hyperparams.model.loss_weights.detcon={LAMBDA} '
+                                    f'hyperparams.custom_hooks.1.interval={INTERVAL} '
                                 )
                                 WORKDIR = f'work_dirs/supcon/detection/{DATASET}/{NUM_DATA}/asis_lambda{LAMBDA}_batch{BATCHSIZE}_interval{INTERVAL}/{MODEL}_seed{seed}'
                             else:
