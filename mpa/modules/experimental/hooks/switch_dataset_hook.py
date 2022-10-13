@@ -60,22 +60,12 @@ class SwitchPipelineHook(Hook):
             dataset.pipeline.transforms[2].is_supervised = True
 
     @check_input_parameters_type()
-    def before_train_iter(self, runner: BaseRunner):
-        if self.cnt == self.interval-1:
-            # start supcon training
-            # TODO : not using list index for stability
-            dataset = self.get_dataset(runner)
-            dataset.pipeline.transforms[2].is_supervised = False
-
-        else:
-            # TODO : not using list index for stability
-            dataset = self.get_dataset(runner)
-            dataset.pipeline.transforms[2].is_supervised = True
-
-    @check_input_parameters_type()
     def after_train_iter(self, runner: BaseRunner):
         if self.cnt < self.interval-1:
             self.cnt += 1
+            if self.cnt == self.interval-1:
+                dataset = self.get_dataset(runner)
+                dataset.pipeline.transforms[2].is_supervised = False
 
         elif self.cnt == self.interval-1:
             # end supcon training
