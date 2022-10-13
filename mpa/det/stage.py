@@ -119,7 +119,7 @@ class DetectionStage(Stage):
                 )
             if 'dataset' in cfg.data.train:
                 train_cfg = self.get_train_data_cfg(cfg)
-                train_cfg.ote_dataset = cfg.data.train.pop('ote_dataset', None)
+                train_cfg.otx_dataset = cfg.data.train.pop('otx_dataset', None)
                 train_cfg.labels = cfg.data.train.get('labels', None)
                 train_cfg.data_classes = cfg.data.train.pop('data_classes', None)
                 train_cfg.new_classes = cfg.data.train.pop('new_classes', None)
