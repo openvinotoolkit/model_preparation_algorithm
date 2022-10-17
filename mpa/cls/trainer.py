@@ -150,7 +150,7 @@ class ClsTrainer(ClsStage):
 
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
-        train_data_cfg = Stage.get_train_data_cfg(cfg)
+        train_data_cfg = Stage.get_data_cfg(cfg, "train")
         drop_last = train_data_cfg.drop_last if train_data_cfg.get('drop_last', False) else False
 
         # updated to adapt list of dataset for the 'train'

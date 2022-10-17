@@ -155,7 +155,7 @@ class DetectionTrainer(DetectionStage):
         # Do clustering for SSD model
         if hasattr(cfg.model, 'bbox_head') and hasattr(cfg.model.bbox_head, 'anchor_generator'):
             if getattr(cfg.model.bbox_head.anchor_generator, 'reclustering_anchors', False):
-                train_cfg = Stage.get_train_data_cfg(cfg)
+                train_cfg = Stage.get_data_cfg(cfg, "train")
                 train_dataset = train_cfg.get('ote_dataset', None)
                 cfg, model = cluster_anchors(cfg, train_dataset, model)
         train_detector(
