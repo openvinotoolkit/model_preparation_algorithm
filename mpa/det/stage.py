@@ -312,9 +312,9 @@ class DetectionStage(Stage):
 
             norcal_gamma = cfg.get('NorCal', None)
             if norcal_gamma is not None:
-                device='cuda' if torch.cuda.is_available() else 'cpu'
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
                 if training:
-                    cls_distribution = get_cls_distribution(Stage.get_train_data_cfg(cfg))
+                    cls_distribution = get_cls_distribution(Stage.get_data_cfg(cfg, "train"))
                     calib_scale = torch.Tensor(cls_distribution).log().to(device)
                     calib_scale = norcal_gamma * calib_scale
                     logger.info(f'NorCal calibration scale: {calib_scale}')
@@ -323,7 +323,7 @@ class DetectionStage(Stage):
                     elif cfg.model.get('bbox_head', None):
                         cfg.model.bbox_head.calib_scale = calib_scale
                     else:
-                        raise NotImplementedError(f'{cfg.model.type} do not support NorCal' )
+                        raise NotImplementedError(f'{cfg.model.type} do not support NorCal')
                     cfg.runner['meta'] = {'calib_scale': calib_scale.cpu().tolist()}
                 else:
                     if ('roi_head' in cfg.model
