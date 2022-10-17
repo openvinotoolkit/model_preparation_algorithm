@@ -19,7 +19,8 @@ class MaskPooling(nn.Module):
         num_classes, 
         num_samples=16, 
         downsample=32,
-        ignore_bg=False
+        ignore_bg=False,
+        ignore_overlap=0.
     ):
 
         super().__init__()
@@ -27,6 +28,8 @@ class MaskPooling(nn.Module):
         self.num_classes = num_classes
         self.num_samples = num_samples
         self.ignore_bg = ignore_bg
+        self.ignore_overlap = ignore_overlap
+
         self.mask_ids = torch.arange(num_classes)
         self.pool = nn.AvgPool2d(kernel_size=downsample, stride=downsample)
 
@@ -40,18 +43,22 @@ class MaskPooling(nn.Module):
         if masks.ndim < 4:
             masks = masks.unsqueeze(dim=1)
         
-
         masks = masks == self.mask_ids[None, :, None, None].to(masks.device)
         masks = self.pool(masks.to(torch.float))
 
         b, c, h, w = masks.shape
-        masks = torch.reshape(masks, (b, c, h * w))
-        masks = torch.argmax(masks, dim=1)
-        masks = torch.eye(self.num_classes).to(masks.device)[masks]
-        masks = torch.transpose(masks, 1, 2)
-        return masks
+        overlapped_region = None
+        if self.ignore_overlap > 0:
+            overlapped_region = (masks.sum(dim=1) >= self.ignore_overlap).to(torch.float)
+            overlapped_region = torch.reshape(overlapped_region, (b, 1, h * w))
 
-    def sample_masks(self, masks):
+        masks = torch.reshape(masks, (b, c, h * w)) # (b, c, h * w)
+        masks = torch.argmax(masks, dim=1) # (b, h * w)
+        masks = torch.eye(self.num_classes).to(masks.device)[masks] # (b, h * w, num_classes)
+        masks = torch.transpose(masks, 1, 2) # (b, num_classes, h * w)
+        return masks, overlapped_region
+
+    def sample_masks(self, masks, overlapped_region):
         """Samples which binary masks to use in the loss.
         Args:
             masks: [(b, num_classes, d), (b, num_classes, d)]
@@ -59,14 +66,17 @@ class MaskPooling(nn.Module):
             masks: (b, num_samples, d)
         """
         bs = masks[0].shape[0]
-        mask_exists = [torch.greater(mask.sum(dim=-1), 1e-3) for mask in masks]
-        sel_masks = [mask_exist.to(torch.float) + 1e-11 for mask_exist in mask_exists]
+        mask_exists = [torch.greater(mask.sum(dim=-1), 1e-3) for mask in masks] # (b, num_classes)
+        sel_masks = [mask_exist.to(torch.float) + 1e-11 for mask_exist in mask_exists] # (b, num_classes)
         # torch.multinomial handles normalizing
         # sel_masks = sel_masks / sel_masks.sum(dim=1, keepdim=True)
         # sel_masks = torch.softmax(sel_masks, dim=-1)
         if self.ignore_bg:
             for sel_mask in sel_masks:
                 sel_mask[:,0] = 0
+
+        if self.ignore_overlap > 0:
+            masks = [m * o for m, o in zip(masks, overlapped_region)]
 
         mask_ids = [
             torch.multinomial(sel_mask, num_samples=self.num_samples, replacement=True) 
@@ -87,7 +97,7 @@ class MaskPooling(nn.Module):
             sampled_mask_ids: [sampled_mask_ids1, sampled_mask_ids2]
         """
         binary_masks = [self.pool_masks(mask) for mask in masks]
-        sampled_masks, sampled_mask_ids = self.sample_masks(binary_masks)
+        sampled_masks, sampled_mask_ids = self.sample_masks(*list(zip(*binary_masks)))
         areas = [sampled_mask.sum(dim=-1, keepdim=True) for sampled_mask in sampled_masks]
         sampled_masks = [
             sampled_mask / torch.maximum(area, torch.tensor(1.0, device=area.device)) 
@@ -160,6 +170,7 @@ class DetConB(SAMDetectorMixin, L2SPDetectorMixin, SingleStageDetector):
         input_transform=None,
         in_index=None,
         ignore_bg=False,
+        ignore_overlap=0.,
         loss_weights=None,
         pretrained=None,
         **kwargs
@@ -184,12 +195,13 @@ class DetConB(SAMDetectorMixin, L2SPDetectorMixin, SingleStageDetector):
         self.in_index = in_index
         self.base_momentum = base_momentum
         self.momentum = base_momentum
+        self.ignore_overlap = ignore_overlap
         self.loss_weights = loss_weights
 
         self.num_classes = num_classes
         self.num_samples = num_samples
         self.downsample = downsample
-        self.mask_pool = MaskPooling(num_classes, num_samples, downsample, ignore_bg)
+        self.mask_pool = MaskPooling(num_classes, num_samples, downsample, ignore_bg, ignore_overlap)
 
         if pretrained is not None:
             self.logger.info('load model from: {}'.format(pretrained))
@@ -352,7 +364,17 @@ class DetConBSupCon(DetConB):
         """
         for bbox, label in zip(bboxes, labels):
             x1, y1, x2, y2 = bbox
-            masks[int(y1):int(y2), int(x1):int(x2)] = label+1
+
+            if self.ignore_overlap > 0:
+                masks[int(y1):int(y2),int(x1):int(x2)] += label + 1
+                
+                overlapped_coord = torch.where(masks[int(y1):int(y2),int(x1):int(x2)] != label + 1)
+                overlapped_coord = tuple(c+d for c, d in zip(overlapped_coord, [int(y1), int(x1)]))
+                masks[overlapped_coord] = -1
+
+            else:
+                masks[int(y1):int(y2),int(x1):int(x2)] = label + 1
+
         return masks
 
     def _prepare_masks_from_boxes(self, img1, img2, bboxes1, bboxes2, labels1, labels2):
