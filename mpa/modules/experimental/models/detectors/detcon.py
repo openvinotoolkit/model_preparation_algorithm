@@ -267,7 +267,7 @@ class DetConB(SAMDetectorMixin, L2SPDetectorMixin, SingleStageDetector):
         embds_for_detcon = [
             embd.reshape((bs, emb_d, emb_h*emb_w)).transpose(1, 2) for embd in embds_for_detcon
         ]
-        
+
         sampled_embds = [
             sampled_mask @ embd_for_detcon 
             for sampled_mask, embd_for_detcon in zip(sampled_masks, embds_for_detcon)
@@ -363,17 +363,17 @@ class DetConBSupCon(DetConB):
         Convert annotations: bboxes to masks
         """
         for bbox, label in zip(bboxes, labels):
-            x1, y1, x2, y2 = bbox
+            x1, y1, x2, y2 = map(int, bbox)
 
             if self.ignore_overlap > 0:
-                masks[int(y1):int(y2),int(x1):int(x2)] += label + 1
-                
-                overlapped_coord = torch.where(masks[int(y1):int(y2),int(x1):int(x2)] != label + 1)
-                overlapped_coord = tuple(c+d for c, d in zip(overlapped_coord, [int(y1), int(x1)]))
-                masks[overlapped_coord] = -1
+                # not assigned / same class -> label + 1
+                # different class -> -1
+                masks[y1:y2,x1:x2] = torch.where(
+                    (masks[y1:y2,x1:x2] == 0) | (masks[y1:y2,x1:x2] == label + 1),
+                    label + 1, -1)
 
             else:
-                masks[int(y1):int(y2),int(x1):int(x2)] = label + 1
+                masks[y1:y2,x1:x2] = label + 1
 
         return masks
 
