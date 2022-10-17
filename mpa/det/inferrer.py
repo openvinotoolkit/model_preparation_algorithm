@@ -7,14 +7,16 @@ import torch
 from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint
 
-from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
+from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
 from mmdet.parallel import MMDataCPU
 from mmdet.utils.deployment import get_saliency_map, get_feature_vector
+from mmdet.apis import single_gpu_test
 
 from mpa.registry import STAGES
 from .stage import DetectionStage
 from mpa.utils.logger import get_logger
+
 
 logger = get_logger()
 
@@ -33,9 +35,9 @@ class DetectionInferrer(DetectionStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
-        eval = kwargs.get('eval', False)
-        dump_features = kwargs.get('dump_features', False)
-        dump_saliency_map = kwargs.get('dump_saliency_map', False)
+        eval = kwargs.pop('eval', False)
+        dump_features = kwargs.pop('dump_features', False)
+        dump_saliency_map = kwargs.pop('dump_saliency_map', False)
         if mode not in self.mode:
             return {}
 
@@ -82,7 +84,7 @@ class DetectionInferrer(DetectionStage):
             input_source = cfg.get('input_source')
             logger.info(f'Inferring on input source: data.{input_source}')
             if input_source == 'train':
-                src_data_cfg = self.get_train_data_cfg(cfg)
+                src_data_cfg = self.get_data_cfg(cfg, input_source)
             else:
                 src_data_cfg = cfg.data[input_source]
             data_cfg.test_mode = src_data_cfg.get('test_mode', False)
@@ -193,10 +195,7 @@ class DetectionInferrer(DetectionStage):
             model = model.module
         with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
             with eval_model.module.backbone.register_forward_hook(saliency_map_hook):
-                for data in data_loader:
-                    with torch.no_grad():
-                        result = eval_model(return_loss=False, rescale=True, **data)
-                    eval_predictions.extend(result)
+                eval_predictions = single_gpu_test(eval_model, data_loader)
 
         for key in [
                 'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',
@@ -206,7 +205,20 @@ class DetectionInferrer(DetectionStage):
 
         metric = None
         if eval:
-            metric = dataset.evaluate(eval_predictions, **cfg.evaluation)[cfg.evaluation.metric]
+            metric = dataset.evaluate(eval_predictions, **cfg.evaluation)
+            metric = metric['mAP'] if isinstance(cfg.evaluation.metric, list) else metric[cfg.evaluation.metric]
+
+        # Check and unwrap ImageTilingDataset object from TaskAdaptEvalDataset
+        while hasattr(dataset, 'dataset') and not isinstance(dataset, ImageTilingDataset):
+            dataset = dataset.dataset
+
+        if isinstance(dataset, ImageTilingDataset):
+            saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
+            feature_vectors = [feature_vectors[i] for i in range(dataset.num_samples)]
+            if not dataset.merged_results:
+                eval_predictions = dataset.merge(eval_predictions)
+            else:
+                eval_predictions = dataset.merged_results
 
         outputs = dict(
             classes=target_classes,

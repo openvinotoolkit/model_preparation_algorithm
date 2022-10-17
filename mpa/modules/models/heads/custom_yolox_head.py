@@ -17,6 +17,7 @@ class CustomYOLOXHead(YOLOXHead):
         self.calib_scale = calib_scale
 
     def get_bboxes(self,
+<<<<<<< .merge_file_3CXc4A
                    cls_scores,
                    bbox_preds,
                    objectnesses,
@@ -24,6 +25,15 @@ class CustomYOLOXHead(YOLOXHead):
                    cfg=None,
                    rescale=False,
                    with_nms=True):
+=======
+                       cls_scores,
+                       bbox_preds,
+                       objectnesses,
+                       img_metas=None,
+                       cfg=None,
+                       rescale=False,
+                       with_nms=True):
+>>>>>>> .merge_file_b4novE
             """
             Add number of instances per category calibration to mmdet yolox_head._get_bboxes_single
             """

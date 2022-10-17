@@ -4,7 +4,10 @@
 import torch
 
 from mmdet.core import multiclass_nms
+<<<<<<< .merge_file_RNbQRM
 from mmdet.core.utils.misc import topk
+=======
+>>>>>>> .merge_file_nPpI4Q
 from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.losses import smooth_l1_loss
 from mmdet.models.dense_heads.ssd_head import SSDHead

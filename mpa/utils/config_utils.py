@@ -160,6 +160,7 @@ def update_or_add_custom_hook(cfg: Config, hook_cfg: ConfigDict):
     cfg['custom_hooks'] = custom_hooks
 
 
+<<<<<<< .merge_file_ODHtdq
 def remove_custom_hook(cfg: Config, hook_type: str):
     """Remove hook cfg if hook_type is in custom_hook
     """
@@ -173,6 +174,8 @@ def remove_custom_hook(cfg: Config, hook_type: str):
         if idx_to_del is not None:
             del custom_hooks[idx_to_del]
 
+=======
+>>>>>>> .merge_file_nouF5v
 def get_cls_distribution(cfg: ConfigDict):
     cls_distribution = {}
     for label in cfg.labels:
