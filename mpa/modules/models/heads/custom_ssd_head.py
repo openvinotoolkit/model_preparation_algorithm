@@ -4,6 +4,7 @@
 import torch
 
 from mmdet.core import multiclass_nms
+from mmdet.core.utils.misc import topk
 from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.losses import smooth_l1_loss
 from mmdet.models.dense_heads.ssd_head import SSDHead
@@ -126,7 +127,7 @@ class CustomSSDHead(SSDHead):
                 cls_score[:, :self.num_classes] = cls_score[:, :self.num_classes] - self.calib_scale
                 scores = cls_score.softmax(-1)
                 scores = scores[:, :self.num_classes]
-                print(f'\n{original_score} \n==>\n {scores}\n')
+            print(f'\n{original_score[original_score.max(dim=1)[0].topk(k=5)[1]]}\n==>\n{scores[scores.max(dim=1)[0].topk(k=5)[1]]}\n')
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             nms_pre = cfg.get('nms_pre', -1)
             if nms_pre > 0:

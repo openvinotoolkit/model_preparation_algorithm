@@ -263,7 +263,7 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
 
             original_score = cls_score.permute(1, 2, 0).reshape(-1, self.cls_out_channels).sigmoid()
             scores = (cls_score.permute(1, 2, 0).reshape(-1, self.cls_out_channels) - self.calib_scale).sigmoid()
-            print(f'\n{original_score[:, :]} \n==>\n {scores[:, :]}\n')
+            print(f'\n{original_score[original_score.max(dim=1)[0].topk(k=5)[1]]}\n==>\n{scores[scores.max(dim=1)[0].topk(k=5)[1]]}\n')
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             centerness = centerness.permute(1, 2, 0).reshape(-1).sigmoid()
 

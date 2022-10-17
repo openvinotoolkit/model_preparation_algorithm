@@ -17,13 +17,13 @@ class CustomYOLOXHead(YOLOXHead):
         self.calib_scale = calib_scale
 
     def get_bboxes(self,
-                       cls_scores,
-                       bbox_preds,
-                       objectnesses,
-                       img_metas=None,
-                       cfg=None,
-                       rescale=False,
-                       with_nms=True):
+                   cls_scores,
+                   bbox_preds,
+                   objectnesses,
+                   img_metas=None,
+                   cfg=None,
+                   rescale=False,
+                   with_nms=True):
             """
             Add number of instances per category calibration to mmdet yolox_head._get_bboxes_single
             """
@@ -53,7 +53,7 @@ class CustomYOLOXHead(YOLOXHead):
 
             original_score = torch.cat(flatten_cls_scores, dim=1).sigmoid()
             flatten_cls_scores = (torch.cat(flatten_cls_scores, dim=1) - self.calib_scale).sigmoid()
-            print(f'\n{original_score[:5, :]} \n==>\n {flatten_cls_scores[:5, :]}\n')
+            print(f'\n{original_score[original_score.max(dim=1)[0].topk(k=5)[1]]}\n==>\n{scores[scores.max(dim=1)[0].topk(k=5)[1]]}\n')
             flatten_bbox_preds = torch.cat(flatten_bbox_preds, dim=1)
             flatten_objectness = torch.cat(flatten_objectness, dim=1).sigmoid()
             flatten_priors = torch.cat(mlvl_priors)
