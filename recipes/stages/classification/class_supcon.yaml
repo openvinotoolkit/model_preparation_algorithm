@@ -15,12 +15,6 @@ optimizer:
     momentum: 0.9
     weight_decay: 0.0005
 
-# lr_config:
-#     warmup: 'linear'
-#     warmup_iters: 5
-#     warmup_ratio: 0.01
-#     warmup_by_epoch: true
-
 # evaluation:
     # metric: ['accuracy', 'class_accuracy']
 

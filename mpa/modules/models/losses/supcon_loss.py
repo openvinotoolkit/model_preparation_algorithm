@@ -24,7 +24,7 @@ class SupConLoss(nn.Module):
         self.base_temperature = base_temperature
         self.lamda = lamda
 
-    def forward(self, features, labels=None, mask=None, fc_feats=None, fc_only=False):
+    def forward(self, features, labels=None, mask=None, fc_feats=None):
         """Compute loss for model. If both `labels` and `mask` are None,
         it degenerates to SimCLR unsupervised loss:
         https://arxiv.org/abs/2002.05709
@@ -34,7 +34,6 @@ class SupConLoss(nn.Module):
             mask: contrastive mask of shape [bsz, bsz], mask_{i,j}=1 if sample j
                 has the same class as sample i. Can be asymmetric.
             fc_feats: tensor to train the linear classifier on
-            fc_only: whether to only train the classifier, i.e., CE loss.
         Returns:
             A loss pair: the SupCon loss and the CE loss. They might be None.
         """
@@ -45,6 +44,7 @@ class SupConLoss(nn.Module):
         losses = dict()
         losses['loss'] = 0
 
+        # Cross-Entropy loss: classification loss
         if fc_feats is not None:
             if fc_feats.shape[0] == labels.shape[0] * 2:
                 losses['loss'] = nll_loss(log_softmax(fc_feats, dim=1), torch.cat([labels, labels], dim=0))
@@ -53,9 +53,6 @@ class SupConLoss(nn.Module):
 
             losses['loss'] *= self.loss_weight
 
-            if fc_only:
-                return losses
-
         if len(features.shape) < 3:
             raise ValueError('`features` needs to be [bsz, n_views, ...],'
                              'at least 3 dimensions are required')
@@ -63,6 +60,8 @@ class SupConLoss(nn.Module):
             features = features.view(features.shape[0], features.shape[1], -1)
 
         batch_size = features.shape[0]
+
+        # InfoNCE loss: contrastive loss
         if labels is not None and mask is not None:
             raise ValueError('Cannot define both `labels` and `mask`')
         elif labels is None and mask is None:
