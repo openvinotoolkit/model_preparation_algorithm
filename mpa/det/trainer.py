@@ -69,6 +69,7 @@ class DetectionTrainer(DetectionStage):
 
         # Data
         datasets = [build_dataset(cfg.data.train)]
+        cfg.data.val.samples_per_gpu = cfg.data.get('samples_per_gpu', 1)
 
         if hasattr(cfg, 'hparams'):
             if cfg.hparams.get('adaptive_anchor', False):
