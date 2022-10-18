@@ -1,6 +1,6 @@
 _base_ = [
     './data.py',
-    './pipelines/supcon_pipeline.py'
+    './pipelines/twocrop_pipeline.py'
 ]
 
 __dataset_type = 'ClsDirDataset'

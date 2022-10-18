@@ -11,15 +11,16 @@ from mmcls.models.heads.base_head import BaseHead
 
 
 @HEADS.register_module()
-class SupConClsHead(BaseHead):
-    """Supervised Contrastive Loss for Classification Head
+class HybridClsHead(BaseHead):
+    """Hybrid head for Loss for Classification Loss
 
     Args:
         num_classes (int): The number of classes of dataset used for training
         in_channels (int): The channels of input data from the backbone
         hid_channels (int): The channels of the hidden layer of the MLP
         out_channels (int): The channels of the output layer of the MLP
-        loss (dict): configuration of loss, default is SupConLoss
+        loss (dict): configuration of loss, default is SupConLoss, BarlowTwins
+                     is also an option.
         topk (set): evaluation topk score, default is (1, )
     """
 

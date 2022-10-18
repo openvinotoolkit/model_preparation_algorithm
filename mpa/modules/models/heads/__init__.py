@@ -4,4 +4,4 @@
 
 # flake8: noqa
 
-from . import supcon_cls_head
+from . import hybrid_cls_head

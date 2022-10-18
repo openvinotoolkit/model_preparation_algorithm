@@ -11,7 +11,7 @@ model = dict(
         width_mult=1.0),
     neck=dict(type='GlobalAveragePooling'),
     head=dict(
-        type='SupConClsHead',
+        type='HybridClsHead',
         num_classes=10,
         in_channels=-1,
         hid_channels=512,
