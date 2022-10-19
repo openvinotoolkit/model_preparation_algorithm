@@ -47,6 +47,9 @@ class SegStage(Stage):
             logger.info(f'Overriding cfg.load_from -> {pretrained}')
             cfg.load_from = pretrained  # Overriding by stage input
 
+        if cfg.get('resume', False):
+            cfg.resume_from = cfg.load_from
+
         # Data
         if data_cfg:
             cfg.merge_from_dict(data_cfg)
@@ -58,10 +61,6 @@ class SegStage(Stage):
         # Task
         if 'task_adapt' in cfg:
             self.configure_task(cfg, training, **kwargs)
-
-        # Other hyper-parameters
-        if 'hyperparams' in cfg:
-            self.configure_hyperparams(cfg, training, **kwargs)
 
         return cfg
 
@@ -151,7 +150,7 @@ class SegStage(Stage):
                             head.loss_decode = [self.configure_am_softmax_loss_with_ignore(model_classes)]
 
         # Dataset
-        src_data_cfg = Stage.get_train_data_cfg(cfg)
+        src_data_cfg = Stage.get_data_cfg(cfg, "train")
         for mode in ['train', 'val', 'test']:
             if src_data_cfg.type == 'MPASegIncrDataset':
                 if cfg.data[mode]['type'] != 'MPASegIncrDataset':
@@ -197,7 +196,7 @@ class SegStage(Stage):
 
         # Model classes
         if task_adapt_op == 'REPLACE':
-            if len(data_classes) == 1: # 'background'
+            if len(data_classes) == 1:  # 'background'
                 model_classes = org_model_classes.copy()
             else:
                 model_classes = data_classes.copy()
@@ -222,14 +221,3 @@ class SegStage(Stage):
                     head.num_classes = len(model_classes)
 
         return org_model_classes, model_classes, data_classes
-
-    def configure_hyperparams(self, cfg, training, **kwargs):
-        hyperparams = kwargs.get('hyperparams', None)
-        if hyperparams is not None:
-            bs = hyperparams.get('bs', None)
-            if bs is not None:
-                cfg.data.samples_per_gpu = bs
-
-            lr = hyperparams.get('lr', None)
-            if lr is not None:
-                cfg.optimizer.lr = lr

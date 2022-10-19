@@ -5,13 +5,13 @@ import torch
 import torch.nn.functional as F
 from mmcv.runner import force_fp32
 from mmdet.core import bbox2roi, multi_apply, multiclass_nms
-from mmdet.core.utils.misc import arange
+# from mmdet.core.utils.misc import arange
 from mmdet.integration.nncf.utils import no_nncf_trace
 from mmdet.models.builder import HEADS, build_head, build_roi_extractor
 from mmdet.models.losses import accuracy
 from mmdet.models.roi_heads.bbox_heads.convfc_bbox_head import Shared2FCBBoxHead
 from mmdet.models.roi_heads.standard_roi_head import StandardRoIHead
-from mmdet.models.roi_heads.mask_heads.fcn_mask_head import FCNMaskHead
+# from mmdet.models.roi_heads.mask_heads.fcn_mask_head import FCNMaskHead
 from mpa.modules.models.heads.cross_dataset_detector_head import (
     CrossDatasetDetectorHead,
 )
@@ -27,10 +27,10 @@ class CustomRoIHead(StandardRoIHead):
             bbox_head.type = 'CustomConvFCBBoxHead'
         self.bbox_head = build_head(bbox_head)
 
-    def init_mask_head(self, mask_roi_extractor, mask_head):
-        if mask_head.type == 'FCNMaskHead':
-            mask_head.type = 'CustomFCNMaskHead'
-        super(CustomRoIHead, self).init_mask_head(mask_roi_extractor, mask_head)
+    # def init_mask_head(self, mask_roi_extractor, mask_head):
+    #     if mask_head.type == 'FCNMaskHead':
+    #         mask_head.type = 'CustomFCNMaskHead'
+    #     super(CustomRoIHead, self).init_mask_head(mask_roi_extractor, mask_head)
 
     def _bbox_forward_train(self, x, sampling_results, gt_bboxes, gt_labels,
                             img_metas):
@@ -241,17 +241,17 @@ class CustomConvFCBBoxHead(Shared2FCBBoxHead, CrossDatasetDetectorHead):
             return det_bboxes, det_labels
 
 
-@HEADS.register_module()
-class CustomFCNMaskHead(FCNMaskHead):
-    def __init__(self,
-                 *args,
-                 calib_scale=0,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.calib_scale = calib_scale
+# @HEADS.register_module()
+# class CustomFCNMaskHead(FCNMaskHead):
+#     def __init__(self,
+#                  *args,
+#                  calib_scale=0,
+#                  **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.calib_scale = calib_scale
 
-    def get_seg_masks(self, mask_pred, det_bboxes, det_labels, rcnn_test_cfg,
-                      ori_shape, scale_factor, rescale):
+#     def get_seg_masks(self, mask_pred, det_bboxes, det_labels, rcnn_test_cfg,
+#                       ori_shape, scale_factor, rescale):
 
-        segm_result = mask_pred[arange(end=det_labels.shape[0], device=mask_pred.device), det_labels].sigmoid()
-        return segm_result
+#         segm_result = mask_pred[arange(end=det_labels.shape[0], device=mask_pred.device), det_labels].sigmoid()
+#         return segm_result

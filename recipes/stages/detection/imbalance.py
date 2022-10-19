@@ -46,5 +46,5 @@ lr_config = dict(
 
 ignore = True
 adaptive_validation_interval = dict(max_interval=5)
-seed = 2222
+seed = 5
 NorCal = 0.1

@@ -160,6 +160,20 @@ def update_or_add_custom_hook(cfg: Config, hook_cfg: ConfigDict):
     cfg['custom_hooks'] = custom_hooks
 
 
+def remove_custom_hook(cfg: Config, hook_type: str):
+    """Remove hook cfg if hook_type is in custom_hook
+    """
+    custom_hooks = cfg.get('custom_hooks', [])
+    if len(custom_hooks) > 0:
+        idx_to_del = None
+        for i, custom_hook in enumerate(custom_hooks):
+            if custom_hook['type'] == hook_type:
+                idx_to_del = i
+                break
+        if idx_to_del is not None:
+            del custom_hooks[idx_to_del]
+
+
 def get_cls_distribution(cfg: ConfigDict):
     cls_distribution = {}
     for label in cfg.labels:

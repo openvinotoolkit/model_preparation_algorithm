@@ -304,4 +304,3 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
             return det_bboxes, det_labels
         else:
             return mlvl_bboxes, mlvl_scores, mlvl_centerness
-

@@ -4,22 +4,24 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from mmcv.cnn import normal_init, constant_init, build_activation_layer
 
 from mmcls.models.builder import HEADS
 from mmcls.models.heads import MultiLabelClsHead
 
+from .custom_multi_label_linear_cls_head import AnglularLinear
 
 @HEADS.register_module()
 class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
-    """Linear classification head for multilabel task.
+    """Non-linear classification head for multilabel task.
     Args:
         num_classes (int): Number of categories.
         in_channels (int): Number of channels in the input feature map.
         loss (dict): Config of classification loss.
+        scale (float): positive scale parameter.
         init_cfg (dict | optional): The extra init config of layers.
             Defaults to use dict(type='Normal', layer='Linear', std=0.01).
+        normalized (bool): Normalize input features and weights in the last linar layer.
     """
 
     def __init__(self,
@@ -27,12 +29,14 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
                  in_channels,
                  hid_channels=1280,
                  act_cfg=dict(type='ReLU'),
+                 scale=1.0,
                  loss=dict(
                      type='CrossEntropyLoss',
                      use_sigmoid=True,
                      reduction='mean',
                      loss_weight=1.0),
-                 dropout=False):
+                 dropout=False,
+                 normalized=False):
 
         super(CustomMultiLabelNonLinearClsHead, self).__init__(
             loss=loss)
@@ -42,6 +46,8 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         self.hid_channels = hid_channels
         self.act = build_activation_layer(act_cfg)
         self.dropout = dropout
+        self.normalized = normalized
+        self.scale = scale
 
         if self.num_classes <= 0:
             raise ValueError(
@@ -50,21 +56,19 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         self._init_layers()
 
     def _init_layers(self):
+        modules = [
+                   nn.Linear(self.in_channels, self.hid_channels),
+                   nn.BatchNorm1d(self.hid_channels),
+                   self.act
+                  ]
         if self.dropout:
-            self.classifier = nn.Sequential(
-                nn.Linear(self.in_channels, self.hid_channels),
-                nn.BatchNorm1d(self.hid_channels),
-                self.act,
-                nn.Dropout(p=0.2),
-                nn.Linear(self.hid_channels, self.num_classes)
-            )
+            modules.append(nn.Dropout(p=0.2))
+        if self.normalized:
+            modules.append(AnglularLinear(self.hid_channels, self.num_classes))
         else:
-            self.classifier = nn.Sequential(
-                nn.Linear(self.in_channels, self.hid_channels),
-                nn.BatchNorm1d(self.hid_channels),
-                self.act,
-                nn.Linear(self.hid_channels, self.num_classes)
-            )
+            modules.append(nn.Linear(self.hid_channels, self.num_classes))
+
+        self.classifier = nn.Sequential(*modules)
 
     def init_weights(self):
         for m in self.classifier:
@@ -82,13 +86,13 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
         _gt_label = torch.abs(gt_label)
         # compute loss
         loss = self.compute_loss(cls_score, _gt_label, valid_label_mask=valid_label_mask, avg_factor=num_samples)
-        losses['loss'] = loss
+        losses['loss'] = loss / self.scale
         return losses
 
     def forward_train(self, x, gt_label, **kwargs):
         img_metas = kwargs.get('img_metas', False)
         gt_label = gt_label.type_as(x)
-        cls_score = self.classifier(x)
+        cls_score = self.classifier(x) * self.scale
         if img_metas:
             valid_label_mask = self.get_valid_label_mask(img_metas=img_metas)
             losses = self.loss(cls_score, gt_label, valid_label_mask=valid_label_mask)
@@ -98,10 +102,10 @@ class CustomMultiLabelNonLinearClsHead(MultiLabelClsHead):
 
     def simple_test(self, img):
         """Test without augmentation."""
-        cls_score = self.classifier(img)
+        cls_score = self.classifier(img) * self.scale
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
-        pred = F.sigmoid(cls_score) if cls_score is not None else None
+        pred = torch.sigmoid(cls_score) if cls_score is not None else None
         if torch.onnx.is_in_onnx_export():
             return pred
         pred = list(pred.detach().cpu().numpy())
