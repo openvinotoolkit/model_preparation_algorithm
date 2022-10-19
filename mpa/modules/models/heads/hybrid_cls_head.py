@@ -19,8 +19,7 @@ class HybridClsHead(BaseHead):
         in_channels (int): The channels of input data from the backbone
         hid_channels (int): The channels of the hidden layer of the MLP
         out_channels (int): The channels of the output layer of the MLP
-        loss (dict): configuration of loss, default is SupConLoss, BarlowTwins
-                     is also an option.
+        loss (dict): The loss setup: SupConLoss (default) or BarlowTwinsLoss
         topk (set): evaluation topk score, default is (1, )
     """
 
