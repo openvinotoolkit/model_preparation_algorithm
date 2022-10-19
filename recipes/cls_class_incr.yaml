@@ -21,6 +21,12 @@ stages:
         stage_name: cls-inc
         output_key: final_ckpt
 
+  - name: cls-inc-evaluation
+    type: ClsEvaluator
+    task: classification
+    mode: eval
+    config: {{ fileDirname }}/stages/classification/class_incr.yaml
+
   - name: cls-inc-explanation
     type: ClsExplainer
     task: classification
