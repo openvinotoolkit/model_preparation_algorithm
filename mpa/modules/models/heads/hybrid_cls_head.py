@@ -57,7 +57,7 @@ class HybridClsHead(BaseHead):
 
         self.lamda = lamda
 
-    def forward_train(self, x, gt_labels, fc_only=False):
+    def forward_train(self, x, gt_labels):
         """forward_train head using the Supervised Contrastive Loss
 
         Args:
@@ -70,11 +70,6 @@ class HybridClsHead(BaseHead):
         losses = dict()
         if self.fc is not None:
             fc_feats = self.fc(x)
-            # behave like the cross entropy loss
-            if fc_only:
-                _, loss = self.compute_loss(None, gt_labels, fc_feats=fc_feats)
-                losses.update(loss)
-                return losses
 
         bsz = gt_labels.shape[0]
         mlp_feats = F.normalize(self.mlp(x), dim=1)

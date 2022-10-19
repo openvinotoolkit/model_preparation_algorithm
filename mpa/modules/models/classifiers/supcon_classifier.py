@@ -22,7 +22,7 @@ class SupConClassifier(ImageClassifier):
         img = torch.cat(img, dim=0)
         x = self.extract_feat(img)
         losses = dict()
-        loss = self.head.forward_train(x, gt_label, fc_only=False)
+        loss = self.head.forward_train(x, gt_label)
         losses.update(loss)
         return losses
 
