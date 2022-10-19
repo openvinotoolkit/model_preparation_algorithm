@@ -48,7 +48,7 @@ class HybridClsHead(BaseHead):
         self.num_classes = num_classes
         self.fc = nn.Linear(in_features=in_channels, out_features=self.num_classes)
 
-        # Set up an MLP for the contrastive head
+        # Set up an MLP for the helper head
         self.mlp = nn.Sequential(
             nn.Linear(in_features=in_channels, out_features=hid_channels),
             nn.ReLU(inplace=True),
