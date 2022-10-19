@@ -16,7 +16,7 @@ for DATASET in DATASETS:
         REAL_CLASSES = '"["fish"]"'
         NUM_CLASSES = 2
     elif DATASET == 'bccd':
-        REAL_CLASSES = '"["WBC", "RBC", "Platelets"]"'
+        REAL_CLASSES = '"["Platelets", "RBC", "WBC"]"'
         NUM_CLASSES = 4
     elif DATASET == 'pothole':
         REAL_CLASSES = '"["pothole"]"'
