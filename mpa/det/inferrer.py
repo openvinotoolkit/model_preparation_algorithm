@@ -139,7 +139,6 @@ class DetectionInferrer(DetectionStage):
             if weight_info.get('meta', None):
                 if weight_info['meta'].get('calib_scale', None):
                     calib_scale = torch.Tensor(torch.load(cfg.load_from)['meta']['calib_scale'])
-                    calib_scale = cfg.NorCal * torch.log(calib_scale)
                     if torch.cuda.is_available:
                         calib_scale = calib_scale.cuda(cfg.gpu_ids[0])
                     if hasattr(model, 'roi_head') and hasattr(model.roi_head, 'bbox_head'):

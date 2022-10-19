@@ -261,9 +261,14 @@ class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
                 cls_scores, bbox_preds, centernesses, mlvl_anchors):
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
 
-            # original_score = cls_score.permute(1,2,0).reshape(-1, self.cls_out_channels).sigmoid()
+            # original_score = cls_score.permute(1, 2, 0).reshape(-1, self.cls_out_channels).sigmoid()
             scores = (cls_score.permute(1, 2, 0).reshape(-1, self.cls_out_channels) - self.calib_scale).sigmoid()
-            # print(f'\n{original_score[:5, :]} \n==>\n {scores[:5, :]}\n')
+
+            # # For debug
+            # print(self.calib_scale)
+            # pos_inds = original_score.max(dim=1)[0].topk(5)[1]
+            # print(f'\n{original_score[pos_inds]} \n==>\n {scores[pos_inds]}\n')
+
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             centerness = centerness.permute(1, 2, 0).reshape(-1).sigmoid()
 

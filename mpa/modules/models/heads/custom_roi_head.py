@@ -201,8 +201,13 @@ class CustomConvFCBBoxHead(Shared2FCBBoxHead, CrossDatasetDetectorHead):
                    cfg=None):
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
+        # original_score = cls_score.softmax(-1)[:, :self.num_classes]
         cls_score[:, :self.num_classes] = cls_score[:, :self.num_classes] - self.calib_scale
         scores = F.softmax(cls_score, dim=1) if cls_score is not None else None
+
+        # # For debug
+        # pos_inds = original_score.max(dim=1)[0].topk(5)[1]
+        # print(f'\n{original_score[pos_inds]} \n==>\n {scores[pos_inds]}\n')
 
         if bbox_pred is not None:
             bboxes = self.bbox_coder.decode(

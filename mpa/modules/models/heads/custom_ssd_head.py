@@ -122,12 +122,15 @@ class CustomSSDHead(SSDHead):
                 # remind that we set FG labels to [0, num_class-1]
                 # since mmdet v2.0
                 # BG cat_id: num_class
-                # original_score = cls_score.softmax(-1)
-                # original_score = original_score[:, :self.num_classes]
+                # original_score = cls_score.softmax(-1)[:, :self.num_classes]
                 cls_score[:, :self.num_classes] = cls_score[:, :self.num_classes] - self.calib_scale
                 scores = cls_score.softmax(-1)
                 scores = scores[:, :self.num_classes]
-                # print(f'\n{original_score} \n==>\n {scores}\n')
+
+                # # For debug
+                # pos_inds = original_score.max(dim=1)[0].topk(5)[1]
+                # print(f'\n{original_score[pos_inds]} \n==>\n {scores[pos_inds]}\n')
+
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             nms_pre = cfg.get('nms_pre', -1)
             if nms_pre > 0:
