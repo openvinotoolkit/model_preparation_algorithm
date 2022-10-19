@@ -1,0 +1,11 @@
+workflow_hooks:
+    - type: WFProfileHook
+      name: profile_hook
+
+stages:
+  - name: cls-supcon
+    type: ClsTrainer
+    mode: train
+    config: {{ fileDirname }}/stages/classification/class_barlowtwins.yaml
+    output:
+      - final_ckpt
