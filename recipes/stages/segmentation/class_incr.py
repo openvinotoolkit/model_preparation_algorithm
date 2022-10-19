@@ -37,7 +37,7 @@ dist_params = dict(
 )
 
 runner = dict(
-    type='EpochRunnerWithCancel',
+    type='SegEpochRunnerWithCancel',
     max_epochs=300
 )
 
