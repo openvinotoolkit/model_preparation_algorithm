@@ -1,73 +1,51 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+#
 
-import os.path as osp
-import numpy as np
-import torch
-
-import mmcv
-from mmcv.parallel import MMDataParallel
-from mmcv.runner import load_checkpoint, wrap_fp16_model
-
-from mmcls.datasets import build_dataloader, build_dataset
-from mmcls.models import build_classifier
-from mpa.modules.xai.builder import build_explainer
+from os import path as osp
 
 from mpa.registry import STAGES
+from .inferrer import ClsInferrer
+
 from mpa.utils.logger import get_logger
-from mpa.cls.stage import ClsStage
 
 logger = get_logger()
 
 
 @STAGES.register_module()
-class ClsExplainer(ClsStage):
+class ClsExplainer(ClsInferrer):
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
-        """Run explainer stage
+        """Run evaluation stage
+
+        - Run inference
+        - Get saliency map
         """
+        self.eval = True
         self._init_logger()
+        mode = kwargs.get('mode', 'train')
+        if mode not in self.mode:
+            logger.warning(f'mode for this stage {mode}')
+            return {}
+
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
-        mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-        outputs = self._explain(cfg)
-        return dict(
-            outputs=outputs
-            )
+        # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
-    def _explain(self, cfg):
-        self.dataset = build_dataset(cfg.data.saliency_test)
+        # Save config
+        cfg.dump(osp.join(cfg.work_dir, 'config.yaml'))
+        logger.info(f'Config:\n{cfg.pretty_text}')
 
-        # Data loader
-        data_loader = build_dataloader(
-            self.dataset,
-            samples_per_gpu=cfg.data.samples_per_gpu,
-            workers_per_gpu=cfg.data.workers_per_gpu,
-            dist=False,
-            shuffle=False,
-            round_up=False,
-            persistent_workers=False)
-
-        # build the model and load checkpoint
-        model = build_classifier(cfg.model)
-        fp16_cfg = cfg.get('fp16', None)
-        if fp16_cfg is not None:
-            wrap_fp16_model(model)
-        if cfg.load_from is not None:
-            logger.info('load checkpoint from ' + cfg.load_from)
-            _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
-
-        model.eval()
-        model = MMDataParallel(model, device_ids=[0])
-        explainer = build_explainer(model, cfg.explainer)
-        explainer.eval()
-
-        saliency_maps = []
-        for data in data_loader:
-            with torch.no_grad():
-                out = [explainer(sample) for sample in data]
-            saliency_maps.extend(out)
-
-        outputs = dict(
-            saliency_maps=saliency_maps
-        )
-        return outputs
+        # Inference
+        infer_results = super()._infer(cfg)
+        
+        # get saliency maps
+        saliency_maps = infer_results['saliency_maps']
+        self.dump_saliency_map('saliency_maps', saliency_maps)
+        
+    @staticmethod
+    def dump_saliency_map(root, saliency_maps):
+        from PIL import Image
+        for i, saliency_map in enumerate(saliency_maps):
+            img = Image.fromarray(saliency_map)
+            img = img.resize((224, 224))
+            img.save(osp.join(root, f'saliency_map{i}.png'))

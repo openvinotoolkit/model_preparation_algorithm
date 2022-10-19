@@ -5,6 +5,7 @@
 # flake8: noqa
 from . import evaluator
 from . import exporter
+from . import explainer
 from . import inferrer
 from . import stage
 from . import trainer

@@ -33,7 +33,7 @@ class ClsInferrer(ClsStage):
         """
         self._init_logger()
         dump_features = kwargs.get('dump_features', False)
-        dump_saliency_map = kwargs.get('dump_saliency_map', False)
+        dump_saliency_map = kwargs.get('dump_saliency_map', True)
         mode = kwargs.get('mode', 'train')
         if mode not in self.mode:
             return {}
@@ -54,7 +54,7 @@ class ClsInferrer(ClsStage):
                 outputs=outputs
                 )
 
-    def _infer(self, cfg, dump_features=False, dump_saliency_map=False):
+    def _infer(self, cfg, dump_features=False, dump_saliency_map=True):
         if cfg.get('task_adapt', False) and not hasattr(self, 'eval'):
             dataset_cfg = cfg.data.train.copy()
             dataset_cfg.pipeline = cfg.data.test.pipeline
