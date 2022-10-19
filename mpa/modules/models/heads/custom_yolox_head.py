@@ -51,11 +51,11 @@ class CustomYOLOXHead(YOLOXHead):
             for objectness in objectnesses
         ]
 
-        original_score = torch.cat(flatten_cls_scores, dim=1).sigmoid()
+        # original_score = torch.cat(flatten_cls_scores, dim=1).sigmoid()
         flatten_cls_scores = (torch.cat(flatten_cls_scores, dim=1) - self.calib_scale).sigmoid()
 
-        pos_inds = original_score.max(dim=1)[0].topk(k=5)[1]
-        print(f'\n{original_score[pos_inds]}\n==>\n{flatten_cls_scores[pos_inds]}\n')
+        # pos_inds = original_score[0].max(dim=1)[0].topk(k=5)[1]
+        # print(f'\n{original_score[0][pos_inds]}\n==>\n{flatten_cls_scores[0][pos_inds]}\n')
 
         flatten_bbox_preds = torch.cat(flatten_bbox_preds, dim=1)
         flatten_objectness = torch.cat(flatten_objectness, dim=1).sigmoid()
