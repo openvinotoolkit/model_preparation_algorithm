@@ -4,6 +4,7 @@
 import torch
 
 from mmdet.core import multiclass_nms
+from mmdet.core.utils.misc import topk
 from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.losses import smooth_l1_loss
 from mmdet.models.dense_heads.ssd_head import SSDHead
@@ -121,12 +122,12 @@ class CustomSSDHead(SSDHead):
                 # remind that we set FG labels to [0, num_class-1]
                 # since mmdet v2.0
                 # BG cat_id: num_class
-                original_score = cls_score.softmax(-1)
-                original_score = original_score[:, :self.num_classes]
+                # original_score = cls_score.softmax(-1)
+                # original_score = original_score[:, :self.num_classes]
                 cls_score[:, :self.num_classes] = cls_score[:, :self.num_classes] - self.calib_scale
                 scores = cls_score.softmax(-1)
                 scores = scores[:, :self.num_classes]
-                print(f'\n{original_score} \n==>\n {scores}\n')
+                # print(f'\n{original_score} \n==>\n {scores}\n')
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             nms_pre = cfg.get('nms_pre', -1)
             if nms_pre > 0:
