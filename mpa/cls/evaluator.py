@@ -3,7 +3,6 @@
 #
 
 from os import path as osp
-import mmcv
 
 from mpa.registry import STAGES
 from .inferrer import ClsInferrer
@@ -19,7 +18,7 @@ class ClsEvaluator(ClsInferrer):
         """Run evaluation stage
 
         - Run inference
-        - Get saliency map
+        - Run evaluation via MMDetection -> MMCV
         """
         self.eval = True
         self._init_logger()
@@ -30,7 +29,7 @@ class ClsEvaluator(ClsInferrer):
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
-        mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
+        # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         # Save config
         cfg.dump(osp.join(cfg.work_dir, 'config.yaml'))
@@ -38,16 +37,9 @@ class ClsEvaluator(ClsInferrer):
 
         # Inference
         infer_results = super()._infer(cfg)
-        
-        # get saliency maps
-        saliency_maps = infer_results['saliency_maps']
-        self.dump_saliency_map(osp.join(cfg.work_dir, 'saliency_maps'), saliency_maps)
-        
-    @staticmethod
-    def dump_saliency_map(root, saliency_maps):
-        mmcv.mkdir_or_exist(root)
-        from PIL import Image
-        for i, saliency_map in enumerate(saliency_maps):
-            img = Image.fromarray(saliency_map)
-            img = img.resize((224, 224))
-            img.save(osp.join(root, f'saliency_map{i}.png'))
+
+        eval_cfg = cfg.get('evaluation', {})
+        eval_cfg.pop('by_epoch', False)
+        results = self.dataset.evaluate(infer_results['eval_predictions'], **eval_cfg)
+        logger.info(f'\n{results}')
+        return results
