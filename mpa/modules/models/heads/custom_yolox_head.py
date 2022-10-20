@@ -55,13 +55,8 @@ class CustomYOLOXHead(YOLOXHead):
         flatten_cls_scores = (torch.cat(flatten_cls_scores, dim=1) - self.calib_scale).sigmoid()
 
         # # For debug
-        # pos_inds = original_score[0].max(dim=1)[0].topk(5)[1]
-        # print(f'\n{original_score[0][pos_inds]} \n==>\n {flatten_cls_scores[0][pos_inds]}\n')
-
-        # print(f'\n{original_score[:5, :]} \n==>\n {flatten_cls_scores[:5, :]}\n')
-        flatten_bbox_preds = torch.cat(flatten_bbox_preds, dim=1)
-        flatten_objectness = torch.cat(flatten_objectness, dim=1).sigmoid()
-        flatten_priors = torch.cat(mlvl_priors)
+        # pos_inds = original_score[0].max(dim=1)[0].topk(k=5)[1]
+        # print(f'\n{original_score[0][pos_inds]}\n==>\n{flatten_cls_scores[0][pos_inds]}\n')
 
         flatten_bbox_preds = torch.cat(flatten_bbox_preds, dim=1)
         flatten_objectness = torch.cat(flatten_objectness, dim=1).sigmoid()
