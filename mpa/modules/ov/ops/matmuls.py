@@ -17,7 +17,7 @@ class MatMulV0Attribute(Attribute):
 
 
 @OPS.register()
-class MatMulV0(Operation):
+class MatMulV0(Operation[MatMulV0Attribute]):
     TYPE = "MatMul"
     VERSION = 0
     ATTRIBUTE_FACTORY = MatMulV0Attribute
@@ -28,3 +28,18 @@ class MatMulV0(Operation):
         if self.attrs.transpose_b:
             input_b = torch.transpose(input_b, -1, -2)
         return torch.matmul(input_a, input_b)
+
+
+@dataclass
+class EinsumV7Attribute(Attribute):
+    equation: str
+
+
+@OPS.register()
+class EinsumV7(Operation[EinsumV7Attribute]):
+    TYPE = "Einsum"
+    VERSION = 7
+    ATTRIBUTE_FACTORY = EinsumV7Attribute
+
+    def forward(self, *inputs):
+        return torch.einsum(self.attrs.equation, *inputs)

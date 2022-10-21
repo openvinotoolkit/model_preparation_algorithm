@@ -2,15 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import math
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Callable, List, Optional, Union
 
 import torch
 from mpa.utils.logger import get_logger
+from torch.nn import init
 
 from ..graph import Graph
-from ..graph.utils import handle_merging_into_batchnorm, handle_paired_batchnorm
+from ..graph.utils import (
+    handle_merging_into_batchnorm,
+    handle_paired_batchnorm,
+    handle_reshape,
+)
 from ..ops import OPS
 from ..utils import load_ov_model, normalize_name
 
@@ -80,6 +86,7 @@ class OVModel(torch.nn.Module):
         # clean up graph
         self.clean_up(graph, inputs, outputs)
 
+        handle_reshape(graph)
         if merge_bn:
             handle_merging_into_batchnorm(graph)
         if paired_bn:
@@ -94,28 +101,48 @@ class OVModel(torch.nn.Module):
         if init_weight:
             if not isinstance(init_weight, Callable):
 
-                def init_weight(m):
+                # internal init weight
+                def init_weight(m, graph):
                     from ..ops.op import Operation
 
                     if not isinstance(m, Operation):
                         return
-                    if (
-                        not m.name.endswith("bn/gamma")
-                        and not m.name.endswith("bn/beta")
-                        and not m.name.endswith("bn/running_mean")
-                        and not m.name.endswith("bn/running_variance")
-                    ):
-                        if getattr(m, "data", None) is not None:
-                            if isinstance(m.data, torch.nn.parameter.Parameter):
-                                try:
-                                    torch.nn.init.xavier_normal_(m.data)
-                                    logger.info(f"Initialize parameter {m.name}")
-                                except Exception:
-                                    logger.info(
-                                        f"Failed to initialize parameter {m.name}"
-                                    )
 
-            self.model.apply(init_weight)
+                    if m.TYPE == "BatchNormInference":
+                        _, gamma, beta, mean, var = list(graph.predecessors(m))
+                        init.ones_(gamma.data)
+                        init.zeros_(beta.data)
+                        mean.data.zero_()
+                        var.data.fill_(1)
+                        logger.info(f"Initialize {m.TYPE} -> {m.name}")
+                    elif m.TYPE in [
+                        "Convolution",
+                        "GroupConvolution",
+                        "MatMul",
+                    ]:
+                        for weight in graph.predecessors(m):
+                            if weight.TYPE == "Constant" and isinstance(
+                                weight.data, torch.nn.parameter.Parameter
+                            ):
+                                init.kaiming_uniform_(weight.data, a=math.sqrt(5))
+                                logger.info(f"Initialize {m.TYPE} -> {m.name}")
+                    elif m.TYPE in [
+                        "Multiply",
+                        "Divide",
+                        "Add",
+                        "Subtract",
+                    ]:
+                        for weight in graph.predecessors(m):
+                            if weight.TYPE == "Constant" and isinstance(
+                                weight.data, torch.nn.parameter.Parameter
+                            ):
+                                fan_in, _ = init._calculate_fan_in_and_fan_out(weight.data)
+                                bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+                                init.uniform_(weight.data, -bound, bound)
+                                logger.info(f"Initialize {m.TYPE} -> {m.name}")
+
+            self.model.apply(lambda m: init_weight(m, graph))
+
         for node in self._graph.get_nodes_by_types(["Parameter"]):
             node.attrs.verify_shape = verify_shape
 
@@ -169,8 +196,8 @@ class OVModel(torch.nn.Module):
         if not isinstance(outputs, list):
             outputs = [outputs]
 
-        edges_to_add = []
         nodes_to_remove = []
+        edges_to_add = {}
         for i, output in enumerate(outputs):
             output = normalize_name(output)
             output = output.split(CONNECTION_SEPARATOR)
@@ -197,21 +224,46 @@ class OVModel(torch.nn.Module):
             output_result = f"{src.name}/result_{i}"
             outputs[i] = output_result
 
+            if src not in edges_to_add:
+                edges_to_add[src] = []
+
             for successor in graph.successors(src):
                 if tgt == successor:
                     edges_attrs = graph.get_edge_data(src, successor)
                     assert len(edges_attrs) == 1
-                    for edge_attrs in edges_attrs:
-                        edge_attrs["in_port"] = 0
 
                     output_result = cls_result(output_result, shape=src.shape)
                     for edge_attrs in edges_attrs:
-                        edges_to_add.append(
+                        edges_to_add[src].append(
                             {"node_from": src, "node_to": output_result, **edge_attrs}
                         )
                 if explicit_tgt and tgt != successor:
                     continue
                 nodes_to_remove.append(successor)
+
+        #  handle duplicated successors
+        merge_candidates = [k for k, v in edges_to_add.items() if len(v) > 1]
+        if merge_candidates:
+            for merge_candidate in merge_candidates:
+                edges = edges_to_add[merge_candidate]
+                seen = {}
+                out_ports = [edge["out_port"] for edge in edges]
+                for idx in reversed(range(len(out_ports))):
+                    out_port = out_ports[idx]
+                    if out_port in seen:
+                        edge = edges.pop(idx)
+                        outputs.pop(outputs.index(edge["node_to"].name))
+                    else:
+                        seen[out_port] = edges[idx]
+
+        if edges_to_add:
+            for edges in edges_to_add.values():
+                for edge in edges:
+                    edge["in_port"] = 0
+            assert set([len(edges) for edges in edges_to_add.values()]) == {1}
+            edges_to_add = [edge for edges in edges_to_add.values() for edge in edges]
+        else:
+            edges_to_add = []
 
         for node in set(nodes_to_remove):
             graph.remove_node(node)
@@ -227,9 +279,8 @@ class OVModel(torch.nn.Module):
         if not isinstance(inputs, list):
             inputs = [inputs]
 
-        edges_to_add = []
+        edges_to_add = {}
         nodes_to_remove = []
-        paired_nodes_to_remove = []
         for i, input in enumerate(inputs):
             input = normalize_name(input)
             input = input.split(CONNECTION_SEPARATOR)
@@ -256,12 +307,13 @@ class OVModel(torch.nn.Module):
             input_parameter = f"{tgt.name}/parameter_{i}"
             inputs[i] = input_parameter
 
+            if src not in edges_to_add:
+                edges_to_add[src] = []
+
             for predecessor in graph.predecessors(tgt):
                 if src == predecessor:
                     edges_attrs = graph.get_edge_data(predecessor, tgt)
                     assert len(edges_attrs) == 1
-                    for edge_attrs in edges_attrs:
-                        edge_attrs["out_port"] = 0
 
                     # TODO: here, we force the batch dim to be dynamic
                     # it is assumed to be dim 0
@@ -273,7 +325,7 @@ class OVModel(torch.nn.Module):
                     new_shape = tuple(tuple(shape) for shape in new_shape)
                     input_parameter = cls_param(input_parameter, shape=new_shape)
                     for edge_attrs in edges_attrs:
-                        edges_to_add.append(
+                        edges_to_add[src].append(
                             {"node_from": input_parameter, "node_to": tgt, **edge_attrs}
                         )
                 if (
@@ -281,36 +333,34 @@ class OVModel(torch.nn.Module):
                 ) or predecessor.type == "Constant":
                     continue
                 nodes_to_remove.append(predecessor)
-                paired_nodes_to_remove.append(tgt)
 
         # handle duplicated predecessors
-        if len(set(nodes_to_remove)) != len(nodes_to_remove):
-            done = [False for _ in nodes_to_remove]
-            input_pop_indices = []
-            for tgt_idx, tgt in enumerate(nodes_to_remove):
-                if done[tgt_idx]:
-                    continue
-                indices = [
-                    i + tgt_idx + 1
-                    for i, x in enumerate(nodes_to_remove[tgt_idx + 1:])
-                    if x == tgt
-                ]
-                done[tgt_idx] = True
-
-                need_to_update = []
-                for edge_idx, edge in enumerate(edges_to_add):
-                    if edge["node_to"] == paired_nodes_to_remove[tgt_idx]:
-                        tgt_edge = edge
+        merge_candidates = [k for k, v in edges_to_add.items() if len(v) > 1]
+        if merge_candidates:
+            for merge_candidate in merge_candidates:
+                ctr = 0
+                edges = edges_to_add[merge_candidate]
+                seen = {}
+                out_ports = [edge["out_port"] for edge in edges]
+                for idx in reversed(range(len(out_ports))):
+                    out_port = out_ports[idx]
+                    if out_port in seen:
+                        edge = edges.pop(idx)
+                        inputs.pop(inputs.index(edge["node_from"].name))
+                        edge["node_from"] = seen[out_port]["node_from"]
+                        edges_to_add[f"{merge_candidate.name}_{ctr}"] = [edge]
+                        ctr += 1
                     else:
-                        for idx in indices:
-                            if edge["node_to"] == paired_nodes_to_remove[idx]:
-                                need_to_update.append((edge_idx, idx))
-                for i, (edge_idx, idx) in enumerate(need_to_update[::-1]):
-                    edges_to_add[edge_idx]["node_from"] = tgt_edge["node_from"]
-                    done[idx] = True
-                    input_pop_indices.append(edge_idx)
-            for idx in sorted(input_pop_indices, reverse=True):
-                inputs.pop(idx)
+                        seen[out_port] = edges[idx]
+
+        if edges_to_add:
+            for edges in edges_to_add.values():
+                for edge in edges:
+                    edge["out_port"] = 0
+            assert set([len(edges) for edges in edges_to_add.values()]) == {1}
+            edges_to_add = [edge for edges in edges_to_add.values() for edge in edges]
+        else:
+            edges_to_add = []
 
         for node in set(nodes_to_remove):
             graph.remove_node(node)

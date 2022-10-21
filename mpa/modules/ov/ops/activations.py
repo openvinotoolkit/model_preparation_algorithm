@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import math
 from dataclasses import dataclass, field
 
-from torch.nn import functional as F
 import torch
+from torch.nn import functional as F
 
 from .builder import OPS
 from .op import Attribute, Operation
@@ -17,7 +18,7 @@ class SoftMaxV0Attribute(Attribute):
 
 
 @OPS.register()
-class SoftMaxV0(Operation):
+class SoftMaxV0(Operation[SoftMaxV0Attribute]):
     TYPE = "Softmax"
     VERSION = 0
     ATTRIBUTE_FACTORY = SoftMaxV0Attribute
@@ -32,10 +33,10 @@ class SoftMaxV1Attribute(Attribute):
 
 
 @OPS.register()
-class SoftMaxV1(Operation):
+class SoftMaxV1(Operation[SoftMaxV1Attribute]):
     TYPE = "Softmax"
     VERSION = 1
-    ATTRIBUTE_FACTORY = SoftMaxV0Attribute
+    ATTRIBUTE_FACTORY = SoftMaxV1Attribute
 
     def forward(self, input):
         return F.softmax(input=input, dim=self.attrs.axis)
@@ -47,7 +48,7 @@ class ReluV0Attribute(Attribute):
 
 
 @OPS.register()
-class ReluV0(Operation):
+class ReluV0(Operation[ReluV0Attribute]):
     TYPE = "Relu"
     VERSION = 0
     ATTRIBUTE_FACTORY = ReluV0Attribute
@@ -62,7 +63,7 @@ class SwishV4Attribute(Attribute):
 
 
 @OPS.register()
-class SwishV4(Operation):
+class SwishV4(Operation[SwishV4Attribute]):
     TYPE = "Swish"
     VERSION = 4
     ATTRIBUTE_FACTORY = SwishV4Attribute
@@ -77,7 +78,7 @@ class SigmoidV0Attribute(Attribute):
 
 
 @OPS.register()
-class SigmoidV0(Operation):
+class SigmoidV0(Operation[SigmoidV0Attribute]):
     TYPE = "Sigmoid"
     VERSION = 0
     ATTRIBUTE_FACTORY = SigmoidV0Attribute
@@ -93,7 +94,7 @@ class ClampV0Attribute(Attribute):
 
 
 @OPS.register()
-class ClampV0(Operation):
+class ClampV0(Operation[ClampV0Attribute]):
     TYPE = "Clamp"
     VERSION = 0
     ATTRIBUTE_FACTORY = ClampV0Attribute
@@ -108,7 +109,7 @@ class PReluV0Attribute(Attribute):
 
 
 @OPS.register()
-class PReluV0(Operation):
+class PReluV0(Operation[PReluV0Attribute]):
     TYPE = "PRelu"
     VERSION = 0
     ATTRIBUTE_FACTORY = PReluV0Attribute
@@ -123,7 +124,7 @@ class TanhV0Attribute(Attribute):
 
 
 @OPS.register()
-class TanhV0(Operation):
+class TanhV0(Operation[TanhV0Attribute]):
     TYPE = "Tanh"
     VERSION = 0
     ATTRIBUTE_FACTORY = TanhV0Attribute
@@ -138,7 +139,7 @@ class EluV0Attribute(Attribute):
 
 
 @OPS.register()
-class EluV0(Operation):
+class EluV0(Operation[EluV0Attribute]):
     TYPE = "Elu"
     VERSION = 0
     ATTRIBUTE_FACTORY = EluV0Attribute
@@ -153,7 +154,7 @@ class SeluV0Attribute(Attribute):
 
 
 @OPS.register()
-class SeluV0(Operation):
+class SeluV0(Operation[SeluV0Attribute]):
     TYPE = "Selu"
     VERSION = 0
     ATTRIBUTE_FACTORY = SeluV0Attribute
@@ -168,13 +169,15 @@ class MishV4Attribute(Attribute):
 
 
 @OPS.register()
-class MishV4(Operation):
+class MishV4(Operation[MishV4Attribute]):
     TYPE = "Mish"
     VERSION = 4
     ATTRIBUTE_FACTORY = MishV4Attribute
 
     def forward(self, input):
-        return F.mish(input=input)
+        # NOTE: pytorch 1.8.2 does not have mish function
+        #  return F.mish(input=input)
+        return input * F.tanh(F.softplus(input))
 
 
 @dataclass
@@ -183,7 +186,7 @@ class HSwishV4Attribute(Attribute):
 
 
 @OPS.register()
-class HSwishV4(Operation):
+class HSwishV4(Operation[HSwishV4Attribute]):
     TYPE = "HSwish"
     VERSION = 4
     ATTRIBUTE_FACTORY = HSwishV4Attribute
@@ -198,10 +201,81 @@ class HSigmoidV5Attribute(Attribute):
 
 
 @OPS.register()
-class HSigmoidV5(Operation):
+class HSigmoidV5(Operation[HSigmoidV5Attribute]):
     TYPE = "HSigmoid"
     VERSION = 5
     ATTRIBUTE_FACTORY = HSigmoidV5Attribute
 
     def forward(self, input):
         return F.hardsigmoid(input=input)
+
+
+@dataclass
+class ExpV0Attribute(Attribute):
+    pass
+
+
+@OPS.register()
+class ExpV0(Operation[ExpV0Attribute]):
+    TYPE = "Exp"
+    VERSION = 0
+    ATTRIBUTE_FACTORY = ExpV0Attribute
+
+    def forward(self, input):
+        return torch.exp(input)
+
+
+@dataclass
+class HardSigmoidV0Attribute(Attribute):
+    pass
+
+
+@OPS.register()
+class HardSigmoidV0(Operation[HardSigmoidV0Attribute]):
+    TYPE = "HardSigmoid"
+    VERSION = 0
+    ATTRIBUTE_FACTORY = HardSigmoidV0Attribute
+
+    def forward(self, input, alpha, beta):
+        return torch.maximum(
+            torch.zeros_like(input),
+            torch.minimum(torch.ones_like(input), input * alpha + beta),
+        )
+
+
+@dataclass
+class GeluV7Attribute(Attribute):
+    approximation_mode: str = field(default="ERF")
+
+    def __post_init__(self):
+        super().__post_init__()
+        valid_approximation_mode = ["ERF", "tanh"]
+        if self.approximation_mode not in valid_approximation_mode:
+            raise ValueError(
+                f"Invalid approximation_mode {self.approximation_mode}. "
+                f"It must be one of {valid_approximation_mode}."
+            )
+
+
+@OPS.register()
+class GeluV7(Operation[GeluV7Attribute]):
+    TYPE = "Gelu"
+    VERSION = 7
+    ATTRIBUTE_FACTORY = GeluV7Attribute
+
+    def forward(self, input):
+        mode = self.attrs.approximation_mode
+        if mode == "ERF":
+            return F.gelu(input=input)
+        elif mode == "tanh":
+            return (
+                input
+                * 0.5
+                * (
+                    1
+                    + F.tanh(
+                        torch.sqrt(2 / torch.tensor(math.pi))
+                        * (input + 0.044715 * input**3)
+                    )
+                )
+            )

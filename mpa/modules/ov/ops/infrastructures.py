@@ -19,6 +19,20 @@ from .utils import get_dynamic_shape
 logger = get_logger()
 
 
+NODE_TYPES_WITH_WEIGHT = set(
+    [
+        "Convolution",
+        "GroupConvolution",
+        "MatMul",
+        "BatchNormInference",
+        "Multiply",
+        "Divide",
+        "Add",
+        "Subtract",
+    ]
+)
+
+
 @dataclass
 class ParameterV0Attribute(Attribute):
     element_type: Optional[str] = field(default=None)
@@ -44,7 +58,7 @@ class ParameterV0Attribute(Attribute):
 
 
 @OPS.register()
-class ParameterV0(Operation):
+class ParameterV0(Operation[ParameterV0Attribute]):
     TYPE = "Parameter"
     VERSION = 0
     ATTRIBUTE_FACTORY = ParameterV0Attribute
@@ -53,6 +67,7 @@ class ParameterV0(Operation):
         # TODO: validate shape
         # need to handle new generated op from reshaped model
         if self.attrs.verify_shape:
+            assert self.shape is not None
             ov_shape = self.shape[0]
             torch_shape = list(input.shape)
             for ov_shape_, torch_shape_ in zip(ov_shape, torch_shape):
@@ -90,12 +105,14 @@ class ParameterV0(Operation):
             attrs["layout"] = tuple(layout)
 
             #  N, C, H, W
-            input_layout = OrderedDict({
-                "N": 0,
-                "C": 1,
-                "H": 2,
-                "W": 3,
-            })
+            input_layout = OrderedDict(
+                {
+                    "N": 0,
+                    "C": 1,
+                    "H": 2,
+                    "W": 3,
+                }
+            )
             if not set(layout).symmetric_difference(input_layout.keys()):
                 permute = []
                 for layout_ in layout:
@@ -133,7 +150,7 @@ class ResultV0Attribute(Attribute):
 
 
 @OPS.register()
-class ResultV0(Operation):
+class ResultV0(Operation[ResultV0Attribute]):
     TYPE = "Result"
     VERSION = 0
     ATTRIBUTE_FACTORY = ResultV0Attribute
@@ -166,7 +183,7 @@ class ConstantV0Attribute(Attribute):
 
 
 @OPS.register()
-class ConstantV0(Operation):
+class ConstantV0(Operation[ConstantV0Attribute]):
     TYPE = "Constant"
     VERSION = 0
     ATTRIBUTE_FACTORY = ConstantV0Attribute
@@ -204,15 +221,21 @@ class ConstantV0(Operation):
             data = torch.from_numpy(data)
 
         in_port_indices = []
+        op_node_types = []
         for out_port in ov_op.outputs():
             for in_port in list(out_port.get_target_inputs()):
                 in_port_index = in_port.get_index()
                 in_port_indices.append(in_port_index)
+                node = in_port.get_node()
+                op_node_types.append(node.get_type_name())
 
+        # FIXME: need a better way to distinghish if it is parameter or no
         is_parameter = False
         if (
-            len(in_port_indices) == 1
-            and in_port_indices[0] == 1
+            set(op_node_types).intersection(NODE_TYPES_WITH_WEIGHT)
+            and len(in_port_indices) == 1
+            and in_port_indices[0] != 0
+            and data.numel() > 1
             and (data.is_floating_point() or data.is_complex())
         ):
             is_parameter = True

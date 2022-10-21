@@ -4,8 +4,6 @@
 
 from dataclasses import dataclass, field
 
-import torch
-
 from .builder import OPS
 from .op import Attribute, Operation
 
@@ -40,24 +38,49 @@ class TopKV3Attribute(Attribute):
 
 
 @OPS.register()
-class TopKV3(Operation):
+class TopKV3(Operation[TopKV3Attribute]):
     TYPE = "TopK"
     VERSION = 3
     ATTRIBUTE_FACTORY = TopKV3Attribute
 
     def forward(self, input, k):
         raise NotImplementedError
-        values, indices = torch.topk(
-            input=input,
-            k=k,
-            dim=self.attrs.axis,
-            largest=self.attrs.mode == "max",
-            sorted=True,
-        )
+        #  values, indices = torch.topk(
+        #      input=input,
+        #      k=k,
+        #      dim=self.attrs.axis,
+        #      largest=self.attrs.mode == "max",
+        #      sorted=True,
+        #  )
+        #
+        #  if self.attrs.sort == "index":
+        #      sorted = torch.argsort(indices)
+        #      indices = indices[sorted]
+        #      values = values[sorted]
+        #
+        #  return values, indices
 
-        if self.attrs.sort == "index":
-            sorted = torch.argsort(indices)
-            indices = indices[sorted]
-            values = values[sorted]
 
-        return values, indices
+@dataclass
+class NonMaxSuppressionV5Attribute(Attribute):
+    box_encoding: str = field(default="corner")
+    sort_result_descending: bool = field(default=True)
+    output_type: str = field(default="i64")
+
+
+@OPS.register()
+class NonMaxSuppressionV5(Operation[NonMaxSuppressionV5Attribute]):
+    TYPE = "NonMaxSuppression"
+    VERSION = 5
+    ATTRIBUTE_FACTORY = NonMaxSuppressionV5Attribute
+
+    def forward(
+        self,
+        boxes,
+        scores,
+        max_output_boxes_per_class,
+        iou_threshold=0,
+        score_threshold=0,
+        soft_nms_sigma=0,
+    ):
+        raise NotImplementedError

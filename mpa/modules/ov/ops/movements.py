@@ -28,7 +28,7 @@ class PadV1Attribute(Attribute):
 
 
 @OPS.register()
-class PadV1(Operation):
+class PadV1(Operation[PadV1Attribute]):
     TYPE = "Pad"
     VERSION = 1
     ATTRIBUTE_FACTORY = PadV1Attribute
@@ -75,7 +75,7 @@ class ConcatV0Attribute(Attribute):
 
 
 @OPS.register()
-class ConcatV0(Operation):
+class ConcatV0(Operation[ConcatV0Attribute]):
     TYPE = "Concat"
     VERSION = 0
     ATTRIBUTE_FACTORY = ConcatV0Attribute
@@ -90,7 +90,7 @@ class TransposeV1Attribute(Attribute):
 
 
 @OPS.register()
-class TransposeV1(Operation):
+class TransposeV1(Operation[TransposeV1Attribute]):
     TYPE = "Transpose"
     VERSION = 1
     ATTRIBUTE_FACTORY = TransposeV1Attribute
@@ -109,27 +109,55 @@ class GatherV0Attribute(Attribute):
 
 
 @OPS.register()
-class GatherV0(Operation):
+class GatherV0(Operation[GatherV0Attribute]):
     TYPE = "Gather"
     VERSION = 0
     ATTRIBUTE_FACTORY = GatherV0Attribute
 
     def forward(self, input, indices, axis):
-        assert axis.dim() == 0
-        batch_dims = self.attrs.batch_dims
+        assert axis.numel() == 1
+        axis = axis.squeeze()
+        squeeze_axis = indices.dim() == 0
 
+        batch_dims = self.attrs.batch_dims
         if batch_dims < 0:
             batch_dims = indices.dim() + batch_dims
 
-        if indices.dim() != 0 and indices.dim() != input.dim():
-            while indices.dim() - 1 < axis:
-                indices = indices.unsqueeze(1)
+        indices_shape = torch.tensor(indices.shape)
+        if batch_dims < axis:
+            indices = indices.reshape(*indices_shape[:batch_dims], -1)
+            indices_shape = indices_shape[batch_dims:]
+
+        if indices.dim() != input.dim():
+            if indices.dim() != 0:
+                while indices.dim() - 1 < axis:
+                    indices = indices.unsqueeze(0)
             while indices.dim() < input.dim():
                 indices = indices.unsqueeze(-1)
-            repeat = [1 if i <= axis else j for i, j in enumerate(input.shape)]
-            indices = indices.repeat(repeat)
 
-        return torch.gather(input=input, dim=axis, index=indices.type(input.dtype))
+            assert indices.squeeze().dim() <= 1
+
+            repeat = []
+            for i, j in enumerate(input.shape):
+                if i < axis:
+                    repeat.append(j)
+                elif i == axis:
+                    repeat.append(1)
+                else:
+                    repeat.append(j)
+            indices = indices.repeat(repeat)
+        output = torch.gather(input=input, dim=axis, index=indices.type(torch.int64))
+
+        if squeeze_axis:
+            output = output.squeeze(axis)
+        else:
+            output_shape = torch.tensor(output.shape)
+            output_target_shape = torch.cat(
+                (output_shape[:axis], indices_shape, output_shape[axis + 1:])
+            )
+            output = output.reshape(*output_target_shape)
+
+        return output
 
 
 @dataclass
@@ -138,7 +166,7 @@ class GatherV1Attribute(Attribute):
 
 
 @OPS.register()
-class GatherV1(Operation):
+class GatherV1(Operation[GatherV1Attribute]):
     TYPE = "Gather"
     VERSION = 1
     ATTRIBUTE_FACTORY = GatherV1Attribute
@@ -157,7 +185,7 @@ class StridedSliceV1Attribute(Attribute):
 
 
 @OPS.register()
-class StridedSliceV1(Operation):
+class StridedSliceV1(Operation[StridedSliceV1Attribute]):
     TYPE = "StridedSlice"
     VERSION = 1
     ATTRIBUTE_FACTORY = StridedSliceV1Attribute
@@ -218,15 +246,14 @@ class SplitV1Attribute(Attribute):
 
 
 @OPS.register()
-class SplitV1(Operation):
+class SplitV1(Operation[SplitV1Attribute]):
     TYPE = "Split"
     VERSION = 1
     ATTRIBUTE_FACTORY = SplitV1Attribute
 
     def forward(self, input, axis):
-        return torch.split(
-            tensor=input, split_size_or_sections=self.attrs.num_splits, dim=axis
-        )
+        split_size = input.shape[axis] // self.attrs.num_splits
+        return torch.split(tensor=input, split_size_or_sections=split_size, dim=axis)
 
 
 @dataclass
@@ -235,7 +262,7 @@ class VariadicSplitV1Attribute(Attribute):
 
 
 @OPS.register()
-class VariadicSplitV1(Operation):
+class VariadicSplitV1(Operation[VariadicSplitV1Attribute]):
     TYPE = "VariadicSplit"
     VERSION = 1
     ATTRIBUTE_FACTORY = VariadicSplitV1Attribute
@@ -268,7 +295,7 @@ class ShuffleChannelsV0Attribute(Attribute):
 
 
 @OPS.register()
-class ShuffleChannelsV0(Operation):
+class ShuffleChannelsV0(Operation[ShuffleChannelsV0Attribute]):
     TYPE = "ShuffleChannels"
     VERSION = 0
     ATTRIBUTE_FACTORY = ShuffleChannelsV0Attribute
@@ -306,3 +333,107 @@ class ShuffleChannelsV0(Operation):
         output = output.permute([0, 2, 1, 3])
         output = output.reshape(origin_shape)
         return output
+
+
+@dataclass
+class BroadcastV3Attribute(Attribute):
+    mode: str = field(default="numpy")
+
+    def __post__init__(self):
+        super().__post_init__()
+        valid_mode = ["numpy", "explicit", "bidirectional"]
+        if self.mode not in valid_mode:
+            raise ValueError(
+                f"Invalid mode {self.mode}. " f"It must be one of {valid_mode}."
+            )
+
+
+@OPS.register()
+class BroadcastV3(Operation[BroadcastV3Attribute]):
+    TYPE = "Broadcast"
+    VERSION = 3
+    ATTRIBUTE_FACTORY = BroadcastV3Attribute
+
+    def forward(self, input, target_shape, axes_mapping=None):
+        if self.attrs.mode == "numpy":
+            raise NotImplementedError
+            return input.expand(*target_shape)
+        if self.attrs.mode == "bidirectional":
+            return torch.ones(*target_shape, device=input.device) * input
+        else:
+            raise NotImplementedError
+
+
+@dataclass
+class ScatterNDUpdateV3Attribute(Attribute):
+    pass
+
+
+@OPS.register()
+class ScatterNDUpdateV3(Operation[ScatterNDUpdateV3Attribute]):
+    TYPE = "ScatterNDUpdate"
+    VERSION = 3
+    ATTRIBUTE_FACTORY = ScatterNDUpdateV3Attribute
+
+    def forward(self, input, indicies, updates):
+        if updates.numel() == 1:
+            raise NotImplementedError
+
+        # FIXME: hard-coded
+        last_dim = indicies.shape[-1]
+        assert last_dim == 2
+        assert indicies[..., -2].sum() == 0
+        input.shape[indicies.shape[-1]:]
+        index = indicies[..., -1]
+        for i in input.shape[indicies.shape[-1]:]:
+            index = index.unsqueeze(-1).tile((i,))
+        output = torch.scatter(input, 1, index, updates)
+
+        return output
+
+
+@dataclass
+class ScatterUpdateV3Attribute(Attribute):
+    pass
+
+
+@OPS.register()
+class ScatterUpdateV3(Operation[ScatterUpdateV3Attribute]):
+    TYPE = "ScatterUpdate"
+    VERSION = 3
+    ATTRIBUTE_FACTORY = ScatterUpdateV3Attribute
+
+    def forward(self, input, indicies, updates, axis):
+        # TODO
+        axis = axis.item()
+
+        if input.dtype != updates.dtype:
+            updates = updates.type(input.dtype)
+
+        if axis == 0:
+            if indicies.dim() == 0:
+                input[indicies] = updates
+                output = input
+            elif indicies.dim() == 1:
+                output = torch.scatter(input, axis, indicies, updates)
+            else:
+                raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+        return output
+
+
+@dataclass
+class TileV0Attribute(Attribute):
+    pass
+
+
+@OPS.register()
+class TileV0(Operation[TileV0Attribute]):
+    TYPE = "Tile"
+    VERSION = 0
+    ATTRIBUTE_FACTORY = TileV0Attribute
+
+    def forward(self, input, repeats):
+        return torch.tile(input, repeats.tolist())

@@ -4,7 +4,7 @@
 
 import re
 from dataclasses import dataclass, fields
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, Generic, TypeVar, Type
 
 import torch
 
@@ -17,13 +17,18 @@ class Attribute:
 
     def __post_init__(self):
         if self.shape is not None and not isinstance(self.shape, tuple):
-            raise ValueError("shape must be tuple of ints or tuple of tuple of ints.")
+            raise ValueError(
+                "shape must be a tuple of ints or a tuple of tuples of ints."
+            )
 
 
-class Operation(torch.nn.Module):
+_T = TypeVar("_T", bound=Attribute)
+
+
+class Operation(torch.nn.Module, Generic[_T]):
     TYPE = ""
     VERSION = -1
-    ATTRIBUTE_FACTORY = Attribute
+    ATTRIBUTE_FACTORY: Type[_T] = Attribute
 
     def __init__(self, name: str, **kwargs):
         super().__init__()

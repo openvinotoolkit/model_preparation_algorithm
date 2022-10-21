@@ -8,6 +8,7 @@ import torch
 from mpa.utils.logger import get_logger
 
 from ..ops import OPS, Operation
+from ..ops.infrastructures import ConstantV0
 from .graph import Graph
 
 
@@ -211,6 +212,13 @@ def handle_paired_batchnorm(
                 "becuase it has no bias add node."
             )
             continue
+        # if add node is not bias add node
+        elif not isinstance(list(graph.predecessors(bias_node))[1], ConstantV0):
+            logger.info(
+                f"Skip a pared batch normalization for {node.name } "
+                f"because {bias_node.name} is not a bias add node."
+            )
+            continue
 
         node_name = node.name
         channel_dim = node.attrs.shape[0][1]
@@ -295,3 +303,19 @@ def handle_paired_batchnorm(
         graph.add_edge(beta, batchnorm)
         graph.add_edge(running_mean, batchnorm)
         graph.add_edge(running_variance, batchnorm)
+
+
+def handle_reshape(graph):
+
+    for result in graph.get_nodes_by_types(["Result"]):
+        for node in graph.predecessors(result):
+            # some models, for example, dla-34, have reshape node as its predecessor
+            # of result node and the reshape node reshapes the tensor to [1, -1]
+            if node.type == "Reshape":
+                input_node, shape = list(graph.predecessors(node))
+                if torch.equal(shape.data, torch.tensor([1, -1])):
+                    for shape_ in input_node.shape[0][::-1]:
+                        if shape_ != 1:
+                            break
+                    logger.info(f"Change reshape to [-1, {shape_}]")
+                    shape.data = torch.tensor([-1, shape_])

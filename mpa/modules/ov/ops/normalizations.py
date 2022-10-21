@@ -4,6 +4,7 @@
 
 from dataclasses import dataclass, field
 
+import torch
 from torch.nn import functional as F
 
 from .builder import OPS
@@ -18,7 +19,7 @@ class BatchNormalizationV0Attribute(Attribute):
 
 
 @OPS.register()
-class BatchNormalizationV0(Operation):
+class BatchNormalizationV0(Operation[BatchNormalizationV0Attribute]):
     TYPE = "BatchNormInference"
     VERSION = 0
     ATTRIBUTE_FACTORY = BatchNormalizationV0Attribute
@@ -66,7 +67,7 @@ class LocalResponseNormalizationV0Attribute(Attribute):
 
 
 @OPS.register()
-class LocalResponseNormalizationV0(Operation):
+class LocalResponseNormalizationV0(Operation[LocalResponseNormalizationV0Attribute]):
     TYPE = "LRN"
     VERSION = 0
     ATTRIBUTE_FACTORY = LocalResponseNormalizationV0Attribute
@@ -122,7 +123,7 @@ class NormalizeL2V0Attribute(Attribute):
 
 
 @OPS.register()
-class NormalizeL2V0(Operation):
+class NormalizeL2V0(Operation[NormalizeL2V0Attribute]):
     TYPE = "NormalizeL2"
     VERSION = 0
     ATTRIBUTE_FACTORY = NormalizeL2V0Attribute
@@ -151,3 +152,38 @@ class NormalizeL2V0(Operation):
             raise ValueError
 
         return (input_float / norm).type_as(input)
+
+
+@dataclass
+class MVNV6Attribute(Attribute):
+    normalize_variance: bool
+    eps: float
+    eps_mode: str
+
+    def __post_init__(self):
+        super().__post_init__()
+        valid_eps_mode = ["INSIDE_SQRT", "OUTSIDE_SQRT"]
+        if self.eps_mode not in valid_eps_mode:
+            raise ValueError(
+                f"Invalid eps_mode {self.eps_mode}. "
+                f"It must be one of {valid_eps_mode}."
+            )
+
+
+@OPS.register()
+class MVNV6(Operation[MVNV6Attribute]):
+    TYPE = "MVN"
+    VERSION = 6
+    ATTRIBUTE_FACTORY = MVNV6Attribute
+
+    def forward(self, input, axes):
+        output = input - input.mean(axes.tolist(), keepdim=True)
+        if self.attrs.normalize_variance:
+            eps_mode = self.attrs.eps_mode
+            eps = self.attrs.eps
+            var = torch.square(output).mean(axes.tolist(), keepdim=True)
+            if eps_mode == "INSIDE_SQRT":
+                output = output / torch.sqrt(var + eps)
+            elif eps_mode == "OUTSIDE_SQRT":
+                output = output / (torch.sqrt(var) + eps)
+        return output

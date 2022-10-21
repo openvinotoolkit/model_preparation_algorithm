@@ -44,7 +44,7 @@ class ConvertV0Attribute(Attribute):
 
 
 @OPS.register()
-class ConvertV0(Operation):
+class ConvertV0(Operation[ConvertV0Attribute]):
     TYPE = "Convert"
     VERSION = 0
     ATTRIBUTE_FACTORY = ConvertV0Attribute

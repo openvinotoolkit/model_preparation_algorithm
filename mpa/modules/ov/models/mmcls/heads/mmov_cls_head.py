@@ -4,7 +4,6 @@
 
 from typing import Dict, List, Optional, Union
 
-import torch
 import torch.nn.functional as F
 from mmcls.models.builder import HEADS
 from mmcls.models.heads import ClsHead
@@ -37,21 +36,19 @@ class MMOVClsHead(ClsHead):
         self._weight_path = weight_path
         self._init_weight = init_weight
 
-        try:
-            self.model = MMOVModel(
-                model_path,
-                weight_path,
-                inputs=inputs,
-                outputs=outputs,
-                remove_normalize=False,
-                init_weight=init_weight,
-                verify_shape=verify_shape,
-                parser=cls_base_parser,
-                parser_kwargs=dict(component="head"),
-            )
-        except ValueError:
-            # head not found
-            self.model = torch.nn.Identity()
+        self.model = MMOVModel(
+            model_path,
+            weight_path,
+            inputs=inputs,
+            outputs=outputs,
+            remove_normalize=False,
+            merge_bn=False,
+            paired_bn=False,
+            init_weight=init_weight,
+            verify_shape=verify_shape,
+            parser=cls_base_parser,
+            parser_kwargs=dict(component="head"),
+        )
 
     def forward_train(self, x, gt_label, **kwargs):
         cls_score = self.model(x)
@@ -63,8 +60,7 @@ class MMOVClsHead(ClsHead):
         while cls_score.dim() > 2:
             cls_score = cls_score.squeeze(2)
         if softmax:
-            pred = (
-                F.softmax(cls_score, dim=1) if cls_score is not None else None)
+            pred = F.softmax(cls_score, dim=1) if cls_score is not None else None
         else:
             pred = cls_score
         if post_process:

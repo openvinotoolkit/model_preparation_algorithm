@@ -37,7 +37,7 @@ class ProposalV4Attribute(Attribute):
 
 
 @OPS.register()
-class ProposalV4(Operation):
+class ProposalV4(Operation[ProposalV4Attribute]):
     TYPE = "Proposal"
     VERSION = 4
     ATTRIBUTE_FACTORY = ProposalV4Attribute
@@ -80,7 +80,7 @@ class ROIPoolingV0Attribute(Attribute):
 
 
 @OPS.register()
-class ROIPoolingV0(Operation):
+class ROIPoolingV0(Operation[ROIPoolingV0Attribute]):
     TYPE = "ROIPooling"
     VERSION = 0
     ATTRIBUTE_FACTORY = ROIPoolingV0Attribute
@@ -90,7 +90,7 @@ class ROIPoolingV0(Operation):
 
 
 @dataclass
-class DetectionOutputV0Attritube(Attribute):
+class DetectionOutputV0Attribute(Attribute):
     keep_top_k: List[int]
     nms_threshold: float
     background_label_id: int = field(default=0)
@@ -121,10 +121,10 @@ class DetectionOutputV0Attritube(Attribute):
 
 
 @OPS.register()
-class DetectionOutputV0(Operation):
+class DetectionOutputV0(Operation[DetectionOutputV0Attribute]):
     TYPE = "DetectionOutput"
     VERSION = 0
-    ATTRIBUTE_FACTORY = DetectionOutputV0Attritube
+    ATTRIBUTE_FACTORY = DetectionOutputV0Attribute
 
     def forward(
         self, loc_data, conf_data, prior_data, arm_conf_data=None, arm_loc_data=None
@@ -145,7 +145,7 @@ class RegionYoloV0Attribute(Attribute):
 
 
 @OPS.register()
-class RegionYoloV0(Operation):
+class RegionYoloV0(Operation[RegionYoloV0Attribute]):
     TYPE = "RegionYolo"
     VERSION = 0
     ATTRIBUTE_FACTORY = RegionYoloV0Attribute
@@ -171,10 +171,32 @@ class PriorBoxV0Attribute(Attribute):
 
 
 @OPS.register()
-class PriorBoxV0(Operation):
+class PriorBoxV0(Operation[PriorBoxV0Attribute]):
     TYPE = "PriorBox"
     VERSION = 0
     ATTRIBUTE_FACTORY = PriorBoxV0Attribute
+
+    def forward(self, output_size, image_size):
+        raise NotImplementedError
+
+
+@dataclass
+class PriorBoxClusteredV0Attribute(Attribute):
+    offset: float
+    width: List[float] = field(default_factory=lambda: [1.0])
+    height: List[float] = field(default_factory=lambda: [1.0])
+    clip: bool = field(default=False)
+    step: float = field(default=0.0)
+    step_w: float = field(default=0.0)
+    step_h: float = field(default=0.0)
+    variance: List[float] = field(default_factory=lambda: [])
+
+
+@OPS.register()
+class PriorBoxClusteredV0(Operation[PriorBoxClusteredV0Attribute]):
+    TYPE = "PriorBoxClustered"
+    VERSION = 0
+    ATTRIBUTE_FACTORY = PriorBoxClusteredV0Attribute
 
     def forward(self, output_size, image_size):
         raise NotImplementedError

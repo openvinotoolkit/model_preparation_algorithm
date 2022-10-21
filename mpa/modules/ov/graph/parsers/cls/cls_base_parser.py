@@ -6,8 +6,9 @@ from typing import Dict, List, Optional
 
 from mpa.utils.logger import get_logger
 
-from ..parser import parameter_parser
 from ..builder import PARSERS
+from ..parser import parameter_parser
+
 
 logger = get_logger()
 
@@ -37,7 +38,16 @@ def cls_base_parser(
         logger.debug("Can not determine the output of backbone.")
         return None
 
-    part_of_neck_types = ["Reshape", "Squeeze", "Unsqueeze", "Concat", "Convert", "ShapeOf", "StridedSlice"]
+    part_of_neck_types = [
+        "Reshape",
+        "Squeeze",
+        "Unsqueeze",
+        "Concat",
+        "Convert",
+        "ShapeOf",
+        "StridedSlice",
+        "Transpose",
+    ]
     neck_output = neck_input
     for node_from, node_to in graph.bfs(neck_input, False, 10):
         done = False
@@ -51,10 +61,14 @@ def cls_base_parser(
 
     if component == "backbone":
         outputs = [
-            node.name for node in graph.predecessors(neck_input) if node.type != "Constant"
+            node.name
+            for node in graph.predecessors(neck_input)
+            if node.type != "Constant"
         ]
         if len(outputs) != 1:
-            logger.debug(f"neck_input {neck_input.name} has more than one predecessors.")
+            logger.debug(
+                f"neck_input {neck_input.name} has more than one predecessors."
+            )
             return None
 
         inputs = parameter_parser(graph)
@@ -75,9 +89,9 @@ def cls_base_parser(
 
     elif component == "head":
         inputs = list(graph.successors(neck_output))
-        if len(inputs) != 1:
-            logger.debug(f"neck_output {neck_output.name} has more than one successors.")
-            return None
+        #  if len(inputs) != 1:
+        #      logger.debug(f"neck_output {neck_output.name} has more than one successors.")
+        #      return None
 
         outputs = graph.get_nodes_by_types(["Result"])
         if len(outputs) != 1:

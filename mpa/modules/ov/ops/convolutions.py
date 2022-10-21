@@ -32,7 +32,7 @@ class ConvolutionV1Attribute(Attribute):
 
 
 @OPS.register()
-class ConvolutionV1(Operation):
+class ConvolutionV1(Operation[ConvolutionV1Attribute]):
     TYPE = "Convolution"
     VERSION = 1
     ATTRIBUTE_FACTORY = ConvolutionV1Attribute
@@ -76,7 +76,7 @@ class GroupConvolutionV1Attribute(ConvolutionV1Attribute):
 
 
 @OPS.register()
-class GroupConvolutionV1(ConvolutionV1):
+class GroupConvolutionV1(Operation[GroupConvolutionV1Attribute]):
     TYPE = "GroupConvolution"
     VERSION = 1
     ATTRIBUTE_FACTORY = GroupConvolutionV1Attribute

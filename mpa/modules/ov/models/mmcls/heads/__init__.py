@@ -4,3 +4,5 @@
 
 # flake8: noqa
 from .mmov_cls_head import MMOVClsHead
+from .conv_head import ConvClsHead
+from .cls_head import ClsHead

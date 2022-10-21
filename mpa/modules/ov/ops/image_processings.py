@@ -67,7 +67,7 @@ class InterpolateV4Attribute(Attribute):
 
 
 @OPS.register()
-class InterpolateV4(Operation):
+class InterpolateV4(Operation[InterpolateV4Attribute]):
     TYPE = "Interpolate"
     VERSION = 4
     ATTRIBUTE_FACTORY = InterpolateV4Attribute
@@ -93,6 +93,7 @@ class InterpolateV4(Operation):
 
         mode = self.attrs.mode
         if mode == "linear" or mode == "linear_onnx":
+            align_corners = False
             if output.dim() == 3:
                 pass
             elif output.dim() == 4:
@@ -100,12 +101,16 @@ class InterpolateV4(Operation):
             elif output.dim() == 5:
                 mode = "trilinear"
         elif mode == "cubic":
+            align_corners = False
             if output.dim() == 3:
                 raise NotImplementedError
             elif output.dim() == 4:
                 mode = "bicubic"
             elif output.dim() == 5:
                 raise NotImplementedError
+        elif mode == "nearest":
+            align_corners = None
+            pass
         else:
             raise NotImplementedError
 
@@ -120,7 +125,18 @@ class InterpolateV4(Operation):
                 size=sizes,
                 scale_factor=None,
                 mode=mode,
-                align_corners=False,
+                align_corners=align_corners,
             )
         else:
-            raise NotImplementedError
+            scales = scales.detach().cpu().numpy()
+            scales = scales[np.argsort(axes)].tolist()
+            if output.dim() == len(scales):
+                scales = scales[2:]
+
+            return F.interpolate(
+                input=output,
+                size=None,
+                scale_factor=scales,
+                mode=mode,
+                align_corners=align_corners,
+            )

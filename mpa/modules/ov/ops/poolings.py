@@ -53,7 +53,7 @@ class MaxPoolV0Attribute(Attribute):
 
 
 @OPS.register()
-class MaxPoolV0(Operation):
+class MaxPoolV0(Operation[MaxPoolV0Attribute]):
     TYPE = "MaxPool"
     VERSION = 0
     ATTRIBUTE_FACTORY = MaxPoolV0Attribute
@@ -119,7 +119,7 @@ class AvgPoolV1Attribute(Attribute):
 
 
 @OPS.register()
-class AvgPoolV1(Operation):
+class AvgPoolV1(Operation[AvgPoolV1Attribute]):
     TYPE = "AvgPool"
     VERSION = 1
     ATTRIBUTE_FACTORY = AvgPoolV1Attribute

@@ -17,7 +17,7 @@ class SqueezeV0Attribute(Attribute):
 
 
 @OPS.register()
-class SqueezeV0(Operation):
+class SqueezeV0(Operation[SqueezeV0Attribute]):
     TYPE = "Squeeze"
     VERSION = 0
     ATTRIBUTE_FACTORY = SqueezeV0Attribute
@@ -48,7 +48,7 @@ class UnsqueezeV0Attribute(Attribute):
 
 
 @OPS.register()
-class UnsqueezeV0(Operation):
+class UnsqueezeV0(Operation[UnsqueezeV0Attribute]):
     TYPE = "Unsqueeze"
     VERSION = 0
     ATTRIBUTE_FACTORY = UnsqueezeV0Attribute
@@ -59,9 +59,10 @@ class UnsqueezeV0(Operation):
             dims = torch.unsqueeze(dims, 0)
 
         dims = dims.detach().cpu().tolist()
-        for i, dim in enumerate(dims):
-            if dim < 0:
-                raise NotImplementedError
+        if len(dims) > 1:
+            for i, dim in enumerate(dims):
+                if dim < 0:
+                    raise NotImplementedError
 
         output = input
         for dim in sorted(dims, reverse=True):
@@ -76,7 +77,7 @@ class ReshapeV1Attribute(Attribute):
 
 
 @OPS.register()
-class ReshapeV1(Operation):
+class ReshapeV1(Operation[ReshapeV1Attribute]):
     TYPE = "Reshape"
     VERSION = 1
     ATTRIBUTE_FACTORY = ReshapeV1Attribute
@@ -108,13 +109,13 @@ class ShapeOfV0Attribute(Attribute):
 
 
 @OPS.register()
-class ShapeOfV0(Operation):
+class ShapeOfV0(Operation[ShapeOfV0Attribute]):
     TYPE = "ShapeOf"
     VERSION = 0
     ATTRIBUTE_FACTORY = ShapeOfV0Attribute
 
     def forward(self, input):
-        return torch.tensor(input.shape)
+        return torch.tensor(input.shape, device=input.device)
 
 
 @dataclass
@@ -132,7 +133,7 @@ class ShapeOfV3Attribute(Attribute):
 
 
 @OPS.register()
-class ShapeOfV3(Operation):
+class ShapeOfV3(Operation[ShapeOfV3Attribute]):
     TYPE = "ShapeOf"
     VERSION = 3
     ATTRIBUTE_FACTORY = ShapeOfV3Attribute

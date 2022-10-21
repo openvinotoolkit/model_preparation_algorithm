@@ -16,7 +16,7 @@ class MultiplyV1Attribute(Attribute):
 
 
 @OPS.register()
-class MultiplyV1(Operation):
+class MultiplyV1(Operation[MultiplyV1Attribute]):
     TYPE = "Multiply"
     VERSION = 1
     ATTRIBUTE_FACTORY = MultiplyV1Attribute
@@ -40,7 +40,7 @@ class DivideV1Attribute(Attribute):
 
 
 @OPS.register()
-class DivideV1(Operation):
+class DivideV1(Operation[DivideV1Attribute]):
     TYPE = "Divide"
     VERSION = 1
     ATTRIBUTE_FACTORY = DivideV1Attribute
@@ -50,11 +50,21 @@ class DivideV1(Operation):
 
         if broadcast == "none":
             assert input_0.shape == input_1.shape
-            return input_0 / input_1
+            output = input_0 / input_1
         elif broadcast == "numpy":
-            return input_0 / input_1
+            output = input_0 / input_1
         else:
             raise NotImplementedError
+
+        non_integer_types = [torch.float16, torch.float32, torch.float64, torch.bool]
+        if (
+            self.attrs.m_pythondiv
+            and input_0.dtype not in non_integer_types
+            and input_1.dtype not in non_integer_types
+        ):
+            output = output.type(input_0.dtype)
+
+        return output
 
 
 @dataclass
@@ -63,7 +73,7 @@ class AddV1Attribute(Attribute):
 
 
 @OPS.register()
-class AddV1(Operation):
+class AddV1(Operation[AddV1Attribute]):
     TYPE = "Add"
     VERSION = 1
     ATTRIBUTE_FACTORY = AddV1Attribute
@@ -86,7 +96,7 @@ class SubtractV1Attribute(Attribute):
 
 
 @OPS.register()
-class SubtractV1(Operation):
+class SubtractV1(Operation[SubtractV1Attribute]):
     TYPE = "Subtract"
     VERSION = 1
     ATTRIBUTE_FACTORY = SubtractV1Attribute
@@ -109,7 +119,7 @@ class TanV0Attribute(Attribute):
 
 
 @OPS.register()
-class TanV0(Operation):
+class TanV0(Operation[TanV0Attribute]):
     TYPE = "Tan"
     VERSION = 0
     ATTRIBUTE_FACTORY = TanV0Attribute

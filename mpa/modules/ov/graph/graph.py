@@ -506,8 +506,27 @@ class Graph(nx.MultiDiGraph):
                 if not test_constant(mean_node):
                     mean_node = None
 
-            node = scale_node if scale_node is not None else node
+            node = mean_node if mean_node is not None else node
             scale_nodes = get_nodes_by_type_from_node(node, "Divide", invariant_types)
+            if scale_nodes and len(scale_nodes) == 1:
+                scale_node = scale_nodes[0]
+                if not test_constant(scale_node):
+                    scale_node = None
+
+            return (mean_node, scale_node)
+
+        def find_subtract_multiply(node):
+            mean_node = None
+            scale_node = None
+
+            mean_nodes = get_nodes_by_type_from_node(node, "Subtract", invariant_types)
+            if mean_nodes and len(mean_nodes) == 1:
+                mean_node = mean_nodes[0]
+                if not test_constant(mean_node):
+                    mean_node = None
+
+            node = mean_node if mean_node is not None else node
+            scale_nodes = get_nodes_by_type_from_node(node, "Multiply", invariant_types)
             if scale_nodes and len(scale_nodes) == 1:
                 scale_node = scale_nodes[0]
                 if not test_constant(scale_node):
@@ -524,9 +543,11 @@ class Graph(nx.MultiDiGraph):
             if not any(found):
                 # onnx, paddle
                 found = find_subtract_divide(node)
-
-            if not any(found):
-                continue
+                found_ = find_subtract_multiply(node)
+                if len([i for i in found if i is not None]) < len(
+                    [i for i in found_ if i is not None]
+                ):
+                    found = found_
 
             self._normalize_nodes.append(found)
             for normalize_node in found:

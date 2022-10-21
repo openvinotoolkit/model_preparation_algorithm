@@ -15,10 +15,6 @@ class MMOVNeck(MMOVModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def init_weights(self, pretrained=None):
-        # TODO
-        pass
-
     @staticmethod
     def parser(graph, **kwargs) -> Dict[str, List[str]]:
         output = cls_base_parser(graph, "neck")
