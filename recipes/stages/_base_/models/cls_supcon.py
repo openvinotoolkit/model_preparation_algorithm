@@ -14,8 +14,7 @@ model = dict(
         type='HybridClsHead',
         num_classes=10,
         in_channels=-1,
-        hid_channels=512,
-        out_channels=128,
+        aux_head=dict(hid_channels=0, out_channels=1024),
         loss=dict(
             type='SupConLoss',
             temperature=0.07,

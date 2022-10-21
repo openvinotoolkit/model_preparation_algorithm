@@ -12,26 +12,23 @@ from mmcls.models.heads.base_head import BaseHead
 
 @HEADS.register_module()
 class HybridClsHead(BaseHead):
-    """Hybrid head for Loss for Classification Loss
+    """
+    Hybrid head for Loss for Classification Loss
 
     Args:
         num_classes (int): The number of classes of dataset used for training
         in_channels (int): The channels of input data from the backbone
-        hid_channels (int): The channels of the hidden layer of the MLP
-        out_channels (int): The channels of the output layer of the MLP
+        aux_head (dict): A dictionary with the out_channels and optionally the
+                         hid_channels of the auxiliary head.
         loss (dict): The loss setup: SupConLoss (default) or BarlowTwinsLoss
         topk (set): evaluation topk score, default is (1, )
     """
 
-    def __init__(self, num_classes, in_channels, hid_channels, out_channels=128, lamda=1.0, topk=(1, ),
+    def __init__(self, num_classes, in_channels, aux_head, lamda=1.0, topk=(1, ),
                  loss=dict(type='SupConLoss', temperature=0.07, contrast_mode='all', base_temperature=0.07),
                  init_cfg=None):
         if in_channels <= 0:
             raise ValueError(f"in_channels={in_channels} must be a positive integer")
-        if hid_channels <= 0:
-            raise ValueError(f"hid_channels={hid_channels} must be a positive integer")
-        if out_channels <= 0:
-            raise ValueError(f"out_channels={out_channels} must be a positive integer")
         if num_classes <= 0:
             raise ValueError("at least one class must be exist num_classes.")
 
@@ -43,22 +40,30 @@ class HybridClsHead(BaseHead):
 
         self.topk = topk
         self.compute_loss = build_loss(loss)
+        self.lamda = lamda
 
         # Set up the standard classification head
         self.num_classes = num_classes
         self.fc = nn.Linear(in_features=in_channels, out_features=self.num_classes)
 
-        # Set up an MLP for the helper head
-        self.mlp = nn.Sequential(
-            nn.Linear(in_features=in_channels, out_features=hid_channels),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=hid_channels, out_features=out_channels),
-        )
+        # Set up the auxiliar head
+        out_channels = aux_head['out_channels']
+        if out_channels <= 0:
+            raise ValueError(f"out_channels={out_channels} must be a positive integer")
+        if 'hid_channels' in aux_head and aux_head['hid_channels'] > 0:
+            hid_channels = aux_head['hid_channels']
+            self.aux_head = nn.Sequential(
+                nn.Linear(in_features=in_channels, out_features=hid_channels),
+                nn.ReLU(inplace=True),
+                nn.Linear(in_features=hid_channels, out_features=out_channels),
+            )
+        else:
+            self.aux_head = nn.Linear(in_features=in_channels, out_features=out_channels)
 
-        self.lamda = lamda
 
     def forward_train(self, x, gt_labels):
-        """forward_train head using the Supervised Contrastive Loss
+        """
+        Forward train head using the Supervised Contrastive Loss
 
         Args:
             x (Tensor): features from the backbone.
@@ -68,19 +73,20 @@ class HybridClsHead(BaseHead):
         """
 
         losses = dict()
-        if self.fc is not None:
-            fc_feats = self.fc(x)
+        fc_feats = self.fc(x)
 
         bsz = gt_labels.shape[0]
-        mlp_feats = F.normalize(self.mlp(x), dim=1)
-        f1, f2 = torch.split(mlp_feats, [bsz, bsz], dim=0)
-        mlp_feats = torch.cat([f1.unsqueeze(1), f2.unsqueeze(1)], dim=1)
-        loss = self.compute_loss(mlp_feats, gt_labels, fc_feats=fc_feats)
+        aux_feats = F.normalize(self.aux_head(x), dim=1)
+        f1, f2 = torch.split(aux_feats, [bsz, bsz], dim=0)
+        aux_feats = torch.cat([f1.unsqueeze(1), f2.unsqueeze(1)], dim=1)
+        loss = self.compute_loss(aux_feats, gt_labels, fc_feats=fc_feats)
         losses.update(loss)
         return losses
 
     def simple_test(self, img):
-        """Test without augmentation."""
+        """
+        Test without data augmentation.
+        """
         cls_score = self.fc(img)
 
         if isinstance(cls_score, list):

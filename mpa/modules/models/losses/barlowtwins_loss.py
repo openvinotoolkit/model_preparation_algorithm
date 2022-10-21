@@ -27,15 +27,15 @@ class BarlowTwinsLoss(nn.Module):
         self.loss_weight = loss_weight
 
     def forward(self, features, labels=None, fc_feats=None):
-        """Compute loss for model. If both `labels` and `mask` are None,
-        it degenerates to SimCLR unsupervised loss:
-        https://arxiv.org/abs/2002.05709
+        """
+        Compute Barlow Twins Loss and, if labels are not none,
+        also the Cross-Entropy loss.
         Args:
             features: hidden vector of shape [bsz, n_views, ...].
             labels: ground truth of shape [bsz].
             fc_feats: tensor to train the linear classifier on
         Returns:
-            A loss pair: the BarlowTwins loss and the CE loss. They might be None.
+            A dictionary containing the loss in the 'loss' key.
         """
         losses = dict()
         losses['loss'] = 0

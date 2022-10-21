@@ -25,7 +25,8 @@ class SupConLoss(nn.Module):
         self.lamda = lamda
 
     def forward(self, features, labels=None, mask=None, fc_feats=None):
-        """Compute loss for model. If both `labels` and `mask` are None,
+        """
+        Compute loss for model. If both `labels` and `mask` are None,
         it degenerates to SimCLR unsupervised loss:
         https://arxiv.org/abs/2002.05709
         Args:
@@ -35,7 +36,7 @@ class SupConLoss(nn.Module):
                 has the same class as sample i. Can be asymmetric.
             fc_feats: tensor to train the linear classifier on
         Returns:
-            A loss pair: the SupCon loss and the CE loss. They might be None.
+            A dictionary containing the loss in the 'loss' key.
         """
         device = (torch.device('cuda')
                   if features.is_cuda
