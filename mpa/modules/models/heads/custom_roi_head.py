@@ -239,19 +239,3 @@ class CustomConvFCBBoxHead(Shared2FCBBoxHead, CrossDatasetDetectorHead):
                                                     cfg.max_per_img)
 
             return det_bboxes, det_labels
-
-
-# @HEADS.register_module()
-# class CustomFCNMaskHead(FCNMaskHead):
-#     def __init__(self,
-#                  *args,
-#                  calib_scale=0,
-#                  **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.calib_scale = calib_scale
-
-#     def get_seg_masks(self, mask_pred, det_bboxes, det_labels, rcnn_test_cfg,
-#                       ori_shape, scale_factor, rescale):
-
-#         segm_result = mask_pred[arange(end=det_labels.shape[0], device=mask_pred.device), det_labels].sigmoid()
-#         return segm_result
