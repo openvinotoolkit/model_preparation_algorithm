@@ -171,12 +171,15 @@ class DetConB(SAMDetectorMixin, L2SPDetectorMixin, SingleStageDetector):
         in_index=None,
         ignore_bg=False,
         ignore_overlap=0.,
+        distance_overlap=False,
         loss_weights=None,
         pretrained=None,
         **kwargs
     ):
 
         assert projector and predictor
+        assert not (ignore_overlap > 0 and distance_overlap), \
+            'For test, setting both at the same time is temporarily prohibited.'
 
         super(DetConB, self).__init__(
             backbone=backbone,
@@ -196,6 +199,7 @@ class DetConB(SAMDetectorMixin, L2SPDetectorMixin, SingleStageDetector):
         self.base_momentum = base_momentum
         self.momentum = base_momentum
         self.ignore_overlap = ignore_overlap
+        self.distance_overlap = distance_overlap
         self.loss_weights = loss_weights
 
         self.num_classes = num_classes
@@ -362,10 +366,36 @@ class DetConBSupCon(DetConB):
         """
         Convert annotations: bboxes to masks
         """
-        for bbox, label in zip(bboxes, labels):
-            x1, y1, x2, y2 = map(int, bbox)
+        if self.distance_overlap:
+            distance_matrixs = None
 
-            if self.ignore_overlap > 0:
+        for bbox, label in zip(bboxes, labels):
+            x1, y1, x2, y2 = map(lambda x: x.to(torch.int), bbox)
+
+            if self.distance_overlap:
+                center = ((x1+(x2-1))/2, (y1+(y2-1))/2)
+
+                # get distance matrix
+                xs = torch.linspace(x1, x2-1, x2-x1, device=x1.device)
+                ys = torch.linspace(y1, y2-1, y2-y1, device=y1.device)
+                Y, X = torch.meshgrid(ys-center[1], xs-center[0])
+
+                distance_matrix = torch.zeros_like(masks, dtype=masks.dtype) + float('inf')
+                distance_matrix[y1:y2,x1:x2] = Y**2 + X**2
+                if distance_matrixs is None:
+                    distance_matrixs = distance_matrix.unsqueeze(0)
+                else:
+                    distance_matrixs = torch.cat((distance_matrixs, distance_matrix.unsqueeze(0)), dim=0)
+
+                # assign new labels based on the distances from the center of each bbox
+                if torch.count_nonzero(masks[y1:y2,x1:x2]): # check if there is overlapped region
+                    nonzero_coord = tuple(map(lambda x: x[0]+x[1], zip(torch.where(masks[y1:y2,x1:x2] != 0), [y1, x1])))
+                    masks[nonzero_coord] = (labels[distance_matrixs.argmin(dim=0)[nonzero_coord]] + 1).to(masks.dtype)
+                    masks[y1:y2,x1:x2] = torch.where(masks[y1:y2,x1:x2] == 0, (label + 1).to(masks.dtype), masks[y1:y2,x1:x2])
+                else:
+                    masks[y1:y2,x1:x2] = label + 1
+            
+            elif self.ignore_overlap > 0:
                 # not assigned / same class -> label + 1
                 # different class -> -1
                 masks[y1:y2,x1:x2] = torch.where(
@@ -383,8 +413,8 @@ class DetConBSupCon(DetConB):
         """
         bs, _, h, w = img1.shape
         
-        mask_canvas1 = torch.zeros((bs, 1, h, w), dtype=torch.int8).cuda()
-        mask_canvas2 = torch.zeros((bs, 1, h, w), dtype=torch.int8).cuda()
+        mask_canvas1 = torch.zeros((bs, 1, h, w), dtype=torch.int8, device=img1.device)
+        mask_canvas2 = torch.zeros((bs, 1, h, w), dtype=torch.int8, device=img2.device)
         
         for b in range(bs):
             b_bboxes1, b_bboxes2 = bboxes1[b], bboxes2[b]
