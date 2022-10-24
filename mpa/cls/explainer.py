@@ -1,10 +1,10 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-from contextlib import nullcontext
 
 import os.path as osp
 import numpy as np
+import cv2
 import torch
 
 import mmcv
@@ -13,17 +13,18 @@ from mmcv.runner import load_checkpoint, wrap_fp16_model
 
 from mmcls.datasets import build_dataloader, build_dataset
 from mmcls.models import build_classifier
+from mpa.modules.xai.builder import build_explainer
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, SaliencyMapHook
+from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, SaliencyMapHook, EigenCamHook
 from mpa.modules.utils.task_adapt import prob_extractor
 from mpa.utils.logger import get_logger
 logger = get_logger()
 
 
 @STAGES.register_module()
-class ClsInferrer(ClsStage):
+class ClsExplainer(ClsStage):
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         """Run explain stage
 
@@ -40,14 +41,9 @@ class ClsInferrer(ClsStage):
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
         outputs = self._explain(cfg)
-        if cfg.get('task_adapt', False) and self.extract_prob:
-            output_file_path = osp.join(cfg.work_dir, 'pre_stage_res.npy')
-            np.save(output_file_path, outputs, allow_pickle=True)
-            return dict(pre_stage_res=output_file_path)
-        else:
-            return dict(
-                outputs=outputs
-                )
+        return dict(
+            outputs=outputs
+            )
 
     def _explain(self, cfg):
         if cfg.get('task_adapt', False) and not hasattr(self, 'eval'):
@@ -82,20 +78,58 @@ class ClsInferrer(ClsStage):
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
-        feature_vectors = []
-        saliency_maps = []
 
         with FeatureVectorHook(model.module.backbone) as fhook:
-            with SaliencyMapHook(model.module.backbone) as shook:
+            with EigenCamHook(model.module.backbone) as shook:
+                # do inference and record intermediate fmap
                 for data in data_loader:
                     with torch.no_grad():
-                        # inference
                         _ = model(return_loss=False, **data)
                 feature_vectors = fhook.records
                 saliency_maps = shook.records
 
         outputs = dict(
             feature_vectors=feature_vectors,
+            saliency_maps=saliency_maps
+        )
+        return outputs
+
+    def _explain_blackbox(self, cfg):
+        self.dataset = build_dataset(cfg.data.test)
+        data_loader = build_dataloader(
+            self.dataset,
+            samples_per_gpu=cfg.data.samples_per_gpu,
+            workers_per_gpu=cfg.data.workers_per_gpu,
+            dist=False,
+            shuffle=False,
+            round_up=False,
+            persistent_workers=False)
+
+        # build the model and load checkpoint
+        model = build_classifier(cfg.model)
+        fp16_cfg = cfg.get('fp16', None)
+        if fp16_cfg is not None:
+            wrap_fp16_model(model)
+        if cfg.load_from is not None:
+            logger.info('load checkpoint from ' + cfg.load_from)
+            _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
+
+        model.eval()
+        model = MMDataParallel(model, device_ids=[0])
+
+        explainer = build_explainer(model)
+        explainer.eval()
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
+        ClsStage.set_inference_progress_callback(model, cfg)
+        saliency_maps = []
+
+        with torch.no_grad():
+            for data in data_loader:
+                # data: [B, C, H, W]
+                result = explainer(data)
+                saliency_maps.append(result)
+
+        outputs = dict(
             saliency_maps=saliency_maps
         )
         return outputs
