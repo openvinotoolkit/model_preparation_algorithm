@@ -2,12 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import glob
 import numbers
 import os
 import os.path as osp
+import re
 import time
-import glob
+import datetime
+from multiprocessing import Pipe, Process
 
+import pynvml
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -17,14 +21,16 @@ from mmdet.apis import train_detector
 from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
 from mmdet.utils import collect_env
+from mpa.modules.utils.task_adapt import extract_anchor_ratio
+from mpa.registry import STAGES
+from mpa.stage import Stage
+from mpa.utils.logger import get_logger
+
+from .stage import DetectionStage
+
 # TODO[JAEGUK]: Remove import detection_tasks
 # from detection_tasks.apis.detection.config_utils import cluster_anchors
 
-from mpa.registry import STAGES
-from .stage import DetectionStage
-from mpa.modules.utils.task_adapt import extract_anchor_ratio
-from mpa.utils.logger import get_logger
-from mpa.stage import Stage
 
 logger = get_logger()
 
@@ -118,6 +124,12 @@ class DetectionTrainer(DetectionStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
+        # run GPU utilization getter process
+        parent_conn, child_conn = Pipe()
+        p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
+        p.start()
+
+        start_time = datetime.datetime.now()
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
@@ -133,6 +145,13 @@ class DetectionTrainer(DetectionStage):
                 True,
                 timestamp,
                 meta)
+
+        with open(osp.join(cfg.work_dir, "time.txt"), "wt") as f:
+            f.write(str(datetime.datetime.now() - start_time))
+
+        # kill GPU utilization getter process
+        parent_conn.send(True)
+        p.join()
 
         # Save outputs
         output_ckpt_path = osp.join(cfg.work_dir, 'latest.pth')
@@ -168,3 +187,46 @@ class DetectionTrainer(DetectionStage):
             validate=True,
             timestamp=timestamp,
             meta=meta)
+
+    @staticmethod
+    def calculate_average_gpu_util(work_dir: str, pipe: Pipe):
+        pynvml.nvmlInit()
+        logger.info("GPU utilzer process start")
+        filter = re.compile(r"([-+]?\d+) \%.*([-+]?\d+) \%")
+
+        available_gpu = os.environ.get('CUDA_VISIBLE_DEVICES', None)
+        if available_gpu is None:
+            gpu_devices = [i for i in range(pynvml.nvmlDeviceGetCount())]
+        else:
+            gpu_devices = [int(gpuidx) for gpuidx in available_gpu.split(',')]
+
+        per_gpu_util = {gpuidx : 0 for gpuidx in gpu_devices}
+        num_total_util = 0
+        while True:
+            for gpuidx in gpu_devices:
+                handle = pynvml.nvmlDeviceGetHandleByIndex(gpuidx)
+                use = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                result = filter.search(str(use))
+                if result is not None:
+                    per_gpu_util[gpuidx] += float(result.group(1))
+
+            if pipe.poll():
+                try:
+                    report = pipe.recv()
+                    if report:
+                        break
+                except EOFError:
+                    continue
+
+            num_total_util += 1
+
+            time.sleep(1)
+
+        pynvml.nvmlShutdown()
+
+        with open(osp.join(work_dir, "gpu_util.txt"), "wt") as f:
+            for gpuidx, gpu_util in per_gpu_util.items():
+                f.write(f"#{gpuidx} average GPU util : {gpu_util / num_total_util}\n")
+            f.write(f"total average GPU util : {sum(per_gpu_util.values()) / (len(per_gpu_util) * num_total_util)}\n")
+
+        logger.info("GPU utilzer process is done")
