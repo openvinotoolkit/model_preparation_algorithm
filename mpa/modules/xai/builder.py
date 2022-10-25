@@ -1,6 +1,7 @@
 from mpa.modules.xai.explain_algorithms import RISE
+from mpa.modules.xai.explain_algorithms import A_RISE
+from mpa.modules.xai.explain_algorithms import D_RISE
 
-from mpa.registry import EXPLAINERS
 
-def build_explainer(model):
-    return RISE(model)
+def build_explainer(model, cfg):
+    pass

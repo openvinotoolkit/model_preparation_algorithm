@@ -1,14 +1,15 @@
-import numpy as np
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from abc import ABC
 from abc import abstractmethod
 
 from mpa.registry import EXPLAINERS
 
-class BaseExplainer(ABC):
+
+class BaseExplainer(ABC, nn.Module):
+    """
+    Blackbox explainer base class
+    """
     def __init__(self, model):
         self._model = model
     
@@ -24,9 +25,15 @@ class BaseExplainer(ABC):
 # https://arxiv.org/pdf/1806.07421.pdf
 
 @EXPLAINERS.register_module()
-class RISE(nn.Module):
-    def __init__(self, model):
-        pass
+class RISE(BaseExplainer):
+    pass
 
-    def forward(self, x):
-        pass
+
+@EXPLAINERS.register_module()
+class A_RISE(BaseExplainer):
+    pass
+
+
+@EXPLAINERS.register_module()
+class D_RISE(BaseExplainer):
+    pass
