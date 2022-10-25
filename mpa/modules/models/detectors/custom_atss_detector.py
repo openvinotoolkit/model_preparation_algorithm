@@ -9,7 +9,7 @@ from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
 from mpa.modules.utils.task_adapt import map_class_names
 from mpa.utils.logger import get_logger
-from detection_tasks.extension.nncf.model import NNCFDetectorMixin
+from otx.algorithms.detection.adapters.mmdet.nncf.model import NNCFDetectorMixin
 
 logger = get_logger()
 
