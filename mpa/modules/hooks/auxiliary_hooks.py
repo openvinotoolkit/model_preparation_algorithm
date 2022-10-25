@@ -14,11 +14,12 @@
 
 from __future__ import annotations
 from typing import Union
+from abc import ABC, abstractmethod
 
 import torch
 
 
-class BaseAuxiliaryHook:
+class BaseAuxiliaryHook(ABC):
     def __init__(self, module: torch.nn.Module, _fpn_idx: int = 0) -> None:
         self._module = module
         self._handle = None
@@ -28,13 +29,10 @@ class BaseAuxiliaryHook:
     @property
     def records(self):
         return self._records
-    
-    def __enter__(self) -> BaseAuxiliaryHook:
-        self._handle = self._module.register_forward_hook(self._recording_forward)
-        return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._handle.remove()
+    @abstractmethod
+    def func(x: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
 
     def _recording_forward(self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor):
         tensor = self.func(output)
@@ -44,6 +42,13 @@ class BaseAuxiliaryHook:
                 self._records.append(single_tensor)
         else:
             self._records.append(tensor)
+    
+    def __enter__(self) -> BaseAuxiliaryHook:
+        self._handle = self._module.register_forward_hook(self._recording_forward)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._handle.remove()
 
 
 class EigenCamHook(BaseAuxiliaryHook):
@@ -65,18 +70,6 @@ class EigenCamHook(BaseAuxiliaryHook):
         saliency_map = saliency_map.reshape((bs, h, w))
         saliency_map = saliency_map.to(torch.uint8)
         return saliency_map
-
-    def _recording_forward(
-        self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
-    ) -> torch.Tensor:
-
-        saliency_map = self.func(output)
-        saliency_map = saliency_map.detach().cpu().numpy()
-        if len(saliency_map) > 1:
-            for tensor in saliency_map:
-                self._records.append(tensor)
-        else:
-            self._records.append(saliency_map)
 
 
 class SaliencyMapHook(BaseAuxiliaryHook):
@@ -156,15 +149,4 @@ class FeatureVectorHook(BaseAuxiliaryHook):
             feature_vector = torch.cat(feature_vector, 1)
         else:
             feature_vector = torch.nn.functional.adaptive_avg_pool2d(feature_map, (1, 1))
-        return feature_vector        
-
-    def _recording_forward(
-        self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
-    ) -> torch.Tensor:
-        feature_vector = self.func(output)
-        feature_vector = feature_vector.detach().cpu().numpy()
-        if len(feature_vector) > 1:
-            for tensor in feature_vector:
-                self._records.append(tensor)
-        else:
-            self._records.append(feature_vector)
+        return feature_vector
