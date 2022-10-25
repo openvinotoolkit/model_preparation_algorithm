@@ -36,6 +36,15 @@ class BaseAuxiliaryHook:
     def __exit__(self, exc_type, exc_value, traceback):
         self._handle.remove()
 
+    def _recording_forward(self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor):
+        tensor = self.func(output)
+        tensor = tensor.detach().cpu().numpy()
+        if len(tensor) > 1:
+            for single_tensor in tensor:
+                self._records.append(single_tensor)
+        else:
+            self._records.append(tensor)
+
 
 class EigenCamHook(BaseAuxiliaryHook):
     @staticmethod
