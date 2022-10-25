@@ -18,18 +18,29 @@ from typing import Union
 import torch
 
 
-class EigenCamHook:
-    def __init__(self, module: torch.nn.Module) -> None:
+class BaseAuxiliaryHook:
+    def __init__(self, module: torch.nn.Module, _fpn_idx: int = 0) -> None:
         self._module = module
         self._handle = None
         self._records = []
-
+        self._fpn_idx = _fpn_idx
+    
     @property
     def records(self):
         return self._records
+    
+    def __enter__(self) -> BaseAuxiliaryHook:
+        self._handle = self._module.register_forward_hook(self._recording_forward)
+        return self
 
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._handle.remove()
+
+
+class EigenCamHook(BaseAuxiliaryHook):
     @staticmethod
-    def func(x: torch.Tensor) -> torch.Tensor:
+    def func(x_: torch.Tensor) -> torch.Tensor:
+        x = x_.type(torch.float32)
         bs, c, h, w = x.size()
         reshaped_fmap = x.reshape((bs, c, h * w)).transpose(1, 2)
         reshaped_fmap = reshaped_fmap - reshaped_fmap.mean(1)[:, None, :]
@@ -58,15 +69,8 @@ class EigenCamHook:
         else:
             self._records.append(saliency_map)
 
-    def __enter__(self) -> SaliencyMapHook:
-        self._handle = self._module.register_forward_hook(self._recording_forward)
-        return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._handle.remove()
-
-
-class SaliencyMapHook:
+class SaliencyMapHook(BaseAuxiliaryHook):
     """While registered with the designated PyTorch module, this class caches saliency maps during forward pass.
 
     Example::
@@ -79,15 +83,6 @@ class SaliencyMapHook:
         _fpn_idx (int, optional): The layer index to be processed if the model is a FPN. 
                                   Defaults to 0 which uses the largest feature map from FPN.
     """
-    def __init__(self, module: torch.nn.Module, _fpn_idx: int = 0) -> None:
-        self._module = module
-        self._handle = None
-        self._records = []
-        self._fpn_idx = _fpn_idx
-
-    @property
-    def records(self):
-        return self._records
 
     @staticmethod
     def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], _fpn_idx: int = 0) -> torch.Tensor:
@@ -119,23 +114,8 @@ class SaliencyMapHook:
         saliency_map = saliency_map.to(torch.uint8)
         return saliency_map
 
-    def _recording_forward(
-        self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
-    ) -> torch.Tensor:
-        saliency_map = self.func(output, self._fpn_idx)
-        saliency_map = saliency_map.detach().cpu().numpy()
-        for tensor in saliency_map:
-            self._records.append(tensor)
 
-    def __enter__(self) -> SaliencyMapHook:
-        self._handle = self._module.register_forward_hook(self._recording_forward)
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._handle.remove()
-
-
-class FeatureVectorHook:
+class FeatureVectorHook(BaseAuxiliaryHook):
     """While registered with the designated PyTorch module, this class caches feature vector during forward pass.
 
     Example::
@@ -146,14 +126,6 @@ class FeatureVectorHook:
     Args:
         module (torch.nn.Module): The PyTorch module to be registered in forward pass
     """
-    def __init__(self, module: torch.nn.Module) -> None:
-        self._module = module
-        self._handle = None
-        self._records = []
-
-    @property
-    def records(self):
-        return self._records
 
     @staticmethod
     def func(feature_map: Union[torch.Tensor, list[torch.Tensor]]) -> torch.Tensor:
@@ -187,10 +159,3 @@ class FeatureVectorHook:
                 self._records.append(tensor)
         else:
             self._records.append(feature_vector)
-
-    def __enter__(self) -> FeatureVectorHook:
-        self._handle = self._module.register_forward_hook(self._recording_forward)
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._handle.remove()
