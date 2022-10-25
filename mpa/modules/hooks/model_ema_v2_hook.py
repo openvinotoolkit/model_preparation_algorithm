@@ -19,12 +19,9 @@ class ModelEmaV2Hook(Hook):
     """
     Source model paramters would be exponentially averaged
     onto destination model pararmeters on given intervals
-
         .. math::
-
             \text{Xema_{t+1}} = (1 - \text{momentum}) \times
             \text{Xema_{t}} +  \text{momentum} \times X_t
-
     Args:
         ema_decay (float): EMA decay value used for updating ema parameter.
             Defaults to 0.999.
@@ -32,25 +29,33 @@ class ModelEmaV2Hook(Hook):
             Defaults to 1.
         start_epoch (int): During initial a few epochs, we just copy values
             to update ema parameters. Defaults to 5.
+        dataset_len_thr (int): number of train images in the dataset when to enable the EMA hook
     """
 
-    def __init__(self, ema_decay=0.999, interval=1, start_epoch=5, **kwargs):
+    def __init__(self, ema_decay=0.9995, interval=1, start_epoch=0, dataset_len_thr=2000, **kwargs):
         super().__init__(**kwargs)
         self.ema_decay = ema_decay
-        self.should_save_ema_model = False
         self.interval = interval
         self.start_epoch = start_epoch
+        self.dataset_len_thr = dataset_len_thr
+
+    def before_train_epoch(self, runner):
+        if not hasattr(self, "use_ema"):
+            self.use_ema = len(runner.data_loader.dataset) > self.dataset_len_thr
+
+        if self.use_ema and not hasattr(runner, "ema_model"):
+            model = runner.model
+            ema_model = ModelEmaV2(model, decay=self.ema_decay, dataset_len_thr=self.dataset_len_thr)
+            runner.ema_model = ema_model
 
     def before_run(self, runner):
-        """Set up src & dst model parameters."""
-        model = self._get_model(runner)
-        ema_model = ModelEmaV2(model, decay=self.ema_decay)
-        runner.ema_model = ema_model
-        runner.use_ema = True
         logger.info("\t* EMA V2 Enable")
 
     def after_train_iter(self, runner):
         """Update ema parameter every self.interval iterations."""
+        if not self.use_ema:
+            return
+
         if runner.iter % self.interval != 0:
             # Skip update
             return
@@ -58,14 +63,8 @@ class ModelEmaV2Hook(Hook):
         if runner.epoch < self.start_epoch:
             # Just copy parameters before start epoch
             return
-        # EMA
-        runner.ema_model.update()
 
-    def _get_model(self, runner):
-        model = runner.model
-        if is_module_wrapper(model):
-            model = model.module
-        return model
+        runner.ema_model.update()
 
 
 class ModelEmaV2(nn.Module):
@@ -87,7 +86,7 @@ class ModelEmaV2(nn.Module):
     GPU assignment and distributed training wrappers.
     """
 
-    def __init__(self, model, decay=0.9999, device=None):
+    def __init__(self, model, decay=0.9999, dataset_len_thr=None, device=None):
         super(ModelEmaV2, self).__init__()
         # make a copy of the model for accumulating moving average of weights
         self.module = deepcopy(model)
@@ -96,6 +95,7 @@ class ModelEmaV2(nn.Module):
         self.dst_model = self.module.state_dict()
         self.decay = decay
         self.device = device  # perform ema on different device from model if set
+        self.dataset_len_thr = dataset_len_thr
         if self.device is not None:
             self.module.to(device=device)
 

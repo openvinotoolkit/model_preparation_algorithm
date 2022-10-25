@@ -84,10 +84,6 @@ class ClsStage(Stage):
             if cfg.model.get('multilabel', False) or cfg.model.get('hierarchical', False):
                 cfg.model.head.pop('topk', None)
 
-        # Other hyper-parameters
-        if cfg.get('hyperparams', False):
-            self.configure_hyperparams(cfg, training, **kwargs)
-
         return cfg
 
     @staticmethod
@@ -147,7 +143,7 @@ class ClsStage(Stage):
 
         model_tasks, dst_classes = None, None
         model_classes, data_classes = [], []
-        train_data_cfg = Stage.get_train_data_cfg(cfg)
+        train_data_cfg = Stage.get_data_cfg(cfg, "train")
         if isinstance(train_data_cfg, list):
             train_data_cfg = train_data_cfg[0]
 
@@ -204,18 +200,20 @@ class ClsStage(Stage):
 
                 if not cfg.model.get('multilabel', False) and not cfg.model.get('hierarchical', False):
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', True)
-                    gamma = 2 if efficient_mode else 3
                     sampler_type = 'balanced'
 
                     if len(set(model_classes) & set(dst_classes)) == 0 or set(model_classes) == set(dst_classes):
                         cfg.model.head.loss = dict(type='CrossEntropyLoss', loss_weight=1.0)
                     else:
                         cfg.model.head.loss = ConfigDict(
-                            type='SoftmaxFocalLoss',
-                            loss_weight=1.0,
-                            gamma=gamma,
-                            reduction='none',
+                            type='IBLoss',
+                            num_classes=cfg.model.head.num_classes,
                         )
+                        ib_loss_hook = ConfigDict(
+                            type='IBLossHook',
+                            dst_classes=dst_classes,
+                        )
+                        update_or_add_custom_hook(cfg, ib_loss_hook)
                 else:
                     efficient_mode = cfg['task_adapt'].get('efficient_mode', False)
                     sampler_type = 'cls_incr'
@@ -265,18 +263,6 @@ class ClsStage(Stage):
                 cfg.model.head.num_classes = len(train_data_cfg.dst_classes)
                 cfg.model.head.num_old_classes = len(old_classes)
         return model_tasks, dst_classes
-
-    @staticmethod
-    def configure_hyperparams(cfg, training, **kwargs):
-        hyperparams = kwargs.get('hyperparams', None)
-        if hyperparams is not None:
-            bs = hyperparams.get('bs', None)
-            if bs is not None:
-                cfg.data.samples_per_gpu = bs
-
-            lr = hyperparams.get('lr', None)
-            if lr is not None:
-                cfg.optimizer.lr = lr
 
 
 def refine_tasks(train_cfg, meta, adapt_type):

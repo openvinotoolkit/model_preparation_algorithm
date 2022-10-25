@@ -5,3 +5,8 @@ model:
     task: classification
     backbone:
         version: b0
+    head:
+        type: CustomLinearClsHead
+        loss:
+            type: CrossEntropyLoss
+            loss_weight: 1.0

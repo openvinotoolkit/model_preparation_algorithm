@@ -1,18 +1,18 @@
 _base_: [
-    './train.yaml',
+    './train_multilabel.yaml',
     '../_base_/data/cls_data.py',
     '../_base_/models/classifiers/classifier.py',
 ]
 
 runner:
-    max_epochs: 20
+    max_epochs: 50
 
 optimizer_config:
     type: SAMOptimizerHook
 
 optimizer:
     type: SGD
-    lr: 0.01
+    lr: 0.007
     momentum: 0.9
     weight_decay: 0.0005
 
@@ -23,3 +23,5 @@ task_adapt:
     type: 'mpa'
     op: 'REPLACE'
 
+custom_hooks:
+- type: ModelEmaV2Hook

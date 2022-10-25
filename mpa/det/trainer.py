@@ -69,6 +69,13 @@ class DetectionTrainer(DetectionStage):
 
         # Data
         datasets = [build_dataset(cfg.data.train)]
+        cfg.data.val.samples_per_gpu = cfg.data.get('samples_per_gpu', 1)
+
+        # FIXME: scale_factors is fixed at 1 even batch_size > 1 in simple_test_mask
+        # Need to investigate, possibly due to OpenVINO
+        if 'roi_head' in model_cfg.model:
+            if 'mask_head' in model_cfg.model.roi_head:
+                cfg.data.val.samples_per_gpu = 1
 
         if hasattr(cfg, 'hparams'):
             if cfg.hparams.get('adaptive_anchor', False):
@@ -155,7 +162,7 @@ class DetectionTrainer(DetectionStage):
         # Do clustering for SSD model
         if hasattr(cfg.model, 'bbox_head') and hasattr(cfg.model.bbox_head, 'anchor_generator'):
             if getattr(cfg.model.bbox_head.anchor_generator, 'reclustering_anchors', False):
-                train_cfg = Stage.get_train_data_cfg(cfg)
+                train_cfg = Stage.get_data_cfg(cfg, "train")
                 train_dataset = train_cfg.get('ote_dataset', None)
                 cfg, model = cluster_anchors(cfg, train_dataset, model)
         train_detector(
