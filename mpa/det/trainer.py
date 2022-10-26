@@ -52,6 +52,17 @@ class DetectionTrainer(DetectionStage):
         if mode not in self.mode:
             return {}
 
+        # Environment
+        world_size = len(os.environ["CUDA_VISIBLE_DEVICES"].split(','))
+        if world_size <= 1:
+            distributed = False
+        else:
+            distributed = True
+            gpu = int(os.environ['LOCAL_RANK'])
+            torch.cuda.set_device(gpu)
+            dist.init_process_group(backend='nccl', world_size=world_size, rank=gpu)
+            logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
+
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, **kwargs)
         logger.info('train!')
 
@@ -59,14 +70,6 @@ class DetectionTrainer(DetectionStage):
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
-
-        # Environment
-        distributed = False
-        if cfg.gpu_ids is not None:
-            if isinstance(cfg.get('gpu_ids'), numbers.Number):
-                cfg.gpu_ids = [cfg.get('gpu_ids')]
-            if len(cfg.gpu_ids) > 1:
-                distributed = True
 
         logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {distributed}')
         env_info_dict = collect_env()
@@ -130,21 +133,15 @@ class DetectionTrainer(DetectionStage):
         p.start()
 
         start_time = datetime.datetime.now()
-        if distributed:
-            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
-            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
-            mp.spawn(DetectionTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
-        else:
-            DetectionTrainer.train_worker(
-                None,
-                target_classes,
-                datasets,
-                cfg,
-                distributed,
-                True,
-                timestamp,
-                meta)
+        DetectionTrainer.train_worker(
+            None if not distributed else int(os.environ['LOCAL_RANK']),
+            target_classes,
+            datasets,
+            cfg,
+            distributed,
+            True,
+            timestamp,
+            meta)
 
         with open(osp.join(cfg.work_dir, "time.txt"), "wt") as f:
             f.write(str(datetime.datetime.now() - start_time))
@@ -163,12 +160,6 @@ class DetectionTrainer(DetectionStage):
     @staticmethod
     def train_worker(gpu, target_classes, datasets, cfg, distributed=False,
                      validate=False, timestamp=None, meta=None):
-        if distributed:
-            torch.cuda.set_device(gpu)
-            dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
-                                    world_size=len(cfg.gpu_ids), rank=gpu)
-            logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
-
         # model
         model = build_detector(cfg.model)
         model.CLASSES = target_classes
@@ -216,7 +207,7 @@ class DetectionTrainer(DetectionStage):
                     if report:
                         break
                 except EOFError:
-                    continue
+                    break
 
             num_total_util += 1
 
@@ -224,7 +215,7 @@ class DetectionTrainer(DetectionStage):
 
         pynvml.nvmlShutdown()
 
-        with open(osp.join(work_dir, "gpu_util.txt"), "wt") as f:
+        with open(osp.join(work_dir, f"gpu_util_{os.getpid()}.txt"), "wt") as f:
             for gpuidx, gpu_util in per_gpu_util.items():
                 f.write(f"#{gpuidx} average GPU util : {gpu_util / num_total_util}\n")
             f.write(f"total average GPU util : {sum(per_gpu_util.values()) / (len(per_gpu_util) * num_total_util)}\n")
