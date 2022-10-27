@@ -46,7 +46,7 @@ class SupConLoss(nn.Module):
         losses['loss'] = 0
 
         # Cross-Entropy loss: classification loss
-        if fc_feats is not None:
+        if fc_feats is not None and labels is not None:
             if fc_feats.shape[0] == labels.shape[0] * 2:
                 losses['loss'] = nll_loss(log_softmax(fc_feats, dim=1), torch.cat([labels, labels], dim=0))
             else:
