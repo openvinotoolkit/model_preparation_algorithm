@@ -12,4 +12,8 @@ class SAMDetectorMixin(BaseDetector):
         # Saving current batch data to compute SAM gradient
         # Rest of SAM logics are implented in SAMOptimizerHook
         self.current_batch = data
-        return super().train_step(data, optimizer, **kwargs)
+
+        # FIXME: If model is wrapped with NNCFNetwork,
+        # super() does not make sense
+        return BaseDetector.train_step(self, data, optimizer)
+        #  return super().train_step(data, optimizer, **kwargs)
