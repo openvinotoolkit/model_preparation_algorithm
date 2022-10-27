@@ -17,7 +17,7 @@ from mpa.modules.xai.builder import build_explainer
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, SaliencyMapHook, EigenCamHook
+from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, ActivationMapHook, EigenCamHook
 from mpa.modules.utils.task_adapt import prob_extractor
 from mpa.utils.logger import get_logger
 logger = get_logger()

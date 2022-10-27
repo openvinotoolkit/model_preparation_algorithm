@@ -16,7 +16,7 @@ from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, SaliencyMapHook
+from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, ActivationMapHook
 from mpa.modules.utils.task_adapt import prob_extractor
 from mpa.utils.logger import get_logger
 logger = get_logger()
@@ -100,7 +100,7 @@ class ClsInferrer(ClsStage):
             outputs = data_infos
         else:
             with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as fhook:
-                with SaliencyMapHook(model.module.backbone) if dump_saliency_map else nullcontext() as shook:
+                with ActivationMapHook(model.module.backbone) if dump_saliency_map else nullcontext() as shook:
                     for data in data_loader:
                         with torch.no_grad():
                             result = model(return_loss=False, **data)

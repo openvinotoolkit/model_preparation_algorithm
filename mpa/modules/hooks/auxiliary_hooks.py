@@ -72,11 +72,11 @@ class EigenCamHook(BaseAuxiliaryHook):
         return saliency_map
 
 
-class SaliencyMapHook(BaseAuxiliaryHook):
+class ActivationMapHook(BaseAuxiliaryHook):
     """While registered with the designated PyTorch module, this class caches saliency maps during forward pass.
 
     Example::
-        with SaliencyMapHook(model.module.backbone) as hook:      
+        with ActivationMapHook(model.module.backbone) as hook:      
             with torch.no_grad():
                 result = model(return_loss=False, **data)
             print(hook.records)
