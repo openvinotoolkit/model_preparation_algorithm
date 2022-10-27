@@ -5,6 +5,7 @@ from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
 from mpa.modules.utils.task_adapt import map_class_names
 from mpa.utils.logger import get_logger
+import torch
 
 logger = get_logger()
 
@@ -78,3 +79,41 @@ class CustomYOLOX(SAMDetectorMixin, L2SPDetectorMixin, YOLOX):
 
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
+
+    def onnx_export(self, img, img_metas, with_nms=True):
+        """Test function without test time augmentation.
+
+        Args:
+            img (torch.Tensor): input images.
+            img_metas (list[dict]): List of image information.
+
+        Returns:
+            tuple[Tensor, Tensor]: dets of shape [N, num_det, 5]
+                and class labels of shape [N, num_det].
+        """
+        x = self.extract_feat(img)
+        outs = self.bbox_head(x)
+        # get origin input shape to support onnx dynamic shape
+
+        # get shape as tensor
+        img_shape = torch._shape_as_tensor(img)[2:]
+        img_metas[0]['img_shape_for_onnx'] = img_shape
+        # get pad input shape to support onnx dynamic shape for exporting
+        # `CornerNet` and `CentripetalNet`, which 'pad_shape' is used
+        # for inference
+        img_metas[0]['pad_shape_for_onnx'] = img_shape
+
+        if len(outs) == 2:
+            # add dummy score_factor
+            outs = (*outs, None)
+
+        # FIXME: mmdet does not support yolox onnx export for now
+        # This is a temporary workaround
+        # https://github.com/open-mmlab/mmdetection/issues/6487
+        try:
+            det_bboxes, det_labels = self.bbox_head.onnx_export(
+                *outs, img_metas, with_nms=with_nms)
+        except AttributeError:
+            det_bboxes, det_labels = self.bbox_head.get_bboxes(*outs, img_metas)[0]
+
+        return det_bboxes, det_labels
