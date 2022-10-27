@@ -10,13 +10,12 @@ from mmdet.models.dense_heads.atss_head import ATSSHead
 from mpa.modules.models.heads.cross_dataset_detector_head import \
     CrossDatasetDetectorHead
 from mpa.modules.models.losses.cross_focal_loss import CrossSigmoidFocalLoss
-from otx.algorithms.detection.adapters.mmdet.nncf.model import NNCFDenseHeadMixin
 
 EPS = 1e-12
 
 
 @HEADS.register_module()
-class CustomATSSHead(NNCFDenseHeadMixin, CrossDatasetDetectorHead, ATSSHead):
+class CustomATSSHead(CrossDatasetDetectorHead, ATSSHead):
     def __init__(
         self,
         *args,
