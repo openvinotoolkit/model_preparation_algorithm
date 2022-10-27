@@ -103,18 +103,18 @@ class ActivationMapHook(BaseAuxiliaryHook):
             feature_map = feature_map[_fpn_idx]
 
         bs, c, h, w = feature_map.size()
-        saliency_map = torch.mean(feature_map, dim=1)
-        saliency_map = saliency_map.reshape((bs, h * w))
-        max_values, _ = torch.max(saliency_map, -1)
-        min_values, _ = torch.min(saliency_map, -1)
-        saliency_map = (
+        activation_map = torch.mean(feature_map, dim=1)
+        activation_map = activation_map.reshape((bs, h * w))
+        max_values, _ = torch.max(activation_map, -1)
+        min_values, _ = torch.min(activation_map, -1)
+        activation_map = (
             255
-            * (saliency_map - min_values[:, None])
+            * (activation_map - min_values[:, None])
             / (max_values - min_values + 1e-12)[:, None]
         )
-        saliency_map = saliency_map.reshape((bs, h, w))
-        saliency_map = saliency_map.to(torch.uint8)
-        return saliency_map
+        activation_map = activation_map.reshape((bs, h, w))
+        activation_map = activation_map.to(torch.uint8)
+        return activation_map
 
 
 class FeatureVectorHook(BaseAuxiliaryHook):
