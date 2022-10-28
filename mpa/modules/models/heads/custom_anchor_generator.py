@@ -56,3 +56,15 @@ class SSDAnchorGeneratorClustered(AnchorGenerator):
         base_anchors = torch.stack(base_anchors, dim=-1)
 
         return base_anchors
+
+    def __repr__(self):
+        """str: a string that describes the module"""
+        indent_str = '    '
+        repr_str = self.__class__.__name__ + '(\n'
+        repr_str += f'{indent_str}strides={self.strides},\n'
+        repr_str += f'{indent_str}widths={self.widths},\n'
+        repr_str += f'{indent_str}heights={self.heights},\n'
+        repr_str += f'{indent_str}num_levels={self.num_levels}\n'
+        repr_str += f'{indent_str}centers={self.centers},\n'
+        repr_str += f'{indent_str}center_offset={self.center_offset})'
+        return repr_str
