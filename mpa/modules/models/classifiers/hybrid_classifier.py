@@ -11,9 +11,9 @@ from mpa.modules.models.classifiers.sam_classifier import ImageClassifier
 
 
 @CLASSIFIERS.register_module()
-class SupConClassifier(ImageClassifier):
+class HybridClassifier(ImageClassifier):
     def __init__(self, backbone, neck=None, head=None, pretrained=None):
-        super(SupConClassifier, self).__init__(
+        super(HybridClassifier, self).__init__(
             backbone, neck=neck, head=head, pretrained=pretrained
         )
 

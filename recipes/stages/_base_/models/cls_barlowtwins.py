@@ -3,7 +3,7 @@ _base_ = [
 ]
 
 model = dict(
-    type='SupConClassifier',
+    type='HybridClassifier',
     backbone=dict(
         type='OTEMobileNetV3',
         pretrained=True,
