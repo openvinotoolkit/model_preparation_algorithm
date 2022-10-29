@@ -1,6 +1,5 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
 import torch
 from torch import nn
@@ -20,7 +19,7 @@ class HybridClsHead(BaseHead):
         in_channels (int): The channels of input data from the backbone
         aux_head (dict): A dictionary with the out_channels and optionally the
                          hid_channels of the auxiliary head.
-        loss (dict): The loss setup: SupConLoss (default) or BarlowTwinsLoss
+        loss (dict): The loss setup: SupConLoss (default), BarlowTwinsLoss or TwistLoss
         topk (set): evaluation topk score, default is (1, )
     """
 
