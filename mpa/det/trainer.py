@@ -18,7 +18,7 @@ from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
 from mmdet.utils import collect_env
 # TODO[JAEGUK]: Remove import otx
-from otx.algorithms.detection.adapters.mmdet.utils import cluster_anchors
+from otx.algorithms.detection.adapters.mmdet.config_utils import cluster_anchors
 
 from mpa.registry import STAGES
 from .stage import DetectionStage
