@@ -6,12 +6,12 @@ _base_: [
     '../_base_/schedules/cos_anneal.py',
 ]
 
-optimizer: 
+optimizer:
     lr: 0.03
     momentum: 0.9
 
-runner: 
+runner:
     max_epochs: 10
 
-evaluation: 
+evaluation:
     metric: ['accuracy']
