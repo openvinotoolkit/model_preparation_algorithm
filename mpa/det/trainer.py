@@ -12,9 +12,6 @@ import datetime
 from multiprocessing import Pipe, Process
 
 import pynvml
-import torch
-import torch.distributed as dist
-import torch.multiprocessing as mp
 from mmcv.utils import get_git_hash
 from mmdet import __version__
 from mmdet.apis import train_detector
@@ -70,8 +67,8 @@ class DetectionTrainer(IncrDetectionStage):
         if cfg.gpu_ids is not None:
             if isinstance(cfg.get('gpu_ids'), numbers.Number):
                 cfg.gpu_ids = [cfg.get('gpu_ids')]
-            if len(cfg.gpu_ids) > 1:
-                distributed = True
+        if len(cfg.gpu_ids) > 1:
+            distributed = True
 
         logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {distributed}')
         env_info_dict = collect_env()
@@ -135,21 +132,14 @@ class DetectionTrainer(IncrDetectionStage):
         p.start()
 
         start_time = datetime.datetime.now()
-        if distributed:
-            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
-            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
-            mp.spawn(DetectionTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
-        else:
-            DetectionTrainer.train_worker(
-                None,
-                target_classes,
-                datasets,
-                cfg,
-                distributed,
-                True,
-                timestamp,
-                meta)
+        DetectionTrainer.train_worker(
+            target_classes,
+            datasets,
+            cfg,
+            distributed,
+            True,
+            timestamp,
+            meta)
 
         with open(osp.join(cfg.work_dir, "time.txt"), "wt") as f:
             f.write(str(datetime.datetime.now() - start_time))
@@ -166,14 +156,8 @@ class DetectionTrainer(IncrDetectionStage):
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
-    def train_worker(gpu, target_classes, datasets, cfg, distributed=False,
+    def train_worker(target_classes, datasets, cfg, distributed=False,
                      validate=False, timestamp=None, meta=None):
-        if distributed:
-            torch.cuda.set_device(gpu)
-            dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
-                                    world_size=len(cfg.gpu_ids), rank=gpu)
-            logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
-
         # model
         model = build_detector(cfg.model)
         model.CLASSES = target_classes
