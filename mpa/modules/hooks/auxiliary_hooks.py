@@ -51,27 +51,6 @@ class BaseAuxiliaryHook(ABC):
         self._handle.remove()
 
 
-class EigenCamHook(BaseAuxiliaryHook):
-    @staticmethod
-    def func(x_: torch.Tensor) -> torch.Tensor:
-        x = x_.type(torch.float32)
-        bs, c, h, w = x.size()
-        reshaped_fmap = x.reshape((bs, c, h * w)).transpose(1, 2)
-        reshaped_fmap = reshaped_fmap - reshaped_fmap.mean(1)[:, None, :]
-        U, S, V = torch.linalg.svd(reshaped_fmap, full_matrices=True)
-        saliency_map = (reshaped_fmap @ V[:, 0][:, :, None]).squeeze(-1)
-        max_values, _ = torch.max(saliency_map, -1)
-        min_values, _ = torch.min(saliency_map, -1)
-        saliency_map = (
-            255
-            * (saliency_map - min_values[:, None])
-            / ((max_values - min_values + 1e-12)[:, None])
-        )
-        saliency_map = saliency_map.reshape((bs, h, w))
-        saliency_map = saliency_map.to(torch.uint8)
-        return saliency_map
-
-
 class ActivationMapHook(BaseAuxiliaryHook):
     """While registered with the designated PyTorch module, this class caches saliency maps during forward pass.
 
@@ -150,3 +129,29 @@ class FeatureVectorHook(BaseAuxiliaryHook):
         else:
             feature_vector = torch.nn.functional.adaptive_avg_pool2d(feature_map, (1, 1))
         return feature_vector
+
+
+class EigenCamHook(BaseAuxiliaryHook):
+    @staticmethod
+    def func(x_: torch.Tensor) -> torch.Tensor:
+        x = x_.type(torch.float32)
+        bs, c, h, w = x.size()
+        reshaped_fmap = x.reshape((bs, c, h * w)).transpose(1, 2)
+        reshaped_fmap = reshaped_fmap - reshaped_fmap.mean(1)[:, None, :]
+        U, S, V = torch.linalg.svd(reshaped_fmap, full_matrices=True)
+        saliency_map = (reshaped_fmap @ V[:, 0][:, :, None]).squeeze(-1)
+        max_values, _ = torch.max(saliency_map, -1)
+        min_values, _ = torch.min(saliency_map, -1)
+        saliency_map = (
+            255
+            * (saliency_map - min_values[:, None])
+            / ((max_values - min_values + 1e-12)[:, None])
+        )
+        saliency_map = saliency_map.reshape((bs, h, w))
+        saliency_map = saliency_map.to(torch.uint8)
+        return saliency_map
+
+class ReciproCamHook(BaseAuxiliaryHook):
+    @staticmethod
+    def func(x: torch.Tensor) -> torch.Tensor:
+        pass

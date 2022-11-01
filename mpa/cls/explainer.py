@@ -21,7 +21,10 @@ from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, ActivationMapHo
 from mpa.modules.utils.task_adapt import prob_extractor
 from mpa.utils.logger import get_logger
 logger = get_logger()
-
+explainer_hook_selector = {
+    'eigencam': EigenCamHook,
+    'cam': ActivationMapHook,
+    }
 
 @STAGES.register_module()
 class ClsExplainer(ClsStage):
@@ -36,7 +39,12 @@ class ClsExplainer(ClsStage):
         mode = kwargs.get('mode', 'train')
         if mode not in self.mode:
             return {}
-
+        
+        try:
+            self.explainer_hook = explainer_hook_selector[kwargs.get('explainer').lower()]
+        except KeyError:
+            raise NotImplementedError(f"explainer algorithm {kwargs.get('explainer')} not supported") 
+        logger.info(f"explainer algorithm: {kwargs.get('explainer')}")
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
@@ -78,8 +86,8 @@ class ClsExplainer(ClsStage):
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
-
-        with EigenCamHook(model.module.backbone) as shook:
+        
+        with self.explainer_hook(model.module.backbone) as shook:
             # do inference and record intermediate fmap
             for data in data_loader:
                 with torch.no_grad():
