@@ -3,8 +3,6 @@
 #
 
 import os.path as osp
-import numpy as np
-import cv2
 import torch
 
 import mmcv
@@ -17,14 +15,14 @@ from mpa.modules.xai.builder import build_explainer
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, ActivationMapHook, EigenCamHook
-from mpa.modules.utils.task_adapt import prob_extractor
+from mpa.modules.hooks.auxiliary_hooks import ActivationMapHook, EigenCamHook
 from mpa.utils.logger import get_logger
 logger = get_logger()
-explainer_hook_selector = {
+EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
     'cam': ActivationMapHook,
     }
+
 
 @STAGES.register_module()
 class ClsExplainer(ClsStage):
@@ -39,12 +37,12 @@ class ClsExplainer(ClsStage):
         mode = kwargs.get('mode', 'train')
         if mode not in self.mode:
             return {}
-        
+        explainer = kwargs.get('explainer')
         try:
-            self.explainer_hook = explainer_hook_selector[kwargs.get('explainer').lower()]
+            self.explainer_hook = EXPLAINER_HOOK_SELECTOR[explainer.lower()]
         except KeyError:
-            raise NotImplementedError(f"explainer algorithm {kwargs.get('explainer')} not supported") 
-        logger.info(f"explainer algorithm: {kwargs.get('explainer')}")
+            raise NotImplementedError(f"explainer algorithm {explainer} not supported")
+        logger.info(f"explainer algorithm: {explainer}")
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
@@ -85,8 +83,7 @@ class ClsExplainer(ClsStage):
         model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
-        ClsStage.set_inference_progress_callback(model, cfg)
-        
+        ClsStage.set_inference_progress_callback(model, cfg)        
         with self.explainer_hook(model.module.backbone) as shook:
             # do inference and record intermediate fmap
             for data in data_loader:
