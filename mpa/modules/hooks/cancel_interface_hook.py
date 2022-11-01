@@ -12,10 +12,14 @@ logger = get_logger()
 
 @HOOKS.register_module()
 class CancelInterfaceHook(Hook):
-    def __init__(self, init_callback: callable, interval=5):
-        self.on_init_callback = init_callback
+    def __init__(self, stop_flag=None, interval=5):
         self.runner = None
         self.interval = interval
+        self.stop_flag = stop_flag
+        
+    def before_train_epoch(self, runner):
+        if self.stop_flag:
+            self.cancel()
 
     def cancel(self):
         logger.info('CancelInterfaceHook.cancel() is called.')
@@ -35,4 +39,3 @@ class CancelInterfaceHook(Hook):
 
     def before_run(self, runner):
         self.runner = runner
-        self.on_init_callback(self)
