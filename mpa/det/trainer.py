@@ -133,8 +133,20 @@ class DetectionTrainer(DetectionStage):
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
-            mp.spawn(DetectionTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
+            processes= []
+            spawned_mp = mp.get_context("spawn")
+            for rank in cfg.gpu_ids:
+                task_p = spawned_mp.Process(
+                    target=DetectionTrainer.train_worker,
+                    args=(rank, target_classes, datasets, cfg, distributed, True, timestamp, meta)
+                )
+                task_p.start()
+                processes.append(task_p)
+
+            for p_to_join in processes:
+                p_to_join.join()
+            # mp.spawn(DetectionTrainer.train_worker, nprocs=len(cfg.gpu_ids),
+            #          args=(target_classes, copied_dataset, cfg, distributed, True, timestamp, meta))
         else:
             DetectionTrainer.train_worker(
                 None,
@@ -164,6 +176,7 @@ class DetectionTrainer(DetectionStage):
     def train_worker(gpu, target_classes, datasets, cfg, distributed=False,
                      validate=False, timestamp=None, meta=None):
         if distributed:
+            from mpa.modules.hooks.cancel_interface_hook import CancelInterfaceHook
             torch.cuda.set_device(gpu)
             dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
                                     world_size=len(cfg.gpu_ids), rank=gpu)
