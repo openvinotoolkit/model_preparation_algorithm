@@ -10,6 +10,7 @@ import re
 import time
 import datetime
 from multiprocessing import Pipe, Process
+import uuid
 
 import pynvml
 import torch
@@ -129,7 +130,6 @@ class DetectionTrainer(DetectionStage):
         p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
         p.start()
 
-        start_time = datetime.datetime.now()
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
@@ -158,8 +158,6 @@ class DetectionTrainer(DetectionStage):
                 timestamp,
                 meta)
 
-        with open(osp.join(cfg.work_dir, "time.txt"), "wt") as f:
-            f.write(str(datetime.datetime.now() - start_time))
 
         # kill GPU utilization getter process
         parent_conn.send(True)
@@ -192,6 +190,7 @@ class DetectionTrainer(DetectionStage):
         #         train_cfg = Stage.get_train_data_cfg(cfg)
         #         train_dataset = train_cfg.get('otx_dataset', None)
         #         cfg, model = cluster_anchors(cfg, train_dataset, model)
+        start_time = datetime.datetime.now()
         train_detector(
             model,
             datasets,
@@ -200,6 +199,8 @@ class DetectionTrainer(DetectionStage):
             validate=True,
             timestamp=timestamp,
             meta=meta)
+        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
+            f.write(str(datetime.datetime.now() - start_time))
 
     @staticmethod
     def calculate_average_gpu_util(work_dir: str, pipe: Pipe):
