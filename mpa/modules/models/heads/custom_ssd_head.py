@@ -5,6 +5,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import torch
+
 from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.dense_heads.ssd_head import SSDHead
 from mmdet.models.losses import smooth_l1_loss
@@ -30,6 +32,10 @@ class CustomSSDHead(SSDHead):
         self.loss_cls = build_loss(loss_cls)
         self.bg_loss_weight = bg_loss_weight
         self.loss_balancing = loss_balancing
+        if self.loss_balancing:
+            self.loss_weights = torch.nn.Parameter(torch.FloatTensor(2))
+            for i in range(2):
+                self.loss_weights.data[i] = 0.
 
     def loss_single(
         self,
