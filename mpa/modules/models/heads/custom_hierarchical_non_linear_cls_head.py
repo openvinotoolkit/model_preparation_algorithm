@@ -42,6 +42,10 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
         self.hierarchical_info = kwargs.pop('hierarchical_info', None)
         assert self.hierarchical_info
         super(CustomHierarchicalNonLinearClsHead, self).__init__(loss=loss)
+        if self.hierarchical_info['num_multiclass_heads'] + \
+            self.hierarchical_info['num_multilabel_classes'] == 0:
+            raise ValueError(
+                'Invalid classification heads configuration')
         self.compute_multilabel_loss = False
         if self.hierarchical_info['num_multilabel_classes'] > 0:
             self.compute_multilabel_loss = build_loss(multilabel_loss)
@@ -140,12 +144,15 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
                                             self.hierarchical_info['head_idx_to_logits_range'][i][1]]
             multiclass_logit = torch.softmax(multiclass_logit, dim=1)
             multiclass_logits.append(multiclass_logit)
-        multiclass_pred = torch.cat(multiclass_logits, dim=1)
+        multiclass_pred = torch.cat(multiclass_logits, dim=1) if multiclass_logits else None
 
         if self.compute_multilabel_loss:
             multilabel_logits = cls_score[:, self.hierarchical_info['num_single_label_classes']:]
             multilabel_pred = torch.sigmoid(multilabel_logits) if multilabel_logits is not None else None
-            pred = torch.cat([multiclass_pred, multilabel_pred], axis=1)
+            if multiclass_pred:
+                pred = torch.cat([multiclass_pred, multilabel_pred], axis=1)
+            else:
+                pred = multilabel_pred
         else:
             pred = multiclass_pred
 
