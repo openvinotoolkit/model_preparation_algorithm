@@ -149,7 +149,7 @@ class CustomHierarchicalNonLinearClsHead(MultiLabelClsHead):
         if self.compute_multilabel_loss:
             multilabel_logits = cls_score[:, self.hierarchical_info['num_single_label_classes']:]
             multilabel_pred = torch.sigmoid(multilabel_logits) if multilabel_logits is not None else None
-            if multiclass_pred:
+            if multiclass_pred is not None:
                 pred = torch.cat([multiclass_pred, multilabel_pred], axis=1)
             else:
                 pred = multilabel_pred
