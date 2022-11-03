@@ -140,7 +140,7 @@ class DetectionInferrer(DetectionStage):
         model.eval()
         if torch.cuda.is_available():
             eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
-                                        device_ids=cfg.gpu_ids)
+                                        device_ids=cfg.gpu_ids[:1])
         else:
             eval_model = MMDataCPU(model)
 
