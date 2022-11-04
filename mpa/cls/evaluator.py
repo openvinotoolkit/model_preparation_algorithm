@@ -40,6 +40,6 @@ class ClsEvaluator(ClsInferrer):
 
         eval_cfg = cfg.get('evaluation', {})
         eval_cfg.pop('by_epoch', False)
-        results = self.dataset.evaluate(infer_results['eval_predictions'], **eval_cfg)
+        results = self.dataset.evaluate(infer_results, **eval_cfg)
         logger.info(f'\n{results}')
         return results
