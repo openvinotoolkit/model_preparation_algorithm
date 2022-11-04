@@ -20,7 +20,7 @@ from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
-    'cam': ActivationMapHook,
+    'activationmap': ActivationMapHook,
     }
 
 
@@ -38,9 +38,8 @@ class ClsExplainer(ClsStage):
         if mode not in self.mode:
             return {}
         explainer = kwargs.get('explainer')
-        try:
-            self.explainer_hook = EXPLAINER_HOOK_SELECTOR[explainer.lower()]
-        except KeyError:
+        self.explainer_hook = EXPLAINER_HOOK_SELECTOR.get(explainer.lower(), None)
+        if self.explainer_hook is None:
             raise NotImplementedError(f"explainer algorithm {explainer} not supported")
         logger.info(f"explainer algorithm: {explainer}")
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
