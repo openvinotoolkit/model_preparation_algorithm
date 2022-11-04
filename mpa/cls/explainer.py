@@ -11,7 +11,6 @@ from mmcv.runner import load_checkpoint, wrap_fp16_model
 
 from mmcls.datasets import build_dataloader, build_dataset
 from mmcls.models import build_classifier
-from mpa.modules.xai.builder import build_explainer
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
