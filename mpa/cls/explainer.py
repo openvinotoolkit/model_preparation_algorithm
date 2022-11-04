@@ -81,7 +81,7 @@ class ClsExplainer(ClsStage):
         model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
-        ClsStage.set_inference_progress_callback(model, cfg)        
+        ClsStage.set_inference_progress_callback(model, cfg)
         with self.explainer_hook(model.module.backbone) as shook:
             # do inference and record intermediate fmap
             for data in data_loader:
