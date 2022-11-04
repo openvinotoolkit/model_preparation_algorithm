@@ -135,13 +135,24 @@ class DetectionTrainer(DetectionStage):
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             processes= []
             spawned_mp = mp.get_context("spawn")
-            for rank in cfg.gpu_ids:
+            for rank in cfg.gpu_ids[1:]:
                 task_p = spawned_mp.Process(
                     target=DetectionTrainer.train_worker,
                     args=(rank, target_classes, datasets, cfg, distributed, True, timestamp, meta)
                 )
                 task_p.start()
                 processes.append(task_p)
+
+            # run by itself
+            DetectionTrainer.train_worker(
+                cfg.gpu_ids[0],
+                target_classes,
+                datasets,
+                cfg,
+                distributed,
+                True,
+                timestamp,
+                meta)
 
             for p_to_join in processes:
                 p_to_join.join()
@@ -174,6 +185,8 @@ class DetectionTrainer(DetectionStage):
     def train_worker(gpu, target_classes, datasets, cfg, distributed=False,
                      validate=False, timestamp=None, meta=None):
         if distributed:
+            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
+            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             from mpa.modules.hooks.cancel_interface_hook import CancelInterfaceHook
             torch.cuda.set_device(gpu)
             dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
