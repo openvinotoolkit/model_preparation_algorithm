@@ -60,6 +60,8 @@ class DetectionTrainer(DetectionStage):
         else:
             distributed = True
             gpu = int(os.environ['LOCAL_RANK'])
+            os.environ['MASTER_ADDR'] = 'localhost'
+            os.environ['MASTER_PORT'] = '24500'
             torch.cuda.set_device(gpu)
             dist.init_process_group(backend='nccl', world_size=world_size, rank=gpu)
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
