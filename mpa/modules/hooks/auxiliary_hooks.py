@@ -154,4 +154,4 @@ class EigenCamHook(BaseAuxiliaryHook):
 class ReciproCamHook(BaseAuxiliaryHook):
     @staticmethod
     def func(x: torch.Tensor) -> torch.Tensor:
-        pass
+        raise NotImplementedError

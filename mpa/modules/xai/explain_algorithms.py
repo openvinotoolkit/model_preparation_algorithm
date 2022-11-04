@@ -3,8 +3,6 @@ import torch.nn as nn
 from abc import ABC
 from abc import abstractmethod
 
-from mpa.registry import EXPLAINERS
-
 
 class BaseExplainer(ABC, nn.Module):
     """
@@ -20,20 +18,3 @@ class BaseExplainer(ABC, nn.Module):
     @abstractmethod
     def run(self):
         pass
-
-# RISE: Randomized Input Sampling for Explanation of Black-box Models
-# https://arxiv.org/pdf/1806.07421.pdf
-
-@EXPLAINERS.register_module()
-class RISE(BaseExplainer):
-    pass
-
-
-@EXPLAINERS.register_module()
-class A_RISE(BaseExplainer):
-    pass
-
-
-@EXPLAINERS.register_module()
-class D_RISE(BaseExplainer):
-    pass
