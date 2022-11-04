@@ -150,9 +150,3 @@ class EigenCamHook(BaseAuxiliaryHook):
         saliency_map = saliency_map.reshape((bs, h, w))
         saliency_map = saliency_map.to(torch.uint8)
         return saliency_map
-
-
-class ReciproCamHook(BaseAuxiliaryHook):
-    @staticmethod
-    def func(x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
