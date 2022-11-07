@@ -8,7 +8,11 @@ import numpy as np
 import torch
 
 import mmcv
-from mmcv.parallel import MMDataParallel
+
+import os
+
+import torch
+from mmcv.parallel import MMDistributedDataParallel, MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 
 from mmcls.datasets import build_dataloader, build_dataset
@@ -83,7 +87,19 @@ class ClsInferrer(ClsStage):
             _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         model.eval()
-        model = MMDataParallel(model, device_ids=[0])
+        if len(os.environ["CUDA_VISIBLE_DEVICES"].split(',')) > 1:
+            model = model.cuda()
+            find_unused_parameters = cfg.get('find_unused_parameters', False)
+            # Sets the `find_unused_parameters` parameter in
+            # torch.nn.parallel.DistributedDataParallel
+            model = MMDistributedDataParallel(
+                model,
+                device_ids=[torch.cuda.current_device()],
+                broadcast_buffers=False,
+                find_unused_parameters=find_unused_parameters)
+        else:
+            model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
+                                        device_ids=cfg.gpu_ids)
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
