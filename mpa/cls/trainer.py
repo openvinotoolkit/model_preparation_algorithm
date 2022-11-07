@@ -2,17 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import os
+
+import glob
 import numbers
+import os
 import os.path as osp
+import re
 import time
+import datetime
+from multiprocessing import Pipe, Process
+import uuid
+
+import pynvml
+
 import warnings
 import torch
 import numpy as np
 import random
 
-import torch.multiprocessing as mp
-import torch.distributed as dist
 
 import mmcv
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
@@ -55,8 +62,8 @@ class ClsTrainer(ClsStage):
         if cfg.gpu_ids is not None:
             if isinstance(cfg.get('gpu_ids'), numbers.Number):
                 cfg.gpu_ids = [cfg.get('gpu_ids')]
-            if len(cfg.gpu_ids) > 1:
-                distributed = True
+        if len(cfg.gpu_ids) > 1:
+            distributed = True
 
         env_info_dict = collect_env()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
@@ -117,18 +124,19 @@ class ClsTrainer(ClsStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        if distributed:
-            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
-            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
+        # run GPU utilization getter process
+        parent_conn, child_conn = Pipe()
+        p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
+        p.start()
 
-            mp.spawn(ClsTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(datasets, cfg, distributed, True, timestamp, meta))
-        else:
-            ClsTrainer.train_worker(None, datasets, cfg,
-                                    distributed,
-                                    True,
-                                    timestamp,
-                                    meta)
+        ClsTrainer.train_worker(datasets, cfg,
+                                distributed,
+                                True,
+                                timestamp,
+                                meta)
+        # kill GPU utilization getter process
+        parent_conn.send(True)
+        p.join()
 
         # Save outputs
         output_ckpt_path = osp.join(cfg.work_dir, 'best_model.pth'
@@ -137,16 +145,12 @@ class ClsTrainer(ClsStage):
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
-    def train_worker(gpu, dataset, cfg, distributed, validate, timestamp, meta):
-        logger.info(f'called train_worker() gpu={gpu}, distributed={distributed}, validate={validate}')
-        if distributed:
-            torch.cuda.set_device(gpu)
-            dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
-                                    world_size=len(cfg.gpu_ids), rank=gpu)
-            logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
+    def train_worker(dataset, cfg, distributed, validate, timestamp, meta):
+        logger.info(f'called train_worker() distributed={distributed}, validate={validate}')
 
         # model
         model = build_classifier(cfg.model)
+        start_time = datetime.datetime.now()
 
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
@@ -281,11 +285,54 @@ class ClsTrainer(ClsStage):
         if cfg.get('resume_from', False):
             runner.resume(cfg.resume_from)
         elif cfg.get('load_from', False):
-            if gpu is None:
-                runner.load_checkpoint(cfg.load_from)
-            else:
-                runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{gpu}')
+            runner.load_checkpoint(cfg.load_from)
         runner.run(data_loaders, cfg.workflow)
+
+        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
+            f.write(str(datetime.datetime.now() - start_time))
+
+    @staticmethod
+    def calculate_average_gpu_util(work_dir: str, pipe: Pipe):
+        pynvml.nvmlInit()
+        logger.info("GPU utilzer process start")
+        filter = re.compile(r"([-+]?\d+) \%.*([-+]?\d+) \%")
+
+        available_gpu = os.environ.get('CUDA_VISIBLE_DEVICES', None)
+        if available_gpu is None:
+            gpu_devices = [i for i in range(pynvml.nvmlDeviceGetCount())]
+        else:
+            gpu_devices = [int(gpuidx) for gpuidx in available_gpu.split(',')]
+
+        per_gpu_util = {gpuidx : 0 for gpuidx in gpu_devices}
+        num_total_util = 0
+        while True:
+            for gpuidx in gpu_devices:
+                handle = pynvml.nvmlDeviceGetHandleByIndex(gpuidx)
+                use = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                result = filter.search(str(use))
+                if result is not None:
+                    per_gpu_util[gpuidx] += float(result.group(1))
+
+            if pipe.poll():
+                try:
+                    report = pipe.recv()
+                    if report:
+                        break
+                except EOFError:
+                    continue
+
+            num_total_util += 1
+
+            time.sleep(1)
+
+        pynvml.nvmlShutdown()
+
+        with open(osp.join(work_dir, "gpu_util.txt"), "wt") as f:
+            for gpuidx, gpu_util in per_gpu_util.items():
+                f.write(f"#{gpuidx} average GPU util : {gpu_util / num_total_util}\n")
+            f.write(f"total average GPU util : {sum(per_gpu_util.values()) / (len(per_gpu_util) * num_total_util)}\n")
+
+        logger.info("GPU utilzer process is done")
 
     @staticmethod
     def register_checkpoint_hook(checkpoint_config):
