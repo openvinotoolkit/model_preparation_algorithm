@@ -26,9 +26,3 @@ stages:
     task: classification
     mode: eval
     config: {{ fileDirname }}/stages/classification/class_incr.yaml
-
-  - name: cls-inc-explanation
-    type: ClsExplainer
-    task: classification
-    mode: explain
-    config: {{ fileDirname }}/stages/classification/class_incr.yaml
