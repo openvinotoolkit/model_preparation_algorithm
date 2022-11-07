@@ -76,7 +76,8 @@ class ClsStage(Stage):
                 self.model_classes = dst_classes
         else:
             if 'num_classes' not in cfg.data:
-                cfg.data.num_classes = len(cfg.data.train.get('classes', []))
+                #cfg.data.num_classes = len(cfg.data.train.get('classes', []))
+                cfg.data.num_classes = len(Stage.get_data_classes(cfg))
             cfg.model.head.num_classes = cfg.data.num_classes
 
         if cfg.model.head.get('topk', False) and isinstance(cfg.model.head.topk, tuple):
