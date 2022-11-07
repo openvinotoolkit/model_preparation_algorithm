@@ -19,8 +19,7 @@ from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
-    'activationmap': ActivationMapHook,
-    }
+    'activationmap': ActivationMapHook}
 
 
 @STAGES.register_module()
@@ -45,9 +44,7 @@ class ClsExplainer(ClsStage):
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
         outputs = self._explain(cfg)
-        return dict(
-            outputs=outputs
-            )
+        return dict(outputs=outputs)
 
     def _explain(self, cfg):
         if cfg.get('task_adapt', False) and not hasattr(self, 'eval'):
