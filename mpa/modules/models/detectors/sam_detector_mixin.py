@@ -13,7 +13,4 @@ class SAMDetectorMixin(BaseDetector):
         # Rest of SAM logics are implented in SAMOptimizerHook
         self.current_batch = data
 
-        # FIXME: If model is wrapped with NNCFNetwork,
-        # super() does not make sense
-        return BaseDetector.train_step(self, data, optimizer)
-        #  return super().train_step(data, optimizer, **kwargs)
+        return super().train_step(data, optimizer, **kwargs)
