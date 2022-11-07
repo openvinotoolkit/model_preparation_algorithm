@@ -6,7 +6,9 @@
 #
 
 import torch
+from torch import nn
 
+from mmcv.cnn import build_activation_layer
 from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.dense_heads.ssd_head import SSDHead
 from mmdet.models.losses import smooth_l1_loss
@@ -36,6 +38,50 @@ class CustomSSDHead(SSDHead):
             self.loss_weights = torch.nn.Parameter(torch.FloatTensor(2))
             for i in range(2):
                 self.loss_weights.data[i] = 0.
+
+    # TODO: remove this internal method
+    # _init_layers of CustomSSDHead(this) and of SSDHead(parent)
+    # Initialize almost the same model structure.
+    # However, there are subtle differences
+    # Theses differences make `load_state_dict_pre_hook()` go wrong
+    def _init_layers(self):
+        """Initialize layers of the head."""
+        self.cls_convs = nn.ModuleList()
+        self.reg_convs = nn.ModuleList()
+
+        act_cfg = self.act_cfg.copy()
+        act_cfg.setdefault("inplace", True)
+        for in_channel, num_base_priors in zip(self.in_channels, self.num_base_priors):
+            if self.use_depthwise:
+                activation_layer = build_activation_layer(act_cfg)
+
+                self.reg_convs.append(nn.Sequential(
+                    nn.Conv2d(in_channel, in_channel,
+                              kernel_size=3, padding=1, groups=in_channel),
+                    nn.BatchNorm2d(in_channel),
+                    activation_layer,
+                    nn.Conv2d(in_channel, num_base_priors * 4,
+                              kernel_size=1, padding=0)))
+                self.cls_convs.append(nn.Sequential(
+                    nn.Conv2d(in_channel, in_channel,
+                              kernel_size=3, padding=1, groups=in_channel),
+                    nn.BatchNorm2d(in_channel),
+                    activation_layer,
+                    nn.Conv2d(in_channel, num_base_priors * self.cls_out_channels,
+                              kernel_size=1, padding=0)))
+            else:
+                self.reg_convs.append(
+                    nn.Conv2d(
+                        in_channel,
+                        num_base_priors * 4,
+                        kernel_size=3,
+                        padding=1))
+                self.cls_convs.append(
+                    nn.Conv2d(
+                        in_channel,
+                        num_base_priors * self.cls_out_channels,
+                        kernel_size=3,
+                        padding=1))
 
     def loss_single(
         self,
