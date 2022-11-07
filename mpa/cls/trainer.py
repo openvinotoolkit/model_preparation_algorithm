@@ -149,7 +149,11 @@ class ClsTrainer(ClsStage):
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
         train_data_cfg = Stage.get_train_data_cfg(cfg)
-        drop_last = train_data_cfg.drop_last if train_data_cfg.get('drop_last', False) else False
+        ote_dataset = train_data_cfg.get('ote_dataset', None)
+        dataset_len = len(ote_dataset) if ote_dataset else 0
+        drop_last = True
+        if 0 < dataset_len < cfg.data.get('samples_per_gpu', 2):
+            drop_last = False
 
         # updated to adapt list of dataset for the 'train'
         data_loaders = []
