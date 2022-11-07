@@ -83,7 +83,7 @@ class ClsInferrer(ClsStage):
             _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         model.eval()
-        model = MMDataParallel(model, device_ids=[0])
+        model = MMDataParallel(model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids[:1])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
