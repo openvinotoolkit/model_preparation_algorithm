@@ -66,6 +66,7 @@ class ClsTrainer(ClsStage):
 
         # Data
         if 'unlabeled' in cfg.data:
+            print(cfg.data.unlabeled)
             datasets = [[build_dataset(cfg.data.train), build_dataset(cfg.data.unlabeled)]]
         else:
             datasets = [build_dataset(cfg.data.train)]
