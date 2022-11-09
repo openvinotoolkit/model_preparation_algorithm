@@ -217,7 +217,7 @@ class Stage(object):
                     logger.warning(f"type of split '{target}'' should be list or dict but {type(split)}")
 
         logger.info('configure_data()')
-        logger.debug(f'[args] {cfg.data}')
+        # logger.debug(f'[args] {cfg.data}')
         pipeline_options = cfg.data.pop('pipeline_options', None)
         if pipeline_options is not None and isinstance(pipeline_options, dict):
             configure_split('train')
