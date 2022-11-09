@@ -89,4 +89,3 @@ class ClsExplainer(ClsStage):
             saliency_maps=saliency_maps
         )
         return outputs
-

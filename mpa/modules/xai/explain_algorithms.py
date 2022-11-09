@@ -18,4 +18,3 @@ class BaseExplainer(ABC, nn.Module):
     @abstractmethod
     def run(self):
         pass
-

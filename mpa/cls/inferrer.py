@@ -100,13 +100,13 @@ class ClsInferrer(ClsStage):
             outputs = data_infos
         else:
             with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as fhook:
-              with ActivationMapHook(model.module.backbone) if dump_saliency_map else nullcontext() as shook:
-                  for data in data_loader:
-                      with torch.no_grad():
-                          result = model(return_loss=False, **data)
-                      eval_predictions.extend(result)
-                  feature_vectors = fhook.records if dump_features else [None] * len(self.dataset)
-                  saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
+                with ActivationMapHook(model.module.backbone) if dump_saliency_map else nullcontext() as shook:
+                    for data in data_loader:
+                        with torch.no_grad():
+                            result = model(return_loss=False, **data)
+                        eval_predictions.extend(result)
+                    feature_vectors = fhook.records if dump_features else [None] * len(self.dataset)
+                    saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
 
         assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
                 'Number of elements should be the same, however, number of outputs are ' \
