@@ -49,7 +49,7 @@ class EarlyStoppingHook(Hook):
     init_value_map = {'greater': -inf, 'less': inf}
     greater_keys = [
         'acc', 'top', 'AR@', 'auc', 'precision', 'mAP', 'mDice', 'mIoU',
-        'mAcc', 'aAcc'
+        'mAcc', 'aAcc', 'MHAcc'
     ]
     less_keys = ['loss']
 
@@ -377,7 +377,7 @@ class ReduceLROnPlateauLrUpdaterHook(LrUpdaterHook):
     def get_lr(self, runner: BaseRunner, base_lr: float):
         if not self._should_check_stopping(
                 runner) or self.warmup_iters > runner.iter:
-            return base_lr
+            return self.current_lr if self.current_lr is not None else base_lr
 
         if self.current_lr is None:
             self.current_lr = base_lr

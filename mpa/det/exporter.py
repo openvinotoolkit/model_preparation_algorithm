@@ -34,6 +34,7 @@ class DetectionExporter(DetectionStage):
 
         output_path = os.path.join(cfg.work_dir, 'export')
         os.makedirs(output_path, exist_ok=True)
+
         model = build_detector(cfg.model)
         if model_ckpt:
             load_checkpoint(model=model, filename=model_ckpt, map_location='cpu')
@@ -47,7 +48,7 @@ class DetectionExporter(DetectionStage):
                 model = model.cpu()
             precision = kwargs.pop('precision', 'FP32')
             logger.info(f'Model will be exported with precision {precision}')
-            
+
             export_model(model, cfg, output_path, target='openvino', precision=precision)
         except Exception as ex:
             # output_model.model_status = ModelStatus.FAILED

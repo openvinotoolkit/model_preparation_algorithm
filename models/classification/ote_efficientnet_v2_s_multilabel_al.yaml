@@ -1,0 +1,12 @@
+_base_: ./ote_efficientnet_v2_s_multilabel.yaml
+
+model:
+    head:
+        type: CustomMultiLabelLinearClsHead
+        normalized: True
+        scale: 7.0
+        loss:
+            type: AsymmetricAngularLossWithIgnore
+            gamma_pos: 0.0
+            gamma_neg: 1.0
+            reduction: sum
