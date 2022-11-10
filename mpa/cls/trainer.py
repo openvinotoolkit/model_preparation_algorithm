@@ -150,7 +150,6 @@ class ClsTrainer(ClsStage):
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
         train_data_cfg = Stage.get_train_data_cfg(cfg)
         ote_dataset = train_data_cfg.get('ote_dataset', None)
-
         drop_last = False
         dataset_len = len(ote_dataset) if ote_dataset else 0
         # if task == h-label & dataset size is bigger than batch size
