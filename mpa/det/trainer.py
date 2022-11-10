@@ -24,7 +24,7 @@ from mmdet.models import build_detector
 from mmdet.utils import collect_env
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.registry import STAGES
-from mpa.stage import Stage
+from mpa.stage import Stage, _set_random_seed
 from mpa.utils.logger import get_logger
 
 from .stage import DetectionStage
@@ -185,6 +185,7 @@ class DetectionTrainer(DetectionStage):
     def train_worker(gpu, target_classes, datasets, cfg, distributed=False,
                      validate=False, timestamp=None, meta=None):
         if distributed:
+            _set_random_seed(cfg.seed, True)
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             from mpa.modules.hooks.cancel_interface_hook import CancelInterfaceHook
