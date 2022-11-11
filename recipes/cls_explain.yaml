@@ -7,5 +7,4 @@ stages:
     type: ClsExplainer
     task: classification
     mode: explain
-    config: {{ fileDirname }}/stages/classification/class_incr.yaml
-
+    config: {{ fileDirname }}/stages/classification/class_explain.yaml
