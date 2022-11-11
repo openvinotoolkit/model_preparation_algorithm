@@ -113,7 +113,7 @@ class SegInferrer(SegStage):
 
         # Inference
         model.eval()
-        model = MMDataParallel(model, device_ids=[0])
+        model = MMDataParallel(model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids[:1])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         SegStage.set_inference_progress_callback(model, cfg)

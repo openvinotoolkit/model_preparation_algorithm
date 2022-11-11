@@ -2,28 +2,34 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import os
-import time
-import numbers
+import datetime
 import glob
-import torch
-import torch.multiprocessing as mp
-import torch.distributed as dist
+import numbers
+import os
+import re
+import time
+import uuid
+from multiprocessing import Pipe, Process
+from os import path as osp
 
 import mmcv
+import pynvml
+import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
 from mmcv import get_git_hash
-
 from mmseg import __version__
-# from mmseg.apis import train_segmentor
-from .train import train_segmentor
-# from mmseg.datasets import build_dataset
-from .builder import build_dataset
 from mmseg.models import build_segmentor
 from mmseg.utils import collect_env
-
 from mpa.registry import STAGES
 from mpa.seg.stage import SegStage
 from mpa.utils.logger import get_logger
+from mpa.stage import _set_random_seed
+
+# from mmseg.datasets import build_dataset
+from .builder import build_dataset
+# from mmseg.apis import train_segmentor
+from .train import train_segmentor
 
 logger = get_logger()
 
@@ -112,11 +118,37 @@ class SegTrainer(SegStage):
         # cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
+        # run GPU utilization getter process
+        parent_conn, child_conn = Pipe()
+        p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
+        p.start()
+
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
-            mp.spawn(SegTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
+            processes= []
+            spawned_mp = mp.get_context("spawn")
+            for rank in cfg.gpu_ids[1:]:
+                task_p = spawned_mp.Process(
+                    target=SegTrainer.train_worker,
+                    args=(rank, target_classes, datasets, cfg, distributed, True, timestamp, meta)
+                )
+                task_p.start()
+                processes.append(task_p)
+
+            # run by itself
+            SegTrainer.train_worker(
+                cfg.gpu_ids[0],
+                target_classes,
+                datasets,
+                cfg,
+                distributed,
+                True,
+                timestamp,
+                meta)
+
+            for p_to_join in processes:
+                p_to_join.join()
         else:
             SegTrainer.train_worker(
                 None,
@@ -128,6 +160,10 @@ class SegTrainer(SegStage):
                 timestamp,
                 meta
             )
+
+        # kill GPU utilization getter process
+        parent_conn.send(True)
+        p.join()
 
         # Save outputs
         output_ckpt_path = os.path.join(cfg.work_dir, 'latest.pth')
@@ -144,6 +180,10 @@ class SegTrainer(SegStage):
                      timestamp=None, meta=None):
         # logger = get_logger()
         if distributed:
+            _set_random_seed(cfg.seed, True)
+            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
+            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
+            from mpa.modules.hooks.cancel_interface_hook import CancelInterfaceHook
             torch.cuda.set_device(gpu)
             dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
                                     world_size=len(cfg.gpu_ids), rank=gpu)
@@ -153,6 +193,7 @@ class SegTrainer(SegStage):
         model = build_segmentor(cfg.model)
         model.CLASSES = target_classes
 
+        start_time = datetime.datetime.now()
         train_segmentor(
             model,
             datasets,
@@ -162,3 +203,48 @@ class SegTrainer(SegStage):
             timestamp=timestamp,
             meta=meta
         )
+        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
+            f.write(str(datetime.datetime.now() - start_time))
+
+    @staticmethod
+    def calculate_average_gpu_util(work_dir: str, pipe: Pipe):
+        pynvml.nvmlInit()
+        logger.info("GPU utilzer process start")
+        filter = re.compile(r"([-+]?\d+) \%.*([-+]?\d+) \%")
+
+        available_gpu = os.environ.get('CUDA_VISIBLE_DEVICES', None)
+        if available_gpu is None:
+            gpu_devices = [i for i in range(pynvml.nvmlDeviceGetCount())]
+        else:
+            gpu_devices = [int(gpuidx) for gpuidx in available_gpu.split(',')]
+
+        per_gpu_util = {gpuidx : 0 for gpuidx in gpu_devices}
+        num_total_util = 0
+        while True:
+            for gpuidx in gpu_devices:
+                handle = pynvml.nvmlDeviceGetHandleByIndex(gpuidx)
+                use = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                result = filter.search(str(use))
+                if result is not None:
+                    per_gpu_util[gpuidx] += float(result.group(1))
+
+            if pipe.poll():
+                try:
+                    report = pipe.recv()
+                    if report:
+                        break
+                except EOFError:
+                    continue
+
+            num_total_util += 1
+
+            time.sleep(1)
+
+        pynvml.nvmlShutdown()
+
+        with open(osp.join(work_dir, "gpu_util.txt"), "wt") as f:
+            for gpuidx, gpu_util in per_gpu_util.items():
+                f.write(f"#{gpuidx} average GPU util : {gpu_util / num_total_util}\n")
+            f.write(f"total average GPU util : {sum(per_gpu_util.values()) / (len(per_gpu_util) * num_total_util)}\n")
+
+        logger.info("GPU utilzer process is done")
