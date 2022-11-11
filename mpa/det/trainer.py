@@ -185,7 +185,7 @@ class DetectionTrainer(DetectionStage):
     def train_worker(gpu, target_classes, datasets, cfg, distributed=False,
                      validate=False, timestamp=None, meta=None):
         if distributed:
-            _set_random_seed(cfg.seed, True)
+            _set_random_seed(cfg.seed, deterministic=cfg.get('deterministic', False))
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             from mpa.modules.hooks.cancel_interface_hook import CancelInterfaceHook
