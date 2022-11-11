@@ -98,7 +98,7 @@ class ActivationMapHook(BaseRecordingForwardHook):
     def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
         """Generate the saliency map by average feature maps then normalizing to (0, 255)."""
         if isinstance(feature_map, list):
-            assert fpn_idx in feature_map, \
+            assert fpn_idx < len(feature_map), \
                 f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
             feature_map = feature_map[fpn_idx]
 
