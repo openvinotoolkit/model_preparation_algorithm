@@ -54,7 +54,7 @@ class BaseAuxiliaryHook(ABC):
 class EigenCamHook(BaseAuxiliaryHook):
     @staticmethod
     def func(x_: torch.Tensor) -> torch.Tensor:
-        x = x_.astype(torch.float16)
+        x = x_.type(torch.float16)
         bs, c, h, w = x.size()
         reshaped_fmap = x.reshape((bs, c, h * w)).transpose(1, 2)
         reshaped_fmap = reshaped_fmap - reshaped_fmap.mean(1)[:, None, :]
