@@ -3,10 +3,11 @@
 #
 
 from contextlib import nullcontext
+import os
 import os.path as osp
 
 import mmcv
-from mmcv.parallel import MMDataParallel
+from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
@@ -107,7 +108,18 @@ class SegInferrer(SegStage):
 
         # Inference
         model.eval()
-        model = MMDataParallel(model, device_ids=[0])
+        if len(os.environ["CUDA_VISIBLE_DEVICES"].split(',')) > 1:
+            model = model.cuda()
+            find_unused_parameters = cfg.get('find_unused_parameters', False)
+            # Sets the `find_unused_parameters` parameter in
+            # torch.nn.parallel.DistributedDataParallel
+            model = MMDistributedDataParallel(
+                model,
+                device_ids=[torch.cuda.current_device()],
+                broadcast_buffers=False,
+                find_unused_parameters=find_unused_parameters)
+        else:
+            model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         SegStage.set_inference_progress_callback(model, cfg)

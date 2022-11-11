@@ -9,6 +9,12 @@ import glob
 import torch
 import torch.multiprocessing as mp
 import torch.distributed as dist
+from os import path as osp
+import datetime
+from multiprocessing import Pipe, Process
+import pynvml
+import re
+import uuid
 
 import mmcv
 from mmcv import get_git_hash
@@ -106,22 +112,24 @@ class SegTrainer(SegStage):
                     changed LR from {cfg.optimizer.lr} to {new_lr}')
                 cfg.optimizer.lr = new_lr
 
-        if distributed:
-            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
-            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
-            mp.spawn(SegTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
-        else:
-            SegTrainer.train_worker(
-                None,
-                target_classes,
-                datasets,
-                cfg,
-                distributed,
-                True,
-                timestamp,
-                meta
-            )
+        # run GPU utilization getter process
+        parent_conn, child_conn = Pipe()
+        p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
+        p.start()
+
+        SegTrainer.train_worker(
+            target_classes,
+            datasets,
+            cfg,
+            distributed,
+            True,
+            timestamp,
+            meta
+        )
+
+        # kill GPU utilization getter process
+        parent_conn.send(True)
+        p.join()
 
         # Save outputs
         output_ckpt_path = os.path.join(cfg.work_dir, 'latest.pth')
@@ -134,18 +142,14 @@ class SegTrainer(SegStage):
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
-    def train_worker(gpu, target_classes, datasets, cfg, distributed=False, validate=False,
+    def train_worker(target_classes, datasets, cfg, distributed=False, validate=False,
                      timestamp=None, meta=None):
-        if distributed:
-            torch.cuda.set_device(gpu)
-            dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
-                                    world_size=len(cfg.gpu_ids), rank=gpu)
-            logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
         # Model
         model = build_segmentor(cfg.model)
         model.CLASSES = target_classes
 
+        start_time = datetime.datetime.now()
         train_segmentor(
             model,
             datasets,
@@ -155,3 +159,48 @@ class SegTrainer(SegStage):
             timestamp=timestamp,
             meta=meta
         )
+        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
+            f.write(str(datetime.datetime.now() - start_time))
+
+    @staticmethod
+    def calculate_average_gpu_util(work_dir: str, pipe: Pipe):
+        pynvml.nvmlInit()
+        logger.info("GPU utilzer process start")
+        filter = re.compile(r"([-+]?\d+) \%.*([-+]?\d+) \%")
+
+        available_gpu = os.environ.get('CUDA_VISIBLE_DEVICES', None)
+        if available_gpu is None:
+            gpu_devices = [i for i in range(pynvml.nvmlDeviceGetCount())]
+        else:
+            gpu_devices = [int(gpuidx) for gpuidx in available_gpu.split(',')]
+
+        per_gpu_util = {gpuidx : 0 for gpuidx in gpu_devices}
+        num_total_util = 0
+        while True:
+            for gpuidx in gpu_devices:
+                handle = pynvml.nvmlDeviceGetHandleByIndex(gpuidx)
+                use = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                result = filter.search(str(use))
+                if result is not None:
+                    per_gpu_util[gpuidx] += float(result.group(1))
+
+            if pipe.poll():
+                try:
+                    report = pipe.recv()
+                    if report:
+                        break
+                except EOFError:
+                    continue
+
+            num_total_util += 1
+
+            time.sleep(1)
+
+        pynvml.nvmlShutdown()
+
+        with open(osp.join(work_dir, "gpu_util.txt"), "wt") as f:
+            for gpuidx, gpu_util in per_gpu_util.items():
+                f.write(f"#{gpuidx} average GPU util : {gpu_util / num_total_util}\n")
+            f.write(f"total average GPU util : {sum(per_gpu_util.values()) / (len(per_gpu_util) * num_total_util)}\n")
+
+        logger.info("GPU utilzer process is done")
