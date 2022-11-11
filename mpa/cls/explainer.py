@@ -28,7 +28,7 @@ class ClsExplainer(ClsStage):
         """Run explain stage
         - Configuration
         - Environment setup
-        - Run explain via explain_hook
+        - Run explain via recording_forward_hooks
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
