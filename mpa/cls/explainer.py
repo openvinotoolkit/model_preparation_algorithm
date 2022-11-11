@@ -28,7 +28,7 @@ class ClsExplainer(ClsStage):
         """Run explain stage
         - Configuration
         - Environment setup
-        - Run explain via recording_forward_hooks
+        - Run explain via hooks in recording_forward_hooks
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
@@ -62,8 +62,6 @@ class ClsExplainer(ClsStage):
             shuffle=False,
             round_up=False,
             persistent_workers=False)
-
-        print(cfg.explainer)
 
         # build the model and load checkpoint
         model = build_classifier(cfg.model)
