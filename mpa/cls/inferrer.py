@@ -16,7 +16,7 @@ from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.auxiliary_hooks import ActivationMapHook, FeatureVectorHook
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, FeatureVectorHook
 from mpa.modules.utils.task_adapt import prob_extractor
 from mpa.utils.logger import get_logger
 logger = get_logger()

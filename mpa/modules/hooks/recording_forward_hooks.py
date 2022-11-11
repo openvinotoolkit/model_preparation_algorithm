@@ -19,19 +19,40 @@ from typing import Union
 import torch
 
 
-class BaseAuxiliaryHook(ABC):
-    def __init__(self, module: torch.nn.Module, _fpn_idx: int = 0) -> None:
+class BaseRecordingForwardHook(ABC):
+    """While registered with the designated PyTorch module, this class caches feature vector during forward pass.
+
+    Example::
+        with BaseRecordingForwardHook(model.module.backbone) as hook:
+            with torch.no_grad():
+                result = model(return_loss=False, **data)
+            print(hook.records)
+
+    Args:
+        module (torch.nn.Module): The PyTorch module to be registered in forward pass
+    """
+    def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
         self._module = module
         self._handle = None
         self._records = []
-        self._fpn_idx = _fpn_idx
+        self.fpn_idx = fpn_idx
 
     @property
     def records(self):
         return self._records
 
     @abstractmethod
-    def func(x: torch.Tensor) -> torch.Tensor:
+    def func(x: torch.Tensor, fpn_idx: int = 0) -> torch.Tensor:
+        """This method get the feature vector or saliency map from the output of the module.
+
+        Args:
+            x (torch.Tensor): Feature map from the backbone module
+            fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
+                                    Defaults to 0 which uses the largest feature map from FPN.
+
+        Returns:
+            torch.Tensor (torch.Tensor): Saliency map for feature vector
+        """
         raise NotImplementedError
 
     def _recording_forward(self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor):
@@ -43,7 +64,7 @@ class BaseAuxiliaryHook(ABC):
         else:
             self._records.append(tensor)
 
-    def __enter__(self) -> BaseAuxiliaryHook:
+    def __enter__(self) -> BaseRecordingForwardHook:
         self._handle = self._module.register_forward_hook(self._recording_forward)
         return self
 
@@ -51,7 +72,7 @@ class BaseAuxiliaryHook(ABC):
         self._handle.remove()
 
 
-class EigenCamHook(BaseAuxiliaryHook):
+class EigenCamHook(BaseRecordingForwardHook):
     @staticmethod
     def func(x_: torch.Tensor) -> torch.Tensor:
         x = x_.type(torch.float)
@@ -72,34 +93,14 @@ class EigenCamHook(BaseAuxiliaryHook):
         return saliency_map
 
 
-class ActivationMapHook(BaseAuxiliaryHook):
-    """While registered with the designated PyTorch module, this class caches saliency maps during forward pass.
-
-    Example::
-        with ActivationMapHook(model.module.backbone) as hook:
-            with torch.no_grad():
-                result = model(return_loss=False, **data)
-            print(hook.records)
-    Args:
-        module (torch.nn.Module): The PyTorch module to be registered in forward pass
-        _fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
-                                  Defaults to 0 which uses the largest feature map from FPN.
-    """
+class ActivationMapHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], _fpn_idx: int = 0) -> torch.Tensor:
-        """Generate the saliency map by average feature maps then normalizing to (0, 255).
-
-        Args:
-            feature_map (Union[torch.Tensor, list[torch.Tensor]]): feature maps from backbone or list of feature maps
-                                                                    from FPN.
-            _fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
-                                      Defaults to 0 which uses the largest feature map from FPN.
-
-        Returns:
-            torch.Tensor: Saliency Map
-        """
+    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+        """Generate the saliency map by average feature maps then normalizing to (0, 255)."""
         if isinstance(feature_map, list):
-            feature_map = feature_map[_fpn_idx]
+            assert fpn_idx in feature_map, \
+                f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
+            feature_map = feature_map[fpn_idx]
 
         bs, c, h, w = feature_map.size()
         activation_map = torch.mean(feature_map, dim=1)
@@ -116,31 +117,10 @@ class ActivationMapHook(BaseAuxiliaryHook):
         return activation_map
 
 
-class FeatureVectorHook(BaseAuxiliaryHook):
-    """While registered with the designated PyTorch module, this class caches feature vector during forward pass.
-
-    Example::
-        with FeatureVectorHook(model.module.backbone) as hook:
-            with torch.no_grad():
-                result = model(return_loss=False, **data)
-            print(hook.records)
-    Args:
-        module (torch.nn.Module): The PyTorch module to be registered in forward pass
-    """
+class FeatureVectorHook(BaseRecordingForwardHook):
     @staticmethod
     def func(feature_map: Union[torch.Tensor, list[torch.Tensor]]) -> torch.Tensor:
-        """Generate the feature vector by average pooling feature maps.
-
-        If the input is a list of feature maps from FPN, per-layer feature vector is first generated by averaging
-                feature maps in each FPN layer, then concatenate all the per-layer feature vector as the final result.
-
-        Args:
-            feature_map (Union[torch.Tensor, list[torch.Tensor]]): feature maps from backbone or list of feature maps
-                                                                    from FPN.
-
-        Returns:
-            torch.Tensor: feature vector(representation vector)
-        """
+        """Generate the feature vector by average pooling feature maps."""
         if isinstance(feature_map, list):
             # aggregate feature maps from Feature Pyramid Network
             feature_vector = [torch.nn.functional.adaptive_avg_pool2d(f, (1, 1)) for f in feature_map]

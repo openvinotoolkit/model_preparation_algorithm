@@ -14,7 +14,7 @@ from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.auxiliary_hooks import ActivationMapHook, EigenCamHook
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook
 from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
@@ -28,7 +28,7 @@ class ClsExplainer(ClsStage):
         """Run explain stage
         - Configuration
         - Environment setup
-        - Run explain via auxiliary_hook
+        - Run explain via explain_hook
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
@@ -62,6 +62,8 @@ class ClsExplainer(ClsStage):
             shuffle=False,
             round_up=False,
             persistent_workers=False)
+
+        print(cfg.explainer)
 
         # build the model and load checkpoint
         model = build_classifier(cfg.model)

@@ -8,7 +8,7 @@ from mmcls.models.builder import CLASSIFIERS
 from mmcls.models.classifiers.base import BaseClassifier
 from mmcls.models.classifiers.image import ImageClassifier
 from mpa.modules.utils.task_adapt import map_class_names
-from mpa.modules.hooks.auxiliary_hooks import ActivationMapHook, FeatureVectorHook
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, FeatureVectorHook
 from mpa.utils.logger import get_logger
 from collections import OrderedDict
 import functools
