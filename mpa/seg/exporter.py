@@ -6,7 +6,7 @@ import os
 import torch
 import warnings
 
-from mmseg.apis import export_model
+#  from mmseg.apis import export_model
 from mmseg.models import build_segmentor
 from mmcv.runner import load_checkpoint
 
@@ -48,7 +48,7 @@ class SegExporter(SegStage):
             precision = kwargs.pop('precision', 'FP32')
             logger.info(f'Model will be exported with precision {precision}')
 
-            export_model(model, cfg, output_path, target='openvino', output_logits=True, input_format='bgr', precision=precision)
+            #  export_model(model, cfg, output_path, target='openvino', output_logits=True, input_format='bgr', precision=precision)
         except Exception as ex:
             # output_model.model_status = ModelStatus.FAILED
             # raise RuntimeError('Optimization was unsuccessful.') from ex

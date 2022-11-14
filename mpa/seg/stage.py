@@ -130,8 +130,8 @@ class SegStage(Stage):
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
         new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
         has_new_class = True if len(new_classes) > 0 else False
-        if has_new_class is False:
-            ValueError('Incremental learning should have at least one new class!')
+        #  if has_new_class is False:
+        #      raise ValueError('Incremental learning should have at least one new class!')
 
         # Incremental Learning
         if cfg.get('ignore', False):
@@ -165,8 +165,7 @@ class SegStage(Stage):
             else:
                 if cfg.data[mode]['type'] == 'SegTaskAdaptDataset':
                     cfg.data[mode]['classes'] = model_classes
-                    if has_new_class:
-                        cfg.data[mode]['new_classes'] = new_classes
+                    cfg.data[mode]['new_classes'] = new_classes
                     cfg.data[mode]['with_background'] = True
                 else:
                     # Wrap original dataset config
@@ -174,8 +173,7 @@ class SegStage(Stage):
                     cfg.data[mode]['type'] = 'SegTaskAdaptDataset'
                     cfg.data[mode]['org_type'] = org_type
                     cfg.data[mode]['classes'] = model_classes
-                    if has_new_class:
-                        cfg.data[mode]['new_classes'] = new_classes
+                    cfg.data[mode]['new_classes'] = new_classes
                     cfg.data[mode]['with_background'] = True
 
         # Update Task Adapt Hook

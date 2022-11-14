@@ -35,15 +35,6 @@ lr_config = dict(
     warmup_ratio=1e-2,
 )
 
-# parameter manager
-params_config = dict(
-    type='FreezeLayers',
-    by_epoch=True,
-    iters=40,
-    open_layers=[r'\w*[.]?backbone\.aggregator\.', r'\w*[.]?neck\.',
-                 r'\w*[.]?decode_head\.', r'\w*[.]?auxiliary_head\.']
-)
-
 custom_hooks = [
     dict(
         type='DualModelEMAHook',
@@ -52,6 +43,17 @@ custom_hooks = [
         src_model_name='model_s',
         dst_model_name='model_t',
     ),
+    dict(
+        type='FreezeLayers',
+        by_epoch=True,
+        iters=40,
+        open_layers=[
+            r'\w*[.]?backbone\.aggregator\.',
+            r'\w*[.]?neck\.',
+            r'\w*[.]?decode_head\.',
+            r'\w*[.]?auxiliary_head\.',
+        ],
+    )
 ]
 
 log_config = dict(

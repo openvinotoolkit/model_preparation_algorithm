@@ -28,15 +28,6 @@ evaluation = dict(
     metric=['mIoU', 'mDice'],
 )
 
-# parameter manager
-params_config = dict(
-    type='FreezeLayers',
-    by_epoch=True,
-    iters=0,
-    open_layers=[r'\w*[.]?backbone\.aggregator\.', r'\w*[.]?neck\.',
-                 r'\w*[.]?decode_head\.', r'\w*[.]?auxiliary_head\.']
-)
-
 custom_hooks = [
     dict(type='LazyEarlyStoppingHook',
          patience=8,
@@ -46,4 +37,15 @@ custom_hooks = [
          priority=75,
          start=1
          ),
+    dict(
+        type='FreezeLayers',
+        by_epoch=True,
+        iters=0,
+        open_layers=[
+            r'\w*[.]?backbone\.aggregator\.',
+            r'\w*[.]?neck\.',
+            r'\w*[.]?decode_head\.',
+            r'\w*[.]?auxiliary_head\.',
+        ],
+    )
 ]

@@ -6,6 +6,14 @@ import os
 from glob import glob
 from setuptools import setup, find_packages
 
+
+try:
+    from torch.utils.cpp_extension import CppExtension, BuildExtension
+    cmd_class = {'build_ext': BuildExtension}
+except ModuleNotFoundError:
+    cmd_class = {}
+    print('Skip building ext ops due to the absence of torch.')
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -24,6 +32,29 @@ def get_mpa_version():
     return locals()["__version__"]
 
 
+def get_extensions():
+    extensions = []
+
+    ext_name = 'mpa.modules._mpl'
+
+    # prevent ninja from using too many resources
+    os.environ.setdefault('MAX_JOBS', '4')
+    extra_compile_args = {'cxx': []}
+
+    print(f'Compiling {ext_name} without CUDA')
+    op_files = glob("./mpa/csrc/mpl/*.cpp")
+    include_path = os.path.abspath("./mpa/csrc/mpl")
+    ext_ops = CppExtension(
+        name=ext_name,
+        sources=op_files,
+        include_dirs=[include_path],
+        define_macros=[],
+        extra_compile_args=extra_compile_args)
+    extensions.append(ext_ops)
+
+    return extensions
+
+
 if __name__ == "__main__":
     setup(
         name="mpa",
@@ -34,4 +65,6 @@ if __name__ == "__main__":
         description="Model Preperation Algorithms",
         long_description=long_description,
         install_requires=get_requirements(),
+        ext_modules=get_extensions(),
+        cmdclass=cmd_class,
     )

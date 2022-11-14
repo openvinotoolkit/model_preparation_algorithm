@@ -75,12 +75,14 @@ class SegInferrer(SegStage):
         dataset = self.dataset
 
         # Data loader
-        mm_val_dataloader = build_dataloader(
-            dataset,
+        loader_cfg = dict(
             samples_per_gpu=samples_per_gpu,
             workers_per_gpu=cfg.data.workers_per_gpu,
             dist=False,
-            shuffle=False)
+            shuffle=False
+        )
+        loader_cfg = {**loader_cfg, **cfg.data.get(f'{input_source}_dataloader', {})}
+        mm_val_dataloader = build_dataloader(dataset, **loader_cfg)
 
         # Target classes
         if 'task_adapt' in cfg:

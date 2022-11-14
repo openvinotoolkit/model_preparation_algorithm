@@ -14,10 +14,8 @@ import mmcv
 from mmcv import get_git_hash
 
 from mmseg import __version__
-# from mmseg.apis import train_segmentor
-from .train import train_segmentor
-# from mmseg.datasets import build_dataset
-from .builder import build_dataset
+from mmseg.apis import train_segmentor
+from mmseg.datasets import build_dataset
 from mmseg.models import build_segmentor
 from mmseg.utils import collect_env
 
@@ -111,6 +109,16 @@ class SegTrainer(SegStage):
         # Save config
         # cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
+
+        # mmseg api does not implement fp16 config
+        fp16_cfg = cfg.get('fp16', None)
+        if fp16_cfg is not None:
+            type = cfg.optimizer_config.get("type", "Fp16OptimizerHook")
+            if not type.startswith("Fp16"):
+                type = "Fp16" + type
+            cfg.optimizer_config.update(
+                dict(type=type, **fp16_cfg, distributed=distributed)
+            )
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
