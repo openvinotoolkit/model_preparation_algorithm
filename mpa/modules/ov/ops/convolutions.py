@@ -92,33 +92,30 @@ class GroupConvolutionV1(Operation[GroupConvolutionV1Attribute]):
             raise NotImplementedError
 
         n_groups = weight.shape[0]
-        n_sizes = input.shape[1] // n_groups
-        inputs = torch.split(input, n_sizes, 1)
-        weights = weight
-        outputs = []
+        # merge groups and out dimension
+        weight = weight.view(-1, *weight.shape[2:])
 
-        for input, weight in zip(inputs, weights):
-            padding = get_torch_padding(
-                self.attrs.pads_begin,
-                self.attrs.pads_end,
-                self.attrs.auto_pad,
-                list(input.shape[2:]),
-                list(weight.shape[2:]),
-                self.attrs.strides,
-                self.attrs.dilations,
-            )
-            if isinstance(padding, Callable):
-                input = padding(input=input)
-                padding = 0
-            outputs.append(
-                func(
-                    input=input,
-                    weight=weight,
-                    bias=None,
-                    stride=self.attrs.strides,
-                    padding=padding,
-                    dilation=self.attrs.dilations,
-                )
-            )
+        padding = get_torch_padding(
+            self.attrs.pads_begin,
+            self.attrs.pads_end,
+            self.attrs.auto_pad,
+            list(input.shape[2:]),
+            list(weight.shape[2:]),
+            self.attrs.strides,
+            self.attrs.dilations,
+        )
+        if isinstance(padding, Callable):
+            input = padding(input=input)
+            padding = 0
 
-        return torch.cat(outputs, 1)
+        output = func(
+            input=input,
+            weight=weight,
+            bias=None,
+            stride=self.attrs.strides,
+            padding=padding,
+            dilation=self.attrs.dilations,
+            groups=n_groups,
+        )
+
+        return output
