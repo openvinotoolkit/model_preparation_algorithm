@@ -168,9 +168,9 @@ class ReciproCAMHook(SaliencyMapHook):
 
         bs, c, h, w = feature_map.size()
 
-        saliency_maps = torch.zeros(bs, self._num_classes, h, w)
-        for i, fm in enumerate(feature_map):
-            mosaic_feature_map = self._get_mosaic_feature_map(fm, c, h, w)
+        saliency_maps = torch.empty(bs, self._num_classes, h, w)
+        for i in range(bs):
+            mosaic_feature_map = self._get_mosaic_feature_map(feature_map[i], c, h, w)
             mosaic_prediction = self._predict_from_feature_map(mosaic_feature_map)
             saliency_maps[i] = mosaic_prediction.transpose(0, 1).reshape((self._num_classes, h, w))
 
@@ -190,7 +190,9 @@ class ReciproCAMHook(SaliencyMapHook):
         with torch.no_grad():
             if self._neck is not None:
                 x = self._neck(x)
-            logits = torch.tensor(self._head.simple_test(x))
+            logits = self._head.simple_test(x)
+            if not isinstance(logits, torch.Tensor):
+                logits = torch.tensor(logits)
         return logits
 
     @staticmethod
