@@ -70,7 +70,7 @@ class ClsExporter(ClsStage):
 
         data = self.get_fake_input(cfg)
         fake_img = data['img'].unsqueeze(0)
-        
+
         precision = kwargs.pop('precision', 'FP32')
         logger.info(f'Model will be exported with precision {precision}')
 
