@@ -14,6 +14,7 @@ from .builder import OPS
 from .op import Attribute, Operation
 from .type_conversions import ConvertV0
 from .utils import get_dynamic_shape
+from ..utils import get_op_name
 
 
 logger = get_logger()
@@ -86,7 +87,7 @@ class ParameterV0(Operation[ParameterV0Attribute]):
     def from_ov(cls, ov_op):
         op_type = ov_op.get_type_name()
         op_version = ov_op.get_version()
-        op_name = ov_op.get_friendly_name().replace(".", "_")
+        op_name = get_op_name(ov_op)
         assert cls.TYPE != "" and cls.VERSION >= 0
         assert op_type == cls.TYPE
         assert op_version == cls.VERSION
@@ -203,7 +204,7 @@ class ConstantV0(Operation[ConstantV0Attribute]):
     def from_ov(cls, ov_op):
         op_type = ov_op.get_type_name()
         op_version = ov_op.get_version()
-        op_name = ov_op.get_friendly_name().replace(".", "_")
+        op_name = get_op_name(ov_op)
         assert cls.TYPE != "" and cls.VERSION >= 0
         assert op_type == cls.TYPE
         assert op_version == cls.VERSION

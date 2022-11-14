@@ -10,9 +10,6 @@ from mpa.utils.logger import get_logger
 from openvino.pyopenvino import Model, Node
 from openvino.runtime import Core
 
-from .ops import OPS, Operation
-from .ops.modules import OperationModule
-
 
 logger = get_logger()
 
@@ -103,7 +100,12 @@ def load_ov_model(
 
 def normalize_name(name: str) -> str:
     # ModuleDict does not allow '.' in module name string
-    name = name.replace(".", "_")
+    name = name.replace(".", "#")
+    return name
+
+
+def unnormalize_name(name: str) -> str:
+    name = name.replace("#", ".")
     return name
 
 
@@ -113,7 +115,10 @@ def get_op_name(op: Node) -> str:
     return op_name
 
 
-def convert_op_to_torch(op: Node) -> Operation:
+def convert_op_to_torch(op: Node):
+
+    from .ops import OPS
+
     op_type = op.get_type_name()
     op_version = op.get_version()
 
@@ -129,7 +134,8 @@ def convert_op_to_torch(op: Node) -> Operation:
     return torch_module
 
 
-def convert_op_to_torch_module(target_op: Node, ops: List[Node]) -> OperationModule:
+def convert_op_to_torch_module(target_op: Node, ops: List[Node]):
+    from .ops.modules import OperationModule
     ops_map = {}
     for op in ops:
         ops_map[get_op_name(op)] = op
