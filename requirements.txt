@@ -3,7 +3,7 @@ mmcls==0.15.0
 scipy>=1.5.4
 pandas>=1.1.5
 pillow>=9.0.1
-networkx<=2.8.0
+networkx>=2.7.1,<=2.8.0
 defusedxml>=0.7.1
 tensorboard>=2.4.1
 scikit-image>=0.17.2
