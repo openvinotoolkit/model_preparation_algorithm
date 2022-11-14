@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import torch
+import torch.nn.functional as F
+
 from mmcls.models.builder import HEADS
 from mmcls.models.heads import LinearClsHead
 from .non_linear_cls_head import NonLinearClsHead
@@ -82,6 +85,17 @@ class CustomLinearClsHead(LinearClsHead):
             }
         losses['loss'] = loss
         return losses
+
+    def simple_test(self, img):
+        """Test without augmentation."""
+        cls_score = self.fc(img)
+        if isinstance(cls_score, list):
+            cls_score = sum(cls_score) / float(len(cls_score))
+        if torch.onnx.is_in_onnx_export():
+            return cls_score
+        pred = F.softmax(cls_score, dim=1) if cls_score is not None else None
+
+        return self.post_process(pred)
 
     def forward_train(self, x, gt_label):
         cls_score = self.fc(x)

@@ -115,13 +115,17 @@ class CustomHierarchicalLinearClsHead(MultiLabelClsHead):
         for i in range(self.hierarchical_info['num_multiclass_heads']):
             multiclass_logit = cls_score[:, self.hierarchical_info['head_idx_to_logits_range'][i][0]:
                                             self.hierarchical_info['head_idx_to_logits_range'][i][1]]
-            multiclass_logit = torch.softmax(multiclass_logit, dim=1)
+            if not torch.onnx.is_in_onnx_export():
+                multiclass_logit = torch.softmax(multiclass_logit, dim=1)
             multiclass_logits.append(multiclass_logit)
         multiclass_pred = torch.cat(multiclass_logits, dim=1) if multiclass_logits else None
 
         if self.compute_multilabel_loss:
             multilabel_logits = cls_score[:, self.hierarchical_info['num_single_label_classes']:]
-            multilabel_pred = torch.sigmoid(multilabel_logits) if multilabel_logits is not None else None
+            if not torch.onnx.is_in_onnx_export():
+                multilabel_pred = torch.sigmoid(multilabel_logits) if multilabel_logits is not None else None
+            else:
+                multilabel_pred = multilabel_logits
             if multiclass_pred is not None:
                 pred = torch.cat([multiclass_pred, multilabel_pred], axis=1)
             else:
