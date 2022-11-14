@@ -67,16 +67,15 @@ class ClsStage(Stage):
         self.configure_data(cfg, training, **kwargs)
 
         # Task
-        if 'task_adapt' in cfg:
+        if 'task_adapt' in cfg: # incremental/supervised
             model_meta = self.get_model_meta(cfg)
             model_tasks, dst_classes = self.configure_task(cfg, training, model_meta, **kwargs)
             if model_tasks is not None:
                 self.model_tasks = model_tasks
             if dst_classes is not None:
                 self.model_classes = dst_classes
-        else:
+        else:   #semi-supervised
             if 'num_classes' not in cfg.data:
-                #cfg.data.num_classes = len(cfg.data.train.get('classes', []))
                 cfg.data.num_classes = len(Stage.get_data_classes(cfg))
             cfg.model.head.num_classes = cfg.data.num_classes
 

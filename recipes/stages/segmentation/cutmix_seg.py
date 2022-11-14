@@ -1,6 +1,6 @@
 _base_ = [
     './train.py',
-    '../_base_/models/segmentors/seg_semisl.py',
+    '../_base_/models/segmentors/seg_semisl.py'
 ]
 
 optimizer = dict(
