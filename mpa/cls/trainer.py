@@ -65,7 +65,7 @@ class ClsTrainer(ClsStage):
                     dash_line)
 
         # Data
-        if 'unlabeled' in cfg.data:
+        if cfg.train_type == 'SEMISUPERVISED':
             datasets = [[build_dataset(cfg.data.train), build_dataset(cfg.data.unlabeled)]]
         else:
             datasets = [build_dataset(cfg.data.train)]
