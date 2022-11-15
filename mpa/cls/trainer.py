@@ -65,6 +65,8 @@ class ClsTrainer(ClsStage):
                     dash_line)
 
         # Data
+        # FIXME[Soobee] : if train type is not specified, it raises an error in default INCREMENTAL mode but when unlabeled dataset exists.
+        # Should move and refactor in stage.py importing otx.api module
         if cfg.train_type == 'SEMISUPERVISED':
             datasets = [[build_dataset(cfg.data.train), build_dataset(cfg.data.unlabeled)]]
         else:
