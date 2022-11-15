@@ -62,10 +62,6 @@ class DetectionStage(Stage):
         if training:
             self.configure_regularization(cfg)
 
-        # Other hyper-parameters
-        if 'hyperparams' in cfg:
-            self.configure_hyperparams(cfg, training, **kwargs)
-
         # Hooks
         self.configure_hook(cfg)
 
@@ -201,7 +197,7 @@ class DetectionStage(Stage):
 
     def configure_task_data_pipeline(self, cfg, model_classes, data_classes):
         # Trying to alter class indices of training data according to model class order
-        tr_data_cfg = self.get_train_data_cfg(cfg)
+        tr_data_cfg = self.get_data_cfg(cfg, "train")
         class_adapt_cfg = dict(type='AdaptClassLabels', src_classes=data_classes, dst_classes=model_classes)
         pipeline_cfg = tr_data_cfg.pipeline
         for i, op in enumerate(pipeline_cfg):
@@ -241,7 +237,7 @@ class DetectionStage(Stage):
         else:
             bbox_head = cfg.model.roi_head.bbox_head
         if task_adapt_type == 'mpa':
-            tr_data_cfg = self.get_train_data_cfg(cfg)
+            tr_data_cfg = self.get_data_cfg(cfg, "train")
             if tr_data_cfg.type != 'MPADetDataset':
                 tr_data_cfg.img_ids_dict = self.get_img_ids_for_incr(cfg, org_model_classes, model_classes)
                 tr_data_cfg.org_type = tr_data_cfg.type
@@ -312,7 +308,7 @@ class DetectionStage(Stage):
                     ConfigDict(type='AdaptiveTrainSchedulingHook', **adaptive_validation_interval)
                 )
         else:
-            src_data_cfg = Stage.get_train_data_cfg(cfg)
+            src_data_cfg = Stage.get_data_cfg(cfg, "train")
             src_data_cfg.pop('old_new_indices', None)
 
     def configure_regularization(self, cfg):
@@ -339,7 +335,7 @@ class DetectionStage(Stage):
         new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
         old_classes = np.intersect1d(org_model_classes, model_classes).tolist()
 
-        src_data_cfg = Stage.get_train_data_cfg(cfg)
+        src_data_cfg = Stage.get_data_cfg(cfg, "train")
 
         ids_old, ids_new = [], []
         data_cfg = cfg.data.test.copy()
@@ -366,17 +362,6 @@ class DetectionStage(Stage):
             img_ids_new=ids_new,
         )
         return outputs
-
-    def configure_hyperparams(self, cfg, training, **kwargs):
-        hyperparams = kwargs.get('hyperparams', None)
-        if hyperparams is not None:
-            bs = hyperparams.get('bs', None)
-            if bs is not None:
-                cfg.data.samples_per_gpu = bs
-
-            lr = hyperparams.get('lr', None)
-            if lr is not None:
-                cfg.optimizer.lr = lr
 
     @staticmethod
     def add_yolox_hooks(cfg):
