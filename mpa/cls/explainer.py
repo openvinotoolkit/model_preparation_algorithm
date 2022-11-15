@@ -18,8 +18,8 @@ from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCa
 from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
-    'eigencam': EigenCamHook,
-    'activationmap': ActivationMapHook}
+    "eigencam": EigenCamHook,
+    "activationmap": ActivationMapHook}
 
 
 @STAGES.register_module()
@@ -31,27 +31,23 @@ class ClsExplainer(ClsStage):
         - Run explain via hooks in recording_forward_hooks
         """
         self._init_logger()
-        mode = kwargs.get('mode', 'train')
-        if mode not in self.mode:
-            return {}
-        explainer = kwargs.get('explainer')
+        explainer = kwargs.get("explainer")
         self.explainer_hook = EXPLAINER_HOOK_SELECTOR.get(explainer.lower(), None)
         if self.explainer_hook is None:
             raise NotImplementedError(f"explainer algorithm {explainer} not supported")
-        logger.info(f"explainer algorithm: {explainer}")
+        logger.info(
+            f"explainer algorithm: {explainer}"
+        )
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
         outputs = self._explain(cfg)
-        return dict(outputs=outputs)
+        return dict(
+            outputs=outputs
+        )
 
     def _explain(self, cfg):
-        if cfg.get('task_adapt', False) and not hasattr(self, 'eval'):
-            dataset_cfg = cfg.data.train.copy()
-            dataset_cfg.pipeline = cfg.data.test.pipeline
-            self.dataset = build_dataset(dataset_cfg)
-        else:
-            self.dataset = build_dataset(cfg.data.test)
+        self.dataset = build_dataset(cfg.data.test)
 
         # Data loader
         data_loader = build_dataloader(
@@ -65,13 +61,13 @@ class ClsExplainer(ClsStage):
 
         # build the model and load checkpoint
         model = build_classifier(cfg.model)
-        self.extract_prob = hasattr(model, 'extract_prob')
-        fp16_cfg = cfg.get('fp16', None)
+        self.extract_prob = hasattr(model, "extract_prob")
+        fp16_cfg = cfg.get("fp16", None)
         if fp16_cfg is not None:
             wrap_fp16_model(model)
         if cfg.load_from is not None:
-            logger.info('load checkpoint from ' + cfg.load_from)
-            _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
+            logger.info("Load checkpoint from " + cfg.load_from)
+            _ = load_checkpoint(model, cfg.load_from, map_location="cpu")
 
         model.eval()
         model = MMDataParallel(model, device_ids=[0])
