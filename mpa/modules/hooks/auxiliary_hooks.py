@@ -13,9 +13,11 @@
 # and limitations under the License.
 
 from __future__ import annotations
+
 from typing import List, Union
 
 import torch
+import mmcls
 
 
 class EigenCamHook:
@@ -169,10 +171,10 @@ class ReciproCAMHook(SaliencyMapHook):
         bs, c, h, w = feature_map.size()
 
         saliency_maps = torch.empty(bs, self._num_classes, h, w)
-        for i in range(bs):
-            mosaic_feature_map = self._get_mosaic_feature_map(feature_map[i], c, h, w)
+        for f in range(bs):
+            mosaic_feature_map = self._get_mosaic_feature_map(feature_map[f], c, h, w)
             mosaic_prediction = self._predict_from_feature_map(mosaic_feature_map)
-            saliency_maps[i] = mosaic_prediction.transpose(0, 1).reshape((self._num_classes, h, w))
+            saliency_maps[f] = mosaic_prediction.transpose(0, 1).reshape((self._num_classes, h, w))
 
         saliency_maps = saliency_maps.reshape((bs, self._num_classes, h * w))
         max_values, _ = torch.max(saliency_maps, -1)
@@ -195,14 +197,22 @@ class ReciproCAMHook(SaliencyMapHook):
                 logits = torch.tensor(logits)
         return logits
 
-    @staticmethod
-    def _get_mosaic_feature_map(feature_map: torch.Tensor, nc: int, h: int, w: int) -> torch.Tensor:
-        mosaic_feature_map = torch.zeros(h*w, nc, h, w).to(feature_map.device)
-        spacial_order = torch.arange(h * w).reshape(h, w)
-        for i in range(h):
-            for j in range(w):
-                k = spacial_order[i, j]
-                mosaic_feature_map[k, :, i, j] = feature_map[:, i, j]
+    def _get_mosaic_feature_map(self, feature_map: torch.Tensor, c: int, h: int, w: int) -> torch.Tensor:
+        if self._neck is not None and isinstance(self._neck, mmcls.models.necks.gap.GlobalAveragePooling):
+            # Optimization workaround for the GAP case (simulate GAP with more simple compute graph)
+            # Possible due to static sparsity of mosaic_feature_map
+            # Makes the downstream GAP operation to be dummy
+            feature_map_transposed = torch.flatten(feature_map, start_dim=1).transpose(0, 1)[:, :, None, None]
+            mosaic_feature_map = feature_map_transposed / (h * w)
+        else:
+            feature_map_repeated = feature_map.repeat(h * w, 1, 1, 1)
+            mosaic_feature_map_mask = torch.zeros(h * w, c, h, w).to(feature_map.device)
+            spacial_order = torch.arange(h * w).reshape(h, w)
+            for i in range(h):
+                for j in range(w):
+                    k = spacial_order[i, j]
+                    mosaic_feature_map_mask[k, :, i, j] = torch.ones(c).to(feature_map.device)
+            mosaic_feature_map = feature_map_repeated * mosaic_feature_map_mask
         return mosaic_feature_map
 
 
