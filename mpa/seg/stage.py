@@ -37,7 +37,7 @@ class SegStage(Stage):
         self.configure_model(cfg, training, **kwargs)
 
         if not cfg.get('task_adapt'):   # if task_adapt dict is empty(semi-sl), just pop to pass task_adapt
-            cfg.pop('task_adapt')
+            cfg.pop('task_adapt', None)
 
         # Checkpoint
         if model_ckpt:
@@ -130,6 +130,7 @@ class SegStage(Stage):
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
         new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
         has_new_class = True if len(new_classes) > 0 else False
+        # FIXME: test_segmentation does not have new classes
         #  if has_new_class is False:
         #      raise ValueError('Incremental learning should have at least one new class!')
 

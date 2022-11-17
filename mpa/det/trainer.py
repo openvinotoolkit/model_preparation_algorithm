@@ -117,17 +117,20 @@ class DetectionTrainer(DetectionStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
+        model = kwargs.get("model", None)
+
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             mp.spawn(DetectionTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
+                     args=(target_classes, datasets, cfg, model, distributed, True, timestamp, meta))
         else:
             DetectionTrainer.train_worker(
                 None,
                 target_classes,
                 datasets,
                 cfg,
+                model,
                 distributed,
                 True,
                 timestamp,
@@ -141,7 +144,7 @@ class DetectionTrainer(DetectionStage):
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
-    def train_worker(gpu, target_classes, datasets, cfg, distributed=False,
+    def train_worker(gpu, target_classes, datasets, cfg, model=None, distributed=False,
                      validate=False, timestamp=None, meta=None):
         if distributed:
             torch.cuda.set_device(gpu)
@@ -150,7 +153,8 @@ class DetectionTrainer(DetectionStage):
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
         # model
-        model = build_detector(cfg.model)
+        if model is None:
+            model = build_detector(cfg.model)
         model.CLASSES = target_classes
         # Do clustering for SSD model
         # TODO[JAEGUK]: Temporal Disable cluster_anchors for SSD model
@@ -164,6 +168,6 @@ class DetectionTrainer(DetectionStage):
             datasets,
             cfg,
             distributed=distributed,
-            validate=True,
+            validate=validate,
             timestamp=timestamp,
             meta=meta)
