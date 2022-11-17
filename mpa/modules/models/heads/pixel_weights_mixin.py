@@ -55,7 +55,6 @@ class PixelWeightsMixin(nn.Module):
         return loss_module.last_scale
 
     def set_step_params(self, init_iter, epoch_size):
-        __import__('ipdb').set_trace()
         if not isinstance(self.loss_decode, nn.ModuleList):
             losses_decode = [self.loss_decode]
         else:

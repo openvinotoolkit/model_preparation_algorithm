@@ -29,3 +29,6 @@ class CustomFCNHead(
         if self.act_cfg:
             self.convs[-1].with_activation = False
             delattr(self.convs[-1], 'activate')
+
+        if kwargs.get("init_cfg", {}):
+            self.init_weights()
