@@ -128,8 +128,11 @@ class SegInferrer(SegStage):
             feature_vectors = fhook.records if dump_features else [None] * len(self.dataset)
 
         assert len(eval_predictions) == len(feature_vectors), \
-               'Number of elements should be the same, however, number of outputs are ' \
-               f"{len(eval_predictions)} and {len(feature_vectors)}"
+            (
+                "Number of elements should be the same, however, number of outputs are ",
+                f"{len(eval_predictions)} and {len(feature_vectors)}"
+            )
+
         outputs = dict(
             classes=target_classes,
             eval_predictions=eval_predictions,
