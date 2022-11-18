@@ -8,8 +8,6 @@ import os.path as osp
 import time
 import warnings
 import torch
-import numpy as np
-import random
 
 import torch.multiprocessing as mp
 import torch.distributed as dist

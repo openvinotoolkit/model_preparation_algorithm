@@ -1,22 +1,27 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-from typing import List, Tuple
-
+import os.path as osp
 import torch
+
+import mmcv
 from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.models import build_detector
 from mmdet.parallel import MMDataCPU
-from mmdet.utils.deployment import get_saliency_map
 
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook
 from mpa.registry import STAGES
 from .stage import DetectionStage
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
+EXPLAINER_HOOK_SELECTOR = {
+    'eigencam': EigenCamHook,
+    'activationmap': ActivationMapHook,
+}
 
 
 @STAGES.register_module()
@@ -31,9 +36,17 @@ class DetectionExplainer(DetectionStage):
         - Run explain via MMDetection -> MMCV
         """
         self._init_logger()
+        explainer = kwargs.get('explainer')
+        self.explainer_hook = EXPLAINER_HOOK_SELECTOR.get(explainer.lower(), None)
+        if self.explainer_hook is None:
+            raise NotImplementedError(f'Explainer algorithm {explainer} not supported!')
+        logger.info(
+            f'Explainer algorithm: {explainer}'
+        )
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
-        outputs = self.explain(cfg)
 
+        mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
+        outputs = self._explain(cfg)
         return dict(
             outputs=outputs
         )
@@ -55,12 +68,11 @@ class DetectionExplainer(DetectionStage):
             data_cfg.img_prefix = src_data_cfg.img_prefix
             if 'classes' in src_data_cfg:
                 data_cfg.classes = src_data_cfg.classes
-        self.dataset = build_dataset(data_cfg)
-        dataset = self.dataset
+        self.explain_dataset = build_dataset(data_cfg)
 
         # Data loader
-        data_loader = build_dataloader(
-            dataset,
+        explain_data_loader = build_dataloader(
+            self.explain_dataset,
             samples_per_gpu=samples_per_gpu,
             workers_per_gpu=cfg.data.workers_per_gpu,
             dist=False,
@@ -73,7 +85,7 @@ class DetectionExplainer(DetectionStage):
                 raise KeyError(f'target_classes={target_classes} is empty check the metadata from model ckpt or recipe '
                                f'configuration')
         else:
-            target_classes = dataset.CLASSES
+            target_classes = self.explain_dataset.CLASSES
 
         # Model
         cfg.model.pretrained = None
@@ -97,37 +109,20 @@ class DetectionExplainer(DetectionStage):
 
         model.eval()
         if torch.cuda.is_available():
-            eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
-                                        device_ids=cfg.gpu_ids)
+            model = MMDataParallel(model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
         else:
-            eval_model = MMDataCPU(model)
-
-        saliency_maps = []
-
-        def dump_saliency_hook(model: torch.nn.Module, input: Tuple, out: List[torch.Tensor]):
-            """Dump the last feature map to `saliency_maps` cache.
-            Args:
-                model (torch.nn.Module): PyTorch model
-                input (Tuple): input
-                out (List[torch.Tensor]): a list of feature maps
-            """
-            with torch.no_grad():
-                saliency_map = get_saliency_map(out[-1])
-            saliency_maps.append(saliency_map.squeeze(0).detach().cpu().numpy())
+            model = MMDataCPU(model)
 
         # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
         if is_module_wrapper(model):
             model = model.module
-        with eval_model.module.backbone.register_forward_hook(dump_saliency_hook):
-            for data in data_loader:
-                with torch.no_grad():
-                    _ = eval_model(return_loss=False, rescale=True, **data)
 
-        for key in [
-                'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',
-                'rule', 'dynamic_intervals'
-        ]:
-            cfg.evaluation.pop(key, None)
+        with self.explainer_hook(model.module.backbone) as forward_explainer_hook:
+            # do inference and record intermediate fmap
+            for data in explain_data_loader:
+                with torch.no_grad():
+                    _ = model(return_loss=False, **data)
+            saliency_maps = forward_explainer_hook.records
 
         outputs = dict(
             saliency_maps=saliency_maps
