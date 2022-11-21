@@ -14,12 +14,13 @@ from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook, ReciproCAMHook
 from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
     'activationmap': ActivationMapHook,
+    'reciprocam': ReciproCAMHook,
 }
 
 
