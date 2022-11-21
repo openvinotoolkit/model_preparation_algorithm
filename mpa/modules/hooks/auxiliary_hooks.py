@@ -13,9 +13,11 @@
 # and limitations under the License.
 
 from __future__ import annotations
-from typing import Union
+
+from typing import List, Union
 
 import torch
+import mmcls
 
 
 class EigenCamHook:
@@ -46,10 +48,7 @@ class EigenCamHook:
         saliency_map = saliency_map.to(torch.uint8)
         return saliency_map
 
-    def _recording_forward(
-        self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
-    ) -> torch.Tensor:
-
+    def _recording_forward(self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor) -> None:
         saliency_map = self.func(output)
         saliency_map = saliency_map.detach().cpu().numpy()
         if len(saliency_map) > 1:
@@ -76,34 +75,34 @@ class SaliencyMapHook:
             print(hook.records)
     Args:
         module (torch.nn.Module): The PyTorch module to be registered in forward pass
-        _fpn_idx (int, optional): The layer index to be processed if the model is a FPN. 
+        fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
                                   Defaults to 0 which uses the largest feature map from FPN.
     """
-    def __init__(self, module: torch.nn.Module, _fpn_idx: int = 0) -> None:
+    def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
         self._module = module
         self._handle = None
         self._records = []
-        self._fpn_idx = _fpn_idx
+        self._fpn_idx = fpn_idx
 
     @property
     def records(self):
         return self._records
 
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], _fpn_idx: int = 0) -> torch.Tensor:
+    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
         """Generate the saliency map by average feature maps then normalizing to (0, 255).
 
         Args:
             feature_map (Union[torch.Tensor, list[torch.Tensor]]): feature maps from backbone or list of feature maps 
                                                                     from FPN.
-            _fpn_idx (int, optional): The layer index to be processed if the model is a FPN. 
+            fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
                                       Defaults to 0 which uses the largest feature map from FPN.
 
         Returns:
             torch.Tensor: Saliency Map
         """
         if isinstance(feature_map, list):
-            feature_map = feature_map[_fpn_idx]
+            feature_map = feature_map[fpn_idx]
 
         bs, c, h, w = feature_map.size()
         saliency_map = torch.mean(feature_map, dim=1)
@@ -119,9 +118,7 @@ class SaliencyMapHook:
         saliency_map = saliency_map.to(torch.uint8)
         return saliency_map
 
-    def _recording_forward(
-        self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
-    ) -> torch.Tensor:
+    def _recording_forward(self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor) -> None:
         saliency_map = self.func(output, self._fpn_idx)
         saliency_map = saliency_map.detach().cpu().numpy()
         for tensor in saliency_map:
@@ -133,6 +130,90 @@ class SaliencyMapHook:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self._handle.remove()
+
+
+class ReciproCAMHook(SaliencyMapHook):
+    """While registered with the designated PyTorch module, this class caches the saliency maps during forward pass.
+    Saliency maps are generated using Recipro-CAM:
+    Recipro-CAM: Gradient-free reciprocal class activation map, https://arxiv.org/pdf/2209.14074.pdf.
+
+    Example::
+        with ReciproCAMHook(model.module) as hook:
+            with torch.no_grad():
+                result = model(return_loss=False, **data)
+            print(hook.records)
+    Args:
+        module (torch.nn.Module): The PyTorch module to be registered in forward pass
+        fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
+                                  Defaults to 0 which uses the largest feature map from FPN.
+    """
+    def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
+        super().__init__(module.backbone, fpn_idx)
+        self._neck = module.neck if module.with_neck else None
+        self._head = module.head
+        self._num_classes = module.head.num_classes
+
+    def func(self, feature_map: Union[torch.Tensor, List[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+        """Generate the saliency maps using Recipro-CAM and then normalizing to (0, 255).
+
+        Args:
+            feature_map (Union[torch.Tensor, List[torch.Tensor]]): feature maps from backbone or list of feature maps
+                                                                    from FPN.
+            fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
+                                      Defaults to 0 which uses the largest feature map from FPN.
+
+        Returns:
+            torch.Tensor: Class-wise Saliency Maps. One saliency map per each class - [batch, class_id, H, W]
+        """
+        if isinstance(feature_map, list):
+            feature_map = feature_map[fpn_idx]
+
+        bs, c, h, w = feature_map.size()
+
+        saliency_maps = torch.empty(bs, self._num_classes, h, w)
+        for f in range(bs):
+            mosaic_feature_map = self._get_mosaic_feature_map(feature_map[f], c, h, w)
+            mosaic_prediction = self._predict_from_feature_map(mosaic_feature_map)
+            saliency_maps[f] = mosaic_prediction.transpose(0, 1).reshape((self._num_classes, h, w))
+
+        saliency_maps = saliency_maps.reshape((bs, self._num_classes, h * w))
+        max_values, _ = torch.max(saliency_maps, -1)
+        min_values, _ = torch.min(saliency_maps, -1)
+        saliency_maps = (
+            255
+            * (saliency_maps - min_values[:, :, None])
+            / (max_values - min_values + 1e-12)[:, :, None]
+        )
+        saliency_maps = saliency_maps.reshape((bs, self._num_classes, h, w))
+        saliency_maps = saliency_maps.to(torch.uint8)
+        return saliency_maps
+
+    def _predict_from_feature_map(self, x: torch.Tensor) -> torch.Tensor:
+        with torch.no_grad():
+            if self._neck is not None:
+                x = self._neck(x)
+            logits = self._head.simple_test(x)
+            if not isinstance(logits, torch.Tensor):
+                logits = torch.tensor(logits)
+        return logits
+
+    def _get_mosaic_feature_map(self, feature_map: torch.Tensor, c: int, h: int, w: int) -> torch.Tensor:
+        if self._neck is not None and isinstance(self._neck, mmcls.models.necks.gap.GlobalAveragePooling):
+            # Optimization workaround for the GAP case (simulate GAP with more simple compute graph)
+            # Possible due to static sparsity of mosaic_feature_map
+            # Makes the downstream GAP operation to be dummy
+            feature_map_transposed = torch.flatten(feature_map, start_dim=1).transpose(0, 1)[:, :, None, None]
+            mosaic_feature_map = feature_map_transposed / (h * w)
+        else:
+            feature_map_repeated = feature_map.repeat(h * w, 1, 1, 1)
+            mosaic_feature_map_mask = torch.zeros(h * w, c, h, w).to(feature_map.device)
+            spacial_order = torch.arange(h * w).reshape(h, w)
+            for i in range(h):
+                for j in range(w):
+                    k = spacial_order[i, j]
+                    mosaic_feature_map_mask[k, :, i, j] = torch.ones(c).to(feature_map.device)
+            mosaic_feature_map = feature_map_repeated * mosaic_feature_map_mask
+        return mosaic_feature_map
 
 
 class FeatureVectorHook:
@@ -175,11 +256,9 @@ class FeatureVectorHook:
             feature_vector = torch.cat(feature_vector, 1)
         else:
             feature_vector = torch.nn.functional.adaptive_avg_pool2d(feature_map, (1, 1))
-        return feature_vector        
+        return feature_vector
 
-    def _recording_forward(
-        self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
-    ) -> torch.Tensor:
+    def _recording_forward(self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor) -> None:
         feature_vector = self.func(output)
         feature_vector = feature_vector.detach().cpu().numpy()
         if len(feature_vector) > 1:
