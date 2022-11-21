@@ -7,7 +7,7 @@ stages:
     type: ClsTrainer
     task: classification
     mode: train
-    config: {{ fileDirname }}/stages/classification/class_incr.yaml
+    config: {{ fileDirname }}/stages/classification/incremental.yaml
     output:
       - final_ckpt
 
@@ -15,7 +15,7 @@ stages:
     type: ClsEvaluator
     task: classification
     mode: train
-    config: {{ fileDirname }}/stages/classification/class_incr.yaml
+    config: {{ fileDirname }}/stages/classification/incremental.yaml
     input:
       pretrained:
         stage_name: cls-inc
@@ -25,4 +25,4 @@ stages:
     type: ClsEvaluator
     task: classification
     mode: eval
-    config: {{ fileDirname }}/stages/classification/class_incr.yaml
+    config: {{ fileDirname }}/stages/classification/incremental.yaml

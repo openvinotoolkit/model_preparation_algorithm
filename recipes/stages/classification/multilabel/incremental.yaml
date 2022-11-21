@@ -1,7 +1,7 @@
 _base_: [
-    './train_multilabel.yaml',
-    '../_base_/data/cls_data.py',
-    '../_base_/models/classifiers/classifier.py',
+    './train.yaml',
+    '../../_base_/data/cls_data.py',
+    '../../_base_/models/classifiers/classifier.py',
 ]
 
 runner:
