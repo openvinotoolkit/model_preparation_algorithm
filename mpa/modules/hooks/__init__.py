@@ -18,7 +18,7 @@ from . import unbiased_teacher_hook
 from . import early_stopping_hook
 from . import progress_update_hook
 from . import logger_replace_hook
-from . import auxiliary_hooks
+from . import recording_forward_hooks
 from . import save_initial_weight_hook
 from . import fp16_sam_optimizer_hook
 from . import adaptive_training_hooks

@@ -9,7 +9,7 @@ from mmseg.utils import get_root_logger
 from mmseg.models import SEGMENTORS
 from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
 
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook
+from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
 from mpa.modules.utils.task_adapt import map_class_names
 
 from .mix_loss_mixin import MixLossMixin

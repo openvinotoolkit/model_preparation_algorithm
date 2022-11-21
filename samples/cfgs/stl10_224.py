@@ -14,7 +14,7 @@ train_pipeline = [
 train_pipeline_strong = [
     dict(type='RandomFlip', flip_prob=0.5, direction='horizontal'),
     dict(type='RandomCrop', size=96, padding=int(96*0.125), padding_mode='reflect'),
-    dict(type='RandAugment', n=2, m=10),
+    dict(type='MPARandAugment', n=2, m=10),
     dict(type='Resize', size=224),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),

@@ -146,7 +146,7 @@ rand_augment_pool = [
 
 
 @PIPELINES.register_module()
-class RandAugment(object):
+class MPARandAugment(object):
     def __init__(self, n, m, cutout=16):
         assert n >= 1
         assert 1 <= m <= 10

@@ -16,7 +16,7 @@ from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, SaliencyMapHook
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, FeatureVectorHook
 from mpa.modules.utils.task_adapt import prob_extractor
 from mpa.utils.logger import get_logger
 logger = get_logger()
@@ -79,7 +79,7 @@ class ClsInferrer(ClsStage):
         if fp16_cfg is not None:
             wrap_fp16_model(model)
         if cfg.load_from is not None:
-            logger.info('load checkpoint from ' + cfg.load_from)
+            logger.info('Load checkpoint from ' + cfg.load_from)
             _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         model.eval()
@@ -99,18 +99,21 @@ class ClsInferrer(ClsStage):
                 data_info['soft_label'] = {task: value[i] for task, value in old_prob.items()}
             outputs = data_infos
         else:
-            with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as fhook:
-              with SaliencyMapHook(model.module.backbone) if dump_saliency_map else nullcontext() as shook:
-                  for data in data_loader:
-                      with torch.no_grad():
-                          result = model(return_loss=False, **data)
-                      eval_predictions.extend(result)
-                  feature_vectors = fhook.records if dump_features else [None] * len(self.dataset)
-                  saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
+            with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as feature_vector_hook:
+                with ActivationMapHook(model.module.backbone) if dump_saliency_map else nullcontext() \
+                    as forward_explainer_hook:
+                    for data in data_loader:
+                        with torch.no_grad():
+                            result = model(return_loss=False, **data)
+                        eval_predictions.extend(result)
+                    feature_vectors = feature_vector_hook.records if dump_features else [None] * len(self.dataset)
+                    saliency_maps = forward_explainer_hook.records if dump_saliency_map else [None] * len(self.dataset)
 
         assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
-                'Number of elements should be the same, however, number of outputs are ' \
+            (
+                "Number of elements should be the same, however, number of outputs are ",
                 f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
+            )
         outputs = dict(
             eval_predictions=eval_predictions,
             feature_vectors=feature_vectors,

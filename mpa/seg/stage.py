@@ -156,11 +156,11 @@ class SegStage(Stage):
         # Dataset
         src_data_cfg = Stage.get_train_data_cfg(cfg)
         for mode in ['train', 'val', 'test']:
-            if src_data_cfg.type == 'MPASegIncrDataset':
-                if cfg.data[mode]['type'] != 'MPASegIncrDataset':
+            if src_data_cfg.type == 'MPASegDataset':
+                if cfg.data[mode]['type'] != 'MPASegDataset':
                     # Wrap original dataset config
                     org_type = cfg.data[mode]['type']
-                    cfg.data[mode]['type'] = 'MPASegIncrDataset'
+                    cfg.data[mode]['type'] = 'MPASegDataset'
                     cfg.data[mode]['org_type'] = org_type
             else:
                 if cfg.data[mode]['type'] == 'SegTaskAdaptDataset':

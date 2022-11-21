@@ -10,7 +10,7 @@ from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook
+from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
 from mpa.registry import STAGES
 from mpa.seg.stage import SegStage
 from mpa.stage import Stage
@@ -130,8 +130,11 @@ class SegInferrer(SegStage):
             feature_vectors = fhook.records if dump_features else [None] * len(self.dataset)
 
         assert len(eval_predictions) == len(feature_vectors), \
-               'Number of elements should be the same, however, number of outputs are ' \
-               f"{len(eval_predictions)} and {len(feature_vectors)}"
+            (
+                "Number of elements should be the same, however, number of outputs are ",
+                f"{len(eval_predictions)} and {len(feature_vectors)}"
+            )
+
         outputs = dict(
             classes=target_classes,
             eval_predictions=eval_predictions,
