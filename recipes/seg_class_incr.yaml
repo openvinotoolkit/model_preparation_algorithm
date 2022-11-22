@@ -7,7 +7,7 @@ stages:
       type: SegTrainer
       task: segmentation
       mode: train
-      config: {{ fileDirname }}/stages/segmentation/class_incr.py
+      config: {{ fileDirname }}/stages/segmentation/incremental.py
       output:
           - final_ckpt
 
@@ -15,7 +15,7 @@ stages:
       type: SegEvaluator
       task: segmentation
       mode: train
-      config: {{ fileDirname }}/stages/segmentation/class_incr.py
+      config: {{ fileDirname }}/stages/segmentation/incremental.py
       input:
           pretrained:
               stage_name: train
@@ -25,4 +25,4 @@ stages:
       type: SegEvaluator
       task: segmentation
       mode: eval
-      config: {{ fileDirname }}/stages/segmentation/class_incr.py
+      config: {{ fileDirname }}/stages/segmentation/incremental.py
