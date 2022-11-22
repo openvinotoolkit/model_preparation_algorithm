@@ -11,6 +11,7 @@ from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
 
 from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
 from mpa.modules.utils.task_adapt import map_class_names
+from mpa.deploy.utils import is_mmdeploy_enabled
 
 from .mix_loss_mixin import MixLossMixin
 from .pixel_weights_mixin import PixelWeightsMixin
@@ -101,3 +102,23 @@ class ClassIncrSegmentor(MixLossMixin, PixelWeightsMixin, EncoderDecoder):
         seg_pred = list(seg_pred)
 
         return seg_pred
+
+
+if is_mmdeploy_enabled():
+    from mmdeploy.core import FUNCTION_REWRITER
+    from mpa.modules.utils.export_helpers import get_feature_vector, get_saliency_map
+
+    @FUNCTION_REWRITER.register_rewriter(
+        "mpa.modules.models.segmentors.class_incr_segmentor."
+        "ClassIncrSegmentor.simple_test"
+    )
+    def single_stage_detector__simple_test(ctx, self, img, img_metas, **kwargs):
+        # without output activation
+        #  seg_logit = self.encode_decode(img, img_metas)
+        #  feature_vector = FeatureVectorHook.func(self.feature_maps)
+        #  return seg_logit, feature_vector
+
+        # with output activation
+        seg_logit = self.inference(img, img_metas, True)
+        feature_vector = FeatureVectorHook.func(self.feature_maps)
+        return seg_logit, feature_vector

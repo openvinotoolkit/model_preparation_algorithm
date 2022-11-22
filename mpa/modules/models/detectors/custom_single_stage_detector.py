@@ -9,6 +9,7 @@ from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
 from mpa.modules.utils.task_adapt import map_class_names
 from mpa.utils.logger import get_logger
+from mpa.deploy.utils import is_mmdeploy_enabled
 
 logger = get_logger()
 
@@ -124,3 +125,19 @@ class CustomSingleStageDetector(SAMDetectorMixin, L2SPDetectorMixin, SingleStage
                 chkpt_dict[chkpt_name] = model_param
             if not level_found:
                 break
+
+
+if is_mmdeploy_enabled():
+    from mmdeploy.core import FUNCTION_REWRITER
+    from mpa.modules.utils.export_helpers import get_feature_vector, get_saliency_map
+
+    @FUNCTION_REWRITER.register_rewriter(
+        "mpa.modules.models.detectors.custom_single_stage_detector."
+        "CustomSingleStageDetector.simple_test"
+    )
+    def custom_single_stage_detector__simple_test(ctx, self, img, img_metas, **kwargs):
+        feat = self.extract_feat(img)
+        out = self.bbox_head.simple_test(feat, img_metas, **kwargs)
+        feature_vector = get_feature_vector(feat)
+        sailency_map = get_saliency_map(feat[-1])
+        return (*out, feature_vector, sailency_map)

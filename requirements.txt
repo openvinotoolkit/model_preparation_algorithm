@@ -10,3 +10,4 @@ scikit-image>=0.17.2
 torch>=1.8.1, <=1.9.1
 torchvision>=0.8.1,<=0.10.1
 pytorchcv
+mmdeploy @ git+https://git@github.com/open-mmlab/mmdeploy@v0.10.0

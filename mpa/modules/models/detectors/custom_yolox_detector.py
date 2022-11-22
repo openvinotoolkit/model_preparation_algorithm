@@ -5,6 +5,7 @@ from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
 from mpa.modules.utils.task_adapt import map_class_names
 from mpa.utils.logger import get_logger
+from mpa.deploy.utils import is_mmdeploy_enabled
 import torch
 
 logger = get_logger()
@@ -24,7 +25,7 @@ class CustomYOLOX(SAMDetectorMixin, L2SPDetectorMixin, YOLOX):
                     self.load_state_dict_pre_hook,
                     self,  # model
                     task_adapt['dst_classes'],  # model_classes
-                    task_adapt['src_classes']   # chkpt_classes
+                    task_adapt['src_classes'],   # chkpt_classes
                 )
             )
 
@@ -110,10 +111,22 @@ class CustomYOLOX(SAMDetectorMixin, L2SPDetectorMixin, YOLOX):
         # FIXME: mmdet does not support yolox onnx export for now
         # This is a temporary workaround
         # https://github.com/open-mmlab/mmdetection/issues/6487
-        try:
-            det_bboxes, det_labels = self.bbox_head.onnx_export(
-                *outs, img_metas, with_nms=with_nms)
-        except AttributeError:
-            det_bboxes, det_labels = self.bbox_head.get_bboxes(*outs, img_metas)[0]
+        det_bboxes, det_labels = self.bbox_head.get_bboxes(*outs, img_metas)[0]
 
         return det_bboxes, det_labels
+
+
+if is_mmdeploy_enabled():
+    from mmdeploy.core import FUNCTION_REWRITER
+    from mpa.modules.utils.export_helpers import get_feature_vector, get_saliency_map
+
+    @FUNCTION_REWRITER.register_rewriter(
+        "mpa.modules.models.detectors.custom_yolox_detector."
+        "CustomYOLOX.simple_test"
+    )
+    def custom_yolox__simple_test(ctx, self, img, img_metas, **kwargs):
+        feat = self.extract_feat(img)
+        out = self.bbox_head.simple_test(feat, img_metas, **kwargs)
+        feature_vector = get_feature_vector(feat)
+        sailency_map = get_saliency_map(feat[-1])
+        return (*out, feature_vector, sailency_map)

@@ -9,7 +9,7 @@ import numpy as np
 # import cv2 as cv
 from torchvision import transforms as T
 # import torchvision.transforms.functional as F
-from mmdet.datasets.pipelines.formating import ImageToTensor, to_tensor
+from mmdet.datasets.pipelines.formatting import ImageToTensor, to_tensor
 # from mmdet.datasets.pipelines.transforms import Normalize
 from PIL import Image, ImageFilter
 

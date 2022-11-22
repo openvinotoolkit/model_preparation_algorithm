@@ -3,16 +3,18 @@
 #
 
 import os
-import torch
 import warnings
+import traceback
 
-#from mmdet.apis import export_model
-from mmdet.models import build_detector
+import numpy as np
+import torch
 from mmcv.runner import load_checkpoint
-
+from mmdet.models import build_detector
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
+
 from .stage import DetectionStage
+
 
 logger = get_logger()
 
@@ -24,42 +26,85 @@ class DetectionExporter(DetectionStage):
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         self._init_logger()
-        logger.info('exporting the model')
-        mode = kwargs.get('mode', 'train')
+        logger.info("exporting the model")
+        mode = kwargs.get("mode", "train")
         if mode not in self.mode:
-            logger.warning(f'mode for this stage {mode}')
+            logger.warning(f"mode for this stage {mode}")
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
-        output_path = os.path.join(cfg.work_dir, 'export')
+        output_path = os.path.join(cfg.work_dir, "export")
         os.makedirs(output_path, exist_ok=True)
-        model = build_detector(cfg.model)
-        if model_ckpt:
-            load_checkpoint(model=model, filename=model_ckpt, map_location='cpu')
+        if kwargs.get("model", None) is not None:
+            model = kwargs.get("model")
+        else:
+            model = build_detector(cfg.model)
+            if model_ckpt:
+                logger.info(f"model checkpoint load: {model_ckpt}")
+                load_checkpoint(model=model, filename=model_ckpt, map_location="cpu")
+
+        from torch.jit._trace import TracerWarning
+
+        warnings.filterwarnings("ignore", category=TracerWarning)
+        model = model.cpu()
+        model.eval()
+        precision = kwargs.pop("precision", "FP32")
+        if precision != "FP32":
+            raise NotImplementedError
+        logger.info(f"Model will be exported with precision {precision}")
+        onnx_file_name = cfg.get("model_name", "model") + ".onnx"
 
         try:
-            from torch.jit._trace import TracerWarning
-            warnings.filterwarnings('ignore', category=TracerWarning)
-            if torch.cuda.is_available():
-                model = model.cuda(cfg.gpu_ids[0])
+            deploy_cfg = kwargs.get("deploy_cfg", None)
+            if deploy_cfg is not None:
+                self._mmdeploy_export(
+                    output_path, onnx_file_name, model, cfg, deploy_cfg
+                )
             else:
-                model = model.cpu()
-            precision = kwargs.pop('precision', 'FP32')
-            logger.info(f'Model will be exported with precision {precision}')
-
-            export_model(model, cfg, output_path, target='openvino', precision=precision)
+                self._naive_export(output_path, onnx_file_name, model, cfg)
         except Exception as ex:
             # output_model.model_status = ModelStatus.FAILED
             # raise RuntimeError('Optimization was unsuccessful.') from ex
-            return {'outputs': None, 'msg': f'exception {type(ex)}'}
-        bin_file = [f for f in os.listdir(output_path) if f.endswith('.bin')][0]
-        xml_file = [f for f in os.listdir(output_path) if f.endswith('.xml')][0]
-        logger.info('Exporting completed')
+            return {
+                "outputs": None,
+                "msg": f"exception {type(ex)}: {ex}\n\n{traceback.format_exc()}"
+            }
+
+        bin_file = [f for f in os.listdir(output_path) if f.endswith(".bin")][0]
+        xml_file = [f for f in os.listdir(output_path) if f.endswith(".xml")][0]
+        logger.info("Exporting completed")
         return {
-            'outputs': {
-                'bin': os.path.join(output_path, bin_file),
-                'xml': os.path.join(output_path, xml_file)
+            "outputs": {
+                "bin": os.path.join(output_path, bin_file),
+                "xml": os.path.join(output_path, xml_file),
             },
-            'msg': ''
+            "msg": "",
         }
+
+    def _mmdeploy_export(self, output_path, onnx_file_name, model, cfg, deploy_cfg):
+        from mpa.deploy.apis import onnx2openvino, torch2onnx
+
+        input_data_cfg = deploy_cfg.pop(
+            "input_data", {"shape": (128, 128, 3), "file_path": None}
+        )
+        if input_data_cfg.get("file_path"):
+            import cv2
+            input_data = cv2.imread(input_data_cfg.get("file_path"))
+        else:
+            input_data = np.zeros(input_data_cfg.shape, dtype=np.uint8)
+
+        torch2onnx(
+            input_data,
+            output_path,
+            onnx_file_name,
+            deploy_cfg=deploy_cfg,
+            model_cfg=cfg,
+            model=model,
+            device="cpu",
+        )
+
+        onnx2openvino(output_path, onnx_file_name, deploy_cfg)
+
+    def _naive_export(self, output_path, onnx_file_name, model, cfg):
+        raise NotImplementedError()
