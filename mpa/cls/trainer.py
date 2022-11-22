@@ -198,7 +198,8 @@ class ClsTrainer(ClsStage):
         for hook in cfg.get('custom_hooks', ()):
             runner.register_hook_from_cfg(hook)
 
-        validate = True
+        # TODO (sungchul): check other condition for vaildation
+        validate = False if cfg.model.type in ['BYOL'] else True
         # register eval hooks
         if validate:
             val_dataset = build_dataset(cfg.data.val, dict(test_mode=True))
