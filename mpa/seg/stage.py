@@ -58,10 +58,25 @@ class SegStage(Stage):
             if cfg.data.get('val', False):
                 self.validate = True
 
-        # Task
+        # Task / incr
         if 'task_adapt' in cfg:
             self.configure_task(cfg, training, **kwargs)
-
+        
+        # semi
+        else:
+            if 'unlabeled' in cfg.data:
+                #cfg.data.unlabeled.ann_file = cfg.data.unlabeled.pop('img_file')
+                #if len(cfg.data.unlabeled.get('pipeline', [])) == 0:
+                #    cfg.data.unlabeled.pipeline = cfg.data.train.pipeline.copy()
+                update_or_add_custom_hook(
+                    cfg,
+                    ConfigDict(
+                        type='UnlabeledDataHook',
+                        unlabeled_data_cfg=cfg.data.unlabeled,
+                        samples_per_gpu=cfg.data.unlabeled.pop('samples_per_gpu', cfg.data.samples_per_gpu),
+                        workers_per_gpu=cfg.data.unlabeled.pop('workers_per_gpu', cfg.data.workers_per_gpu),
+                    )
+                )
         # Other hyper-parameters
         if 'hyperparams' in cfg:
             self.configure_hyperparams(cfg, training, **kwargs)

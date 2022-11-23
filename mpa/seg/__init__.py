@@ -9,6 +9,7 @@ from . import inferrer
 from . import stage
 from . import trainer
 
+import mpa.modules.datasets.pseudo_sseg_dataset
 import mpa.modules.datasets.seg_incr_cityscapes_dataset
 import mpa.modules.datasets.seg_incr_voc_dataset
 import mpa.modules.datasets.seg_task_adapt_dataset

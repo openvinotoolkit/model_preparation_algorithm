@@ -1,9 +1,11 @@
 _base_ = [
-    './data_seg.py'
+    './data_seg.py',
+    './pipelines/incr_seg.py'
 ]
 
 __dataset_type = 'KvasirDataset'
 __data_root = 'data/Kvasir-SEG'
+__train_pipeline = {{_base_.train_pipeline}}
 
 data = dict(
     samples_per_gpu=8,
@@ -32,5 +34,11 @@ data = dict(
         img_dir='images',
         ann_dir='masks',
         split='val.txt',
+    ),
+    unlabeled=dict(
+        type=__dataset_type,
+        data_root=__data_root,
+        pipeline=__train_pipeline,
+        cutmix=True
     )
 )
