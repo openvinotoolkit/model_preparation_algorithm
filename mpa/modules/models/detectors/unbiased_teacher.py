@@ -128,8 +128,25 @@ class UnbiasedTeacher(SAMDetectorMixin, BaseDetector):
                 loss*self.unlabeled_loss_weight for loss in ul_loss
             ]
         # TODO: apply loss_bbox when adopting QFL;
+        self.save_pseudo_labels(ul_img, pseudo_bboxes, pseudo_labels)
 
         return losses
+
+    def save_pseudo_labels(self, ul_imgs, pseudo_bboxes, pseudo_labels):
+        """This saves unlabeled image with pseudo bboxes, this is for debug."""
+        import os
+
+        self.save_dir = "/tmp/semisl-det/"
+        os.makedirs(self.save_dir, exist_ok=True)
+
+        if not hasattr(self, "idx"):
+            self.idx = 0
+        else:
+            self.idx += 1
+
+        for ul_img, pseudo_bbox, pseudo_label in zip(ul_imgs, pseudo_bboxes, pseudo_labels):
+            breakpoint()
+
 
     def generate_pseudo_labels(self, teacher_outputs, **kwargs):
         all_pseudo_bboxes = []

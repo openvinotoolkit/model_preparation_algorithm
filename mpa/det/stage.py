@@ -99,8 +99,7 @@ class DetectionStage(Stage):
             cfg.data.train.org_type = cfg.data.train.type
             cfg.data.train.type = super_type
         if training:
-            if 'unlabeled' in cfg.data and cfg.data.unlabeled.get('img_file', None):
-                cfg.data.unlabeled.ann_file = cfg.data.unlabeled.pop('img_file')
+            if 'unlabeled' in cfg.data:
                 if len(cfg.data.unlabeled.get('pipeline', [])) == 0:
                     cfg.data.unlabeled.pipeline = cfg.data.train.pipeline.copy()
                 update_or_add_custom_hook(
