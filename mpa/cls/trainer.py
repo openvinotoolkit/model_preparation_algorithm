@@ -48,14 +48,17 @@ class ClsTrainer(ClsStage):
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=True, **kwargs)
 
-        cfg_for_save = cfg.copy()
-        for i, k in enumerate(cfg_for_save['custom_hooks']):
+        cfg_for_save_dict = cfg.copy()
+        for i, k in enumerate(cfg_for_save_dict['custom_hooks']):
             if k['type'] == 'OTXProgressHook':
-                cfg_for_save['custom_hooks'].pop(i)
+                cfg_for_save_dict['custom_hooks'].pop(i)
                 break
 
         from mmcv import Config
-        cfg_for_save = Config(cfg_dict=cfg_for_save, filename=cfg.filename)
+        cfg_for_save = Config(cfg_dict=cfg_for_save_dict, filename=cfg.filename)
+        with open(cfg.filename, 'r') as f:
+            text = f.read()
+            cfg_for_save.__setstate__((cfg_for_save_dict, 'hparams.py', text))
         cfg_for_save.dump(osp.join(osp.abspath(cfg.work_dir), 'hparams.py'))
 
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
