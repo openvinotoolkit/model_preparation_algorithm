@@ -45,7 +45,6 @@ class TaskAdaptHook(Hook):
         logger.info(f'- Sampler flag: {self.sampler_flag}')
 
     def before_epoch(self, runner):
-        # TODO doesn't it consider shuffle?
         if self.sampler_flag:
             dataset = runner.data_loader.dataset
             batch_size = runner.data_loader.batch_size
