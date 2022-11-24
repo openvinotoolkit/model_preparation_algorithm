@@ -51,26 +51,33 @@ class ClsIncrSampler(Sampler):
             self.data_length = len(self.dataset)
             self.old_new_ratio = int(old_new_ratio)
 
-        self.repeated_data_length = (1 + self.old_new_ratio) * int(self.data_length / (1 + self.old_new_ratio))
-        self.repeated_data_length += int(
-            np.ceil(self.data_length * self.repeat / self.samples_per_gpu)
-        ) * self.samples_per_gpu - self.repeated_data_length
+        self.num_samples = self.calcuate_num_samples()
+
+    def calcuate_num_samples(self):
+        num_samples = self.repeat * (1 + self.old_new_ratio) * int(self.data_length / (1 + self.old_new_ratio))
+
+        if not self.drop_last:
+            num_samples += int(
+                np.ceil(self.data_length * self.repeat / self.samples_per_gpu)
+            ) * self.samples_per_gpu - num_samples
 
         if self.num_replicas > 1:
             # If the dataset length is evenly divisible by # of replicas, then there
             # is no need to drop any data, since the dataset will be split equally.
-            if self.drop_last and self.repeated_data_length % self.num_replicas != 0:  # type: ignore
+            if self.drop_last and num_samples % self.num_replicas != 0:  # type: ignore
                 # Split to nearest available length that is evenly divisible.
                 # This is to ensure each rank receives the same amount of data when
                 # using this Sampler.
-                self.repeated_data_length = math.ceil(
+                num_samples = math.ceil(
                     # `type:ignore` is required because Dataset cannot provide a default __len__
                     # see NOTE in pytorch/torch/utils/data/sampler.py
-                    (self.repeated_data_length - self.num_replicas) / self.num_replicas  # type: ignore
+                    (num_samples - self.num_replicas) / self.num_replicas  # type: ignore
                 )
             else:
-                self.repeated_data_length = math.ceil(self.repeated_data_length / self.num_replicas)  # type: ignore
-            self.total_size = self.repeated_data_length * self.num_replicas
+                num_samples = math.ceil(num_samples / self.num_replicas)  # type: ignore
+            self.total_size = num_samples * self.num_replicas
+
+        return num_samples
 
     def __iter__(self):
         indices = []
@@ -82,11 +89,12 @@ class ClsIncrSampler(Sampler):
                 indices.append(indice)
 
         indices = np.concatenate(indices)
-        num_extra = int(
-            np.ceil(self.data_length * self.repeat / self.samples_per_gpu)
-        ) * self.samples_per_gpu - len(indices)
-        indices = np.concatenate(
-            [indices, np.random.choice(indices, num_extra)])
+        if not self.drop_last:
+            num_extra = int(
+                np.ceil(self.data_length * self.repeat / self.samples_per_gpu)
+            ) * self.samples_per_gpu - len(indices)
+            indices = np.concatenate(
+                [indices, np.random.choice(indices, num_extra)])
         indices = indices.astype(np.int64).tolist()
 
         if self.num_replicas > 1:
@@ -105,9 +113,9 @@ class ClsIncrSampler(Sampler):
 
             # subsample
             indices = indices[self.rank:self.total_size:self.num_replicas]
-            assert len(indices) == self.repeated_data_length
+            assert len(indices) == self.num_samples
 
         return iter(indices)
 
     def __len__(self):
-        return self.repeated_data_length
+        return self.num_samples

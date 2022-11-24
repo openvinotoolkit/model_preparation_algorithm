@@ -47,28 +47,30 @@ class BalancedSampler(Sampler):
                 self.num_trials = int(self.data_length / self.num_cls)
         else:
             self.num_trials = int(self.data_length / self.num_cls)
-        self.sampler_length = self.compute_sampler_length()
+        self.num_samples = self.calculate_num_samples()
+
+        logger.info(f"This sampler will select balanced samples {self.num_trials} times")
+
+    def calculate_num_samples(self):
+        num_samples = self.num_trials * self.num_cls * self.repeat
 
         if self.num_replicas > 1:
             # If the dataset length is evenly divisible by # of replicas, then there
             # is no need to drop any data, since the dataset will be split equally.
-            if self.drop_last and self.sampler_length % self.num_replicas != 0:  # type: ignore
+            if self.drop_last and num_samples % self.num_replicas != 0:  # type: ignore
                 # Split to nearest available length that is evenly divisible.
                 # This is to ensure each rank receives the same amount of data when
                 # using this Sampler.
-                self.sampler_length = math.ceil(
+                num_samples = math.ceil(
                     # `type:ignore` is required because Dataset cannot provide a default __len__
                     # see NOTE in pytorch/torch/utils/data/sampler.py
-                    (self.sampler_length - self.num_replicas) / self.num_replicas  # type: ignore
+                    (num_samples - self.num_replicas) / self.num_replicas  # type: ignore
                 )
             else:
-                self.sampler_length = math.ceil(self.sampler_length / self.num_replicas)  # type: ignore
-            self.total_size = self.sampler_length * self.num_replicas
+                num_samples = math.ceil(num_samples / self.num_replicas)  # type: ignore
+            self.total_size = num_samples * self.num_replicas
 
-        logger.info(f"This sampler will select balanced samples {self.num_trials} times")
-
-    def compute_sampler_length(self):
-        return self.num_trials * self.num_cls * self.repeat
+        return num_samples
 
     def __iter__(self):
         indices = []
@@ -96,11 +98,9 @@ class BalancedSampler(Sampler):
 
             # subsample
             indices = indices[self.rank:self.total_size:self.num_replicas]
-            assert len(indices) == self.sampler_length
-
-            return iter(indices)
+            assert len(indices) == self.num_samples
 
         return iter(indices)
 
     def __len__(self):
-        return self.sampler_length
+        return self.num_samples

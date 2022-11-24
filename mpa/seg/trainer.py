@@ -4,11 +4,7 @@
 
 import os
 import time
-import numbers
 import glob
-import torch
-import torch.multiprocessing as mp
-import torch.distributed as dist
 from os import path as osp
 import datetime
 from multiprocessing import Pipe, Process
@@ -29,6 +25,7 @@ from mpa.registry import STAGES
 from .stage import SegStage
 
 from mpa.utils.logger import get_logger
+from torch import nn
 
 logger = get_logger()
 
@@ -63,13 +60,7 @@ class SegTrainer(SegStage):
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment
-        distributed = False
-        if cfg.gpu_ids is not None:
-            if isinstance(cfg.get('gpu_ids'), numbers.Number):
-                cfg.gpu_ids = [cfg.get('gpu_ids')]
-            if len(cfg.gpu_ids) > 1:
-                distributed = True
-        logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {distributed}')
+        logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {self.distributed}')
         env_info_dict = collect_env()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
         dash_line = '-' * 60 + '\n'
@@ -105,27 +96,30 @@ class SegTrainer(SegStage):
                 mmseg_version=__version__ + get_git_hash()[:7],
                 CLASSES=target_classes)
 
-        if distributed:
-            if cfg.dist_params.get('linear_scale_lr', False):
-                new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
-                logger.info(f'enabled linear scaling rule to the learning rate. \
-                    changed LR from {cfg.optimizer.lr} to {new_lr}')
-                cfg.optimizer.lr = new_lr
-
         # run GPU utilization getter process
         parent_conn, child_conn = Pipe()
         p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
         p.start()
 
-        SegTrainer.train_worker(
-            target_classes,
+        # Model
+        model = build_segmentor(cfg.model)
+        model.CLASSES = target_classes
+
+        if self.distributed:
+            self._modify_cfg_for_distributed(model, cfg)
+
+        start_time = datetime.datetime.now()
+        train_segmentor(
+            model,
             datasets,
             cfg,
-            distributed,
-            True,
-            timestamp,
-            meta
+            distributed=self.distributed,
+            validate=True,
+            timestamp=timestamp,
+            meta=meta
         )
+        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
+            f.write(str(datetime.datetime.now() - start_time))
 
         # kill GPU utilization getter process
         parent_conn.send(True)
@@ -141,26 +135,14 @@ class SegTrainer(SegStage):
             output_ckpt_path = best_ckpt_path[0]
         return dict(final_ckpt=output_ckpt_path)
 
-    @staticmethod
-    def train_worker(target_classes, datasets, cfg, distributed=False, validate=False,
-                     timestamp=None, meta=None):
+    def _modify_cfg_for_distributed(self, model, cfg):
+        nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
-        # Model
-        model = build_segmentor(cfg.model)
-        model.CLASSES = target_classes
-
-        start_time = datetime.datetime.now()
-        train_segmentor(
-            model,
-            datasets,
-            cfg,
-            distributed=distributed,
-            validate=True,
-            timestamp=timestamp,
-            meta=meta
-        )
-        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
-            f.write(str(datetime.datetime.now() - start_time))
+        if cfg.dist_params.get('linear_scale_lr', False):
+            new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
+            logger.info(f'enabled linear scaling rule to the learning rate. \
+                changed LR from {cfg.optimizer.lr} to {new_lr}')
+            cfg.optimizer.lr = new_lr
 
     @staticmethod
     def calculate_average_gpu_util(work_dir: str, pipe: Pipe):
