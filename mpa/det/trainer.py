@@ -3,7 +3,6 @@
 #
 
 import glob
-import numbers
 import os
 import os.path as osp
 import re
@@ -21,8 +20,8 @@ from mmdet.models import build_detector
 from mmdet.utils import collect_env
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.registry import STAGES
-from mpa.stage import Stage
 from mpa.utils.logger import get_logger
+from torch import nn
 
 from .stage import DetectionStage
 
@@ -59,14 +58,7 @@ class DetectionTrainer(DetectionStage):
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment
-        distributed = False
-        if cfg.gpu_ids is not None:
-            if isinstance(cfg.get('gpu_ids'), numbers.Number):
-                cfg.gpu_ids = [cfg.get('gpu_ids')]
-        if len(cfg.gpu_ids) > 1:
-            distributed = True
-
-        logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {distributed}')
+        logger.info(f'cfg.gpu_ids = {cfg.gpu_ids}, distributed = {self.distributed}')
         env_info_dict = collect_env()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
         dash_line = '-' * 60 + '\n'
@@ -111,13 +103,6 @@ class DetectionTrainer(DetectionStage):
             if 'proposal_ratio' in locals():
                 cfg.checkpoint_config.meta.update({'anchor_ratio': proposal_ratio})
 
-        if distributed:
-            if cfg.dist_params.get('linear_scale_lr', False):
-                new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
-                logger.info(f'enabled linear scaling rule to the learning rate. \
-                    changed LR from {cfg.optimizer.lr} to {new_lr}')
-                cfg.optimizer.lr = new_lr
-
         # Save config
         # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
@@ -127,15 +112,31 @@ class DetectionTrainer(DetectionStage):
         p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
         p.start()
 
-        DetectionTrainer.train_worker(
-            target_classes,
+        model = build_detector(cfg.model)
+        model.CLASSES = target_classes
+
+        if self.distributed:
+            self._modify_cfg_for_distributed(model, cfg)
+
+        # Do clustering for SSD model
+        # TODO[JAEGUK]: Temporal Disable cluster_anchors for SSD model
+        # if hasattr(cfg.model, 'bbox_head') and hasattr(cfg.model.bbox_head, 'anchor_generator'):
+        #     if getattr(cfg.model.bbox_head.anchor_generator, 'reclustering_anchors', False):
+        #         train_cfg = Stage.get_train_data_cfg(cfg)
+        #         train_dataset = train_cfg.get('otx_dataset', None)
+        #         cfg, model = cluster_anchors(cfg, train_dataset, model)
+
+        start_time = datetime.datetime.now()
+        train_detector(
+            model,
             datasets,
             cfg,
-            distributed,
-            True,
-            timestamp,
-            meta)
-
+            distributed=self.distributed,
+            validate=True,
+            timestamp=timestamp,
+            meta=meta)
+        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
+            f.write(str(datetime.datetime.now() - start_time))
 
         # kill GPU utilization getter process
         parent_conn.send(True)
@@ -148,30 +149,14 @@ class DetectionTrainer(DetectionStage):
             output_ckpt_path = best_ckpt_path[0]
         return dict(final_ckpt=output_ckpt_path)
 
-    @staticmethod
-    def train_worker(target_classes, datasets, cfg, distributed=False,
-                     validate=False, timestamp=None, meta=None):
-        # model
-        model = build_detector(cfg.model)
-        model.CLASSES = target_classes
-        # Do clustering for SSD model
-        # TODO[JAEGUK]: Temporal Disable cluster_anchors for SSD model
-        # if hasattr(cfg.model, 'bbox_head') and hasattr(cfg.model.bbox_head, 'anchor_generator'):
-        #     if getattr(cfg.model.bbox_head.anchor_generator, 'reclustering_anchors', False):
-        #         train_cfg = Stage.get_train_data_cfg(cfg)
-        #         train_dataset = train_cfg.get('otx_dataset', None)
-        #         cfg, model = cluster_anchors(cfg, train_dataset, model)
-        start_time = datetime.datetime.now()
-        train_detector(
-            model,
-            datasets,
-            cfg,
-            distributed=distributed,
-            validate=True,
-            timestamp=timestamp,
-            meta=meta)
-        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
-            f.write(str(datetime.datetime.now() - start_time))
+    def _modify_cfg_for_distributed(self, model, cfg):
+        nn.SyncBatchNorm.convert_sync_batchnorm(model)
+
+        if cfg.dist_params.get('linear_scale_lr', False):
+            new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
+            logger.info(f'enabled linear scaling rule to the learning rate. \
+                changed LR from {cfg.optimizer.lr} to {new_lr}')
+            cfg.optimizer.lr = new_lr
 
     @staticmethod
     def calculate_average_gpu_util(work_dir: str, pipe: Pipe):

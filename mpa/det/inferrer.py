@@ -2,16 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 from typing import List, Tuple
-import os
 
 import torch
-from mmcv.parallel import MMDistributedDataParallel, MMDataParallel, is_module_wrapper
+from mmcv.parallel import is_module_wrapper
 from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.models import build_detector
-from mmdet.parallel import MMDataCPU
 from mmdet.utils.deployment import get_saliency_map, get_feature_vector
+from mmdet.utils.misc import prepare_mmdet_model_for_execution
 
 from mpa.registry import STAGES
 from .stage import DetectionStage
@@ -140,21 +139,8 @@ class DetectionInferrer(DetectionStage):
 
         model.eval()
         if torch.cuda.is_available():
-            if len(os.environ["CUDA_VISIBLE_DEVICES"].split(',')) > 1:
-                model = model.cuda()
-                find_unused_parameters = cfg.get('find_unused_parameters', False)
-                # Sets the `find_unused_parameters` parameter in
-                # torch.nn.parallel.DistributedDataParallel
-                eval_model = MMDistributedDataParallel(
-                    model,
-                    device_ids=[torch.cuda.current_device()],
-                    broadcast_buffers=False,
-                    find_unused_parameters=find_unused_parameters)
-            else:
-                eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
-                                            device_ids=cfg.gpu_ids)
-        else:
-            eval_model = MMDataCPU(model)
+            model = model.cuda()
+        eval_model = prepare_mmdet_model_for_execution(model, cfg, self.distributed)
 
         eval_predictions = []
         feature_vectors = []
