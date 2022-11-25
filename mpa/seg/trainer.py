@@ -5,12 +5,6 @@
 import os
 import time
 import glob
-from os import path as osp
-import datetime
-from multiprocessing import Pipe, Process
-import pynvml
-import re
-import uuid
 
 import mmcv
 from mmcv import get_git_hash
@@ -109,7 +103,6 @@ class SegTrainer(SegStage):
         if self.distributed:
             self._modify_cfg_for_distributed(model, cfg)
 
-        start_time = datetime.datetime.now()
         train_segmentor(
             model,
             datasets,

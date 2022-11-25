@@ -3,15 +3,9 @@
 #
 
 import glob
-import os
 import os.path as osp
-import re
 import time
-import datetime
-from multiprocessing import Pipe, Process
-import uuid
 
-import pynvml
 from mmcv.utils import get_git_hash
 from mmdet import __version__
 from mmdet.apis import train_detector
