@@ -1,8 +1,9 @@
 from mmseg.datasets import DATASETS, build_dataset
 import numpy as np
+from mmseg.datasets import CustomDataset
 
 @DATASETS.register_module()
-class PseudoSemanticSegDataset(object):
+class PseudoSemanticSegDataset(CustomDataset):
     """Dataset wrapper for Semi-SL Semantic Seg experiments.
     Input : splits of labeled & unlabeld datasets
     """

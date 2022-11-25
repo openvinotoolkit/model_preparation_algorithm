@@ -24,19 +24,19 @@ optimizer_config = dict(
     )
 )
 
-lr_config = dict(
-    _delete_=True,
-    policy='customstep',
-    by_epoch=True,
-    gamma=0.1,
-    step=[200, 250],
-    fixed='constant',
-    fixed_iters=40,
-    fixed_ratio=10.0,
-    warmup='cos',
-    warmup_iters=80,
-    warmup_ratio=1e-2,
-)
+# lr_config = dict(
+#     _delete_=True,
+#     policy='customstep',
+#     by_epoch=True,
+#     gamma=0.1,
+#     step=[200, 250],
+#     fixed='constant',
+#     fixed_iters=40,
+#     fixed_ratio=10.0,
+#     warmup='cos',
+#     warmup_iters=80,
+#     warmup_ratio=1e-2,
+# )
 
 # parameter manager
 params_config = dict(
@@ -72,7 +72,7 @@ dist_params = dict(
 )
 
 runner = dict(
-    type='EpochBasedRunner',
+    type='EpochRunnerWithCancel',
     max_epochs=300
 )
 
@@ -87,7 +87,8 @@ evaluation = dict(
     interval=1,
     metric=['mIoU', 'mDice'],
     rule='greater',
-    save_best='mDice'
+    save_best='mDice',
+    show_log=True
 )
 
 seed = 42

@@ -39,6 +39,6 @@ data = dict(
         type=__dataset_type,
         data_root=__data_root,
         pipeline=__train_pipeline,
-        cutmix=True
+        # cutmix=True
     )
 )

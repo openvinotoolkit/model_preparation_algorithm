@@ -121,7 +121,6 @@ class CutmixSegNaive(BaseSegmentor):
         return self.model_t.forward_dummy(img, **kwargs)
 
     def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
-        # breakpoint()
         ul_imgs = kwargs['extra_0']
         ul1_img = ul_imgs['ul_img']
         ul1_img_metas = ul_imgs['ul_img_metas']

@@ -2,7 +2,7 @@ _base_ = './encoder_decoder.ote.py'
 
 __norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
-    type='CutmixSegNaive',
+    type='MeanTeacherNaive',
     ori_type='SemiSLSegmentor',
     unsup_weight=0.1,
     num_stages=2,
