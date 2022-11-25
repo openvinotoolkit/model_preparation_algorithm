@@ -26,12 +26,14 @@ def get_mpa_version():
 
 if __name__ == "__main__":
     setup(
-        name="mpa",
-        version=get_mpa_version(),
+        name="otxmpa",
+        # version=get_mpa_version(),
+        version="0.3.0",
         url="https://github.com/openvinotoolkit/model_preparation_algorithm",
         packages=find_packages(include=('mpa', 'mpa.*', 'recipes.*')),
         include_package_data=True,
         description="Model Preperation Algorithms",
-        long_description=long_description,
+        # long_description=long_description,
+        long_description="Temporary PyPI packaging. Project to be merged into OpenVINO Training Extension",
         install_requires=get_requirements(),
     )
