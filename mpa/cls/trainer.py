@@ -104,18 +104,11 @@ class ClsTrainer(ClsStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        # run GPU utilization getter process
-        parent_conn, child_conn = Pipe()
-        p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
-        p.start()
-
         # model
         model = build_classifier(cfg.model)
 
         if self.distributed:
             self._modify_cfg_for_distributed(model, cfg)
-
-        start_time = datetime.datetime.now()
 
         # prepare data loaders
         datasets = datasets if isinstance(datasets, (list, tuple)) else [datasets]
@@ -235,12 +228,6 @@ class ClsTrainer(ClsStage):
             runner.load_checkpoint(cfg.load_from)
         runner.run(data_loaders, cfg.workflow)
 
-        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
-            f.write(str(datetime.datetime.now() - start_time))
-
-        # kill GPU utilization getter process
-        parent_conn.send(True)
-        p.join()
         logger.info(f'called train_worker() distributed={self.distributed}, validate=True')
 
         # Save outputs
@@ -257,49 +244,6 @@ class ClsTrainer(ClsStage):
             logger.info(f'enabled linear scaling rule to the learning rate. \
                 changed LR from {cfg.optimizer.lr} to {new_lr}')
             cfg.optimizer.lr = new_lr
-
-    @staticmethod
-    def calculate_average_gpu_util(work_dir: str, pipe: Pipe):
-        pynvml.nvmlInit()
-        logger.info("GPU utilzer process start")
-        filter = re.compile(r"([-+]?\d+) \%.*([-+]?\d+) \%")
-
-        available_gpu = os.environ.get('CUDA_VISIBLE_DEVICES', None)
-        if available_gpu is None:
-            gpu_devices = [i for i in range(pynvml.nvmlDeviceGetCount())]
-        else:
-            gpu_devices = [int(gpuidx) for gpuidx in available_gpu.split(',')]
-
-        per_gpu_util = {gpuidx : 0 for gpuidx in gpu_devices}
-        num_total_util = 0
-        while True:
-            for gpuidx in gpu_devices:
-                handle = pynvml.nvmlDeviceGetHandleByIndex(gpuidx)
-                use = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                result = filter.search(str(use))
-                if result is not None:
-                    per_gpu_util[gpuidx] += float(result.group(1))
-
-            if pipe.poll():
-                try:
-                    report = pipe.recv()
-                    if report:
-                        break
-                except EOFError:
-                    continue
-
-            num_total_util += 1
-
-            time.sleep(1)
-
-        pynvml.nvmlShutdown()
-
-        with open(osp.join(work_dir, "gpu_util.txt"), "wt") as f:
-            for gpuidx, gpu_util in per_gpu_util.items():
-                f.write(f"#{gpuidx} average GPU util : {gpu_util / num_total_util}\n")
-            f.write(f"total average GPU util : {sum(per_gpu_util.values()) / (len(per_gpu_util) * num_total_util)}\n")
-
-        logger.info("GPU utilzer process is done")
 
     @staticmethod
     def register_checkpoint_hook(checkpoint_config):
