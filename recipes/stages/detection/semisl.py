@@ -24,5 +24,3 @@ custom_hooks = [
         priority=75,
     ),
 ]
-ignore = True
-adaptive_validation_interval = dict(max_interval=5)

@@ -4,7 +4,7 @@ _base_ = [
 
 cudnn_benchmark = True
 
-seed = 5
+seed = 1234
 deterministic = False
 
 hparams = dict(dummy=0)
