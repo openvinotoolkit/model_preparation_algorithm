@@ -5,7 +5,7 @@ _base_ = [
 
 __dataset_type = 'KvasirDataset'
 __data_root = 'data/Kvasir-SEG'
-__train_pipeline = {{_base_.train_pipeline}}
+__unlabeled_pipeline = {{_base_.unlabeled_pipeline}}
 
 data = dict(
     samples_per_gpu=8,
@@ -38,7 +38,7 @@ data = dict(
     unlabeled=dict(
         type=__dataset_type,
         data_root=__data_root,
-        pipeline=__train_pipeline,
+        pipeline=__unlabeled_pipeline,
         # cutmix=True
     )
 )

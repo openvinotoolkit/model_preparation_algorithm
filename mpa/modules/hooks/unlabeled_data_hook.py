@@ -44,7 +44,7 @@ class UnlabeledDataHook(Hook):
     def before_epoch(self, runner):
         if self.composed_loader is None:
             logger.info('In UnlabeledDataHook.before_epoch, creating ComposedDL'
-                        f'([labeled({len(runner.data_loader)}, unlabeled({len(self.unlabeled_loader)})])')
+                        f'([labeled({len(runner.data_loader.dataset)}, unlabeled({len(self.unlabeled_loader.dataset)})])')
             self.composed_loader = ComposedDL([runner.data_loader, self.unlabeled_loader])
         # Per-epoch replacement: train-only loader -> train+unlabeled loader
         # (It's similar to local variable in epoch. Need to update every epoch...)

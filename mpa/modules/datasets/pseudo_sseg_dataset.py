@@ -1,9 +1,10 @@
 from mmseg.datasets import DATASETS, build_dataset
 import numpy as np
 from mmseg.datasets import CustomDataset
+from mmseg.datasets.pipelines import Compose
 
 @DATASETS.register_module()
-class PseudoSemanticSegDataset(CustomDataset):
+class UnlabeledSegDataset(CustomDataset):
     """Dataset wrapper for Semi-SL Semantic Seg experiments.
     Input : splits of labeled & unlabeld datasets
     """
@@ -16,8 +17,10 @@ class PseudoSemanticSegDataset(CustomDataset):
         else:
             self.cutmix_flag = False
         dataset_cfg['type'] = orig_type
-        #self.CLASSES = self.labeled_dataset.CLASSES
-        #self.PALETTE = self.labeled_dataset.PALETTE
+        
+        pipeline = dataset_cfg["pipeline"]
+        self.strong_pipeline = Compose(pipeline.get('strong_aug', None))
+        dataset_cfg["pipeline"] = pipeline.get('weak_aug', None)
 
         self.unlabeled_dataset = build_dataset(dataset_cfg)
 
@@ -25,7 +28,7 @@ class PseudoSemanticSegDataset(CustomDataset):
         self.num_unlabeled = len(self.unlabeled_dataset)
         self.unlabeled_index = np.random.permutation(self.num_unlabeled)
         if self.cutmix_flag:
-            self.unlabeled_index2 = np.random.permutation(self.num_unlabeled)
+            self.cutmix_unlabeled_index = np.random.permutation(self.num_unlabeled)
         print('----------- #Unlabeled: ', self.num_unlabeled)
 
     def __len__(self):
@@ -35,13 +38,19 @@ class PseudoSemanticSegDataset(CustomDataset):
     def __getitem__(self, idx):
         data = {}
         unlabeled_idx = int(self.unlabeled_index[idx])
-        unlabeled_data = self.unlabeled_dataset[unlabeled_idx]
-        for k, v in unlabeled_data.items():
-            data['ul_' + k] = v
+        unlabeled_raw_item = self.unlabeled_dataset._get_raw_unlabeled_data(unlabeled_idx)
+        unlabeled_weak = self.unlabeled_dataset.pipeline(unlabeled_raw_item)
+        unlabeled_strong = self.strong_pipeline(unlabeled_raw_item)
+        
+        for k, v in unlabeled_weak.items():
+            data['ul_w_' + k] = v
+        for k, v in unlabeled_strong.items():
+            data['ul_s_' + k] = v
+
         if self.cutmix_flag:
             if self.num_unlabeled > 0:
-                unlabeled_idx = int(self.unlabeled_index2[idx])
-                unlabeled_data = self.unlabeled_dataset[unlabeled_idx]
-                for k, v in unlabeled_data.items():
+                cutmix_idx = int(self.cutmix_unlabeled_index[idx])
+                cutmix_data = self.unlabeled_dataset[cutmix_idx]
+                for k, v in cutmix_data.items():
                     data['ul2_' + k] = v
         return data

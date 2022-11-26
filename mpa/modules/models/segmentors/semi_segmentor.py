@@ -4,6 +4,7 @@ from mmseg.core import add_prefix
 from mmseg.ops import resize
 from mmseg.models import builder, SEGMENTORS
 from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
+from mmseg.models import build_loss
 
 
 @SEGMENTORS.register_module()
@@ -65,9 +66,7 @@ class SemiSLSegmentor(EncoderDecoder):
         map of the same size as input."""
         x = self.extract_feat(img)
         out = self.decode_head[0].forward_test(x, img_metas, self.test_cfg)
-        for i in range(1, self.num_stages):
-            out = self.decode_head[i].forward_test(x, out, img_metas,
-                                                   self.test_cfg)
+
         out = resize(
             input=out,
             size=img.shape[2:],
@@ -79,9 +78,7 @@ class SemiSLSegmentor(EncoderDecoder):
         """Run forward function and calculate loss for decode head in
         inference."""
         out = self.decode_head[0].forward_test(x, img_metas, self.test_cfg)
-        for i in range(1, self.num_stages):
-            out = self.decode_head[i].forward_test(x, out, img_metas,
-                                                   self.test_cfg)
+
         return out
 
     def _decode_head_forward_train(self, x, img_metas, gt_semantic_seg):
@@ -95,24 +92,21 @@ class SemiSLSegmentor(EncoderDecoder):
 
         losses.update(add_prefix(loss_decode, 'decode_0'))
 
-        for i in range(1, self.num_stages):
-            # forward test again, maybe unnecessary for most methods.
-            if isinstance(x, dict):
-                prev_outputs = self.decode_head[i - 1].forward_test(
-                    x['x'], img_metas, self.test_cfg)
-                loss_decode, _ = self.decode_head[i].forward_train(
-                    x['x'], prev_outputs, img_metas, gt_semantic_seg['gt'], self.train_cfg)
-                losses.update(add_prefix(loss_decode, f'decode_x_{i}'))
-                prev_outputs = self.decode_head[i - 1].forward_test(
-                    x['x_u'], img_metas, self.test_cfg)
-                loss_decode, _ = self.decode_head[i].forward_train(
-                    x['x_u'], prev_outputs, img_metas, gt_semantic_seg['pseudo_label'], self.train_cfg)
-                losses.update(add_prefix(loss_decode, f'decode_x_u_{i}'))
-            else:
-                prev_outputs = self.decode_head[i - 1].forward_test(
-                    x, img_metas, self.test_cfg)
-                loss_decode, _ = self.decode_head[i].forward_train(
-                    x, prev_outputs, img_metas, gt_semantic_seg, self.train_cfg)
-                losses.update(add_prefix(loss_decode, f'decode_{i}'))
-
         return losses
+
+    def _get_consistency_loss(self, x, img_metas, gt_semantic_seg):
+
+        losses = dict()
+        org_loss = self.decode_head[0].loss_modules
+        self.decode_head[0].loss_modules = nn.ModuleList([
+            build_loss(dict(type='MSELoss'))
+        ])
+        
+        loss_decode, _ = self.decode_head[0].forward_train(
+            x, img_metas, gt_semantic_seg, self.train_cfg)
+
+        losses.update(add_prefix(loss_decode, 'decode_0'))
+        self.decode_head[0].loss_modules = org_loss
+        
+        return losses
+

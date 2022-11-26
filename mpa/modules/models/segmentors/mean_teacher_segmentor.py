@@ -31,7 +31,7 @@ class MeanTeacherNaive(BaseSegmentor):
         self._register_load_state_dict_pre_hook(
             functools.partial(self.load_state_dict_pre_hook, self)
         )
-
+    
     def extract_feat(self, imgs):
         return self.model_s.extract_feat(imgs)
 
@@ -44,29 +44,67 @@ class MeanTeacherNaive(BaseSegmentor):
     def forward_dummy(self, img, **kwargs):
         return self.model_s.forward_dummy(img, **kwargs)
 
+    # def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
+    #     ul_data = kwargs['extra_0']
+    #     ul_img = ul_data['ul_img']
+    #     ul_img_metas = ul_data['ul_img_metas']
+
+    #     with torch.no_grad():
+    #         teacher_feat = self.model_t.extract_feat(ul_img)
+    #         teacher_logit = self.model_t._decode_head_forward_test(teacher_feat, ul_img_metas)
+    #         teacher_logit = resize(input=teacher_logit,
+    #                                size=ul_img.shape[2:],
+    #                                mode='bilinear',
+    #                                align_corners=self.align_corners)
+    #         conf_from_teacher, pl_from_teacher = torch.max(torch.softmax(teacher_logit, axis=1), axis=1, keepdim=True)
+    #         pl_from_teacher = torch.softmax(teacher_logit, dim=-1)
+        
+
+    #     losses = dict()
+
+    #     x = self.model_s.extract_feat(img)
+    #     x_u = self.model_s.extract_feat(ul_img)
+    #     loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
+    #     # FIXME : change consistency loss to mse
+    #     #loss_decode_u = self.model_s._decode_head_forward_train(x_u, img_metas, pl_from_teacher)
+
+    #     loss_decode_u = self.model_s._get_consistency_loss(x_u, ul_img_metas, pl_from_teacher)
+
+    #     for (k, v) in loss_decode_u.items():
+    #         if v is None:
+    #             continue
+    #         losses[k] = (loss_decode[k] + loss_decode_u[k]*self.unsup_weight)
+
+    #     return losses
+
     def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
         ul_data = kwargs['extra_0']
-        ul_img = ul_data['ul_img']
-        ul_img_metas = ul_data['ul_img_metas']
+        ul_w_img = ul_data['ul_w_img']
+        ul_w_img_metas = ul_data['ul_w_img_metas']
 
         with torch.no_grad():
-            teacher_feat = self.model_t.extract_feat(ul_img)
-            teacher_logit = self.model_t._decode_head_forward_test(teacher_feat, ul_img_metas)
+            teacher_feat = self.model_t.extract_feat(ul_w_img)
+            teacher_logit = self.model_t._decode_head_forward_test(teacher_feat, ul_w_img_metas)
             teacher_logit = resize(input=teacher_logit,
-                                   size=ul_img.shape[2:],
+                                   size=ul_w_img.shape[2:],
                                    mode='bilinear',
                                    align_corners=self.align_corners)
-            conf_from_teacher, pl_from_teacher = torch.max(torch.softmax(teacher_logit, axis=1), axis=1, keepdim=True)
+            conf_from_teacher, pl_from_teacher = torch.max(torch.softmax(teacher_logit, axis=1), axis=1, keepdim=True)        
 
         losses = dict()
 
-        x = self.model_s.extract_feat(img)
-        x_u = self.model_s.extract_feat(ul_img)
-        loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
-        loss_decode_u = self.model_s._decode_head_forward_train(x_u, ul_img_metas, pl_from_teacher)
+        ul_s_img = ul_data['ul_s_img']
+        ul_s_img_metas = ul_data['ul_s_img_metas']
 
-        for key in loss_decode_u.keys():
-            losses[key] = (loss_decode[key] + loss_decode_u[key]*self.unsup_weight)
+        x = self.model_s.extract_feat(img)
+        x_u = self.model_s.extract_feat(ul_s_img)
+        loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
+        loss_decode_u = self.model_s._decode_head_forward_train(x_u, img_metas, pl_from_teacher)
+
+        for (k, v) in loss_decode_u.items():
+            if v is None:
+                continue
+            losses[k] = (loss_decode[k] + loss_decode_u[k]*self.unsup_weight)
 
         return losses
 
