@@ -14,11 +14,13 @@ class MeanTeacherNaive(BaseSegmentor):
         print('MeanTeacherNaive Segmentor init!')
         super(MeanTeacherNaive, self).__init__()
         self.test_cfg = kwargs['test_cfg']
+        self.warmup_start_iter = 30
+        self.count_iter = 0
 
         cfg = kwargs.copy()
         if ori_type == 'SemiSLSegmentor':
             cfg['type'] = 'SemiSLSegmentor'
-            self.align_corners = cfg['decode_head'][-1].align_corners
+            self.align_corners = cfg['decode_head'].align_corners
         else:
             cfg['type'] = 'EncoderDecoder'
             self.align_corners = cfg['decode_head'].align_corners
@@ -78,6 +80,12 @@ class MeanTeacherNaive(BaseSegmentor):
     #     return losses
 
     def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
+        self.count_iter += 1
+        if self.warmup_start_iter > self.count_iter:
+            x = self.model_s.extract_feat(img)
+            loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
+            return loss_decode
+
         ul_data = kwargs['extra_0']
         ul_w_img = ul_data['ul_w_img']
         ul_w_img_metas = ul_data['ul_w_img_metas']
@@ -110,13 +118,13 @@ class MeanTeacherNaive(BaseSegmentor):
 
     @staticmethod
     def state_dict_hook(module, state_dict, *args, **kwargs):
-        """Redirect teacher model as output state_dict (student as auxilliary)
+        """Redirect student model as output state_dict (teacher as auxilliary)
         """
         logger.info('----------------- MeanTeacherNaive.state_dict_hook() called')
         output = OrderedDict()
         for k, v in state_dict.items():
-            if 'model_t.' in k:
-                k = k.replace('model_t.', '')
+            if 'model_s.' in k:
+                k = k.replace('model_s.', '')
             output[k] = v
         return output
 

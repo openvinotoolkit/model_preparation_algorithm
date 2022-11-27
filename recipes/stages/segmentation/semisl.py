@@ -7,11 +7,19 @@ _base_ = [
 model_config_path = '../_base_/models/segmentors/seg_semisl.py'
 
 optimizer = dict(
-    type='SGD',
+    _delete_=True,
+    type='Adam',
     lr=1e-3,
-    momentum=0.9,
-    weight_decay=0.0005
+    eps=1e-08,
+    weight_decay=0.0
 )
+
+# optimizer = dict(
+#     type='SGD',
+#     lr=1e-3,
+#     momentum=0.9,
+#     weight_decay=0.0005
+# )
 
 optimizer_config = dict(
     _delete_=True,
@@ -79,17 +87,25 @@ runner = dict(
 checkpoint_config = dict(
     by_epoch=True,
     interval=1,
-    max_keep_ckpts=5
 )
 
+# evaluation = dict(
+#     _delete_=True,
+#     interval=1,
+#     metric=['mIoU', 'mDice'],
+#     rule='greater',
+#     save_best='mDice',
+#     show_log=True
+# )
+
 evaluation = dict(
-    _delete_=True,
     interval=1,
-    metric=['mIoU', 'mDice'],
-    rule='greater',
-    save_best='mDice',
+    metric=['mDice', 'mIoU'],
     show_log=True
 )
+
+find_unused_parameters = False
+ignore = True
 
 seed = 42
 task_adapt = dict(_delete_=True)

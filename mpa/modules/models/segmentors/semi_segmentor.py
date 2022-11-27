@@ -37,13 +37,9 @@ class SemiSLSegmentor(EncoderDecoder):
 
     def _init_decode_head(self, decode_head):
         """Initialize ``decode_head``"""
-        assert isinstance(decode_head, list)
-        assert len(decode_head) == self.num_stages
-        self.decode_head = nn.ModuleList()
-        for i in range(self.num_stages):
-            self.decode_head.append(builder.build_head(decode_head[i]))
-        self.align_corners = self.decode_head[-1].align_corners
-        self.num_classes = self.decode_head[-1].num_classes
+        self.decode_head = builder.build_head(decode_head)
+        self.align_corners = self.decode_head.align_corners
+        self.num_classes = self.decode_head.num_classes
 
     def init_weights(self, pretrained=None):
         """Initialize the weights in backbone and heads.
@@ -52,8 +48,7 @@ class SemiSLSegmentor(EncoderDecoder):
                 Defaults to None.
         """
         self.backbone.init_weights(pretrained=pretrained)
-        for i in range(self.num_stages):
-            self.decode_head[i].init_weights()
+        self.decode_head.init_weights()
         if self.with_auxiliary_head:
             if isinstance(self.auxiliary_head, nn.ModuleList):
                 for aux_head in self.auxiliary_head:
@@ -65,7 +60,7 @@ class SemiSLSegmentor(EncoderDecoder):
         """Encode images with backbone and decode into a semantic segmentation
         map of the same size as input."""
         x = self.extract_feat(img)
-        out = self.decode_head[0].forward_test(x, img_metas, self.test_cfg)
+        out = self.decode_head.forward_test(x, img_metas, self.test_cfg)
 
         out = resize(
             input=out,
@@ -77,7 +72,7 @@ class SemiSLSegmentor(EncoderDecoder):
     def _decode_head_forward_test(self, x, img_metas):
         """Run forward function and calculate loss for decode head in
         inference."""
-        out = self.decode_head[0].forward_test(x, img_metas, self.test_cfg)
+        out = self.decode_head.forward_test(x, img_metas, self.test_cfg)
 
         return out
 
@@ -87,7 +82,7 @@ class SemiSLSegmentor(EncoderDecoder):
 
         losses = dict()
 
-        loss_decode, _ = self.decode_head[0].forward_train(
+        loss_decode, _ = self.decode_head.forward_train(
             x, img_metas, gt_semantic_seg, self.train_cfg)
 
         losses.update(add_prefix(loss_decode, 'decode_0'))
@@ -97,16 +92,16 @@ class SemiSLSegmentor(EncoderDecoder):
     def _get_consistency_loss(self, x, img_metas, gt_semantic_seg):
 
         losses = dict()
-        org_loss = self.decode_head[0].loss_modules
-        self.decode_head[0].loss_modules = nn.ModuleList([
+        org_loss = self.decode_head.loss_modules
+        self.decode_head.loss_modules = nn.ModuleList([
             build_loss(dict(type='MSELoss'))
         ])
         
-        loss_decode, _ = self.decode_head[0].forward_train(
+        loss_decode, _ = self.decode_head.forward_train(
             x, img_metas, gt_semantic_seg, self.train_cfg)
 
         losses.update(add_prefix(loss_decode, 'decode_0'))
-        self.decode_head[0].loss_modules = org_loss
+        self.decode_head.loss_modules = org_loss
         
         return losses
 

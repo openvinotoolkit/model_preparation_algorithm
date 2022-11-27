@@ -67,7 +67,7 @@ unlabeled_pipeline = dict(
                     hue_delta=18,
                 )
             ]),
-        dict(type='MaskCompose', prob=0.5, lambda_limits=(4, 16), keep_original=False,
+        dict(type='MaskCompose', prob=0.3, lambda_limits=(4, 16), keep_original=False,
             transforms=[
                 dict(type='RGB2Gray')
             ]),
