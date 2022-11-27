@@ -60,9 +60,10 @@ class ClassIncrSegmentor(EncoderDecoder):
             # Mix weights
             model_param = model_dict[model_name].clone()
             chkpt_param = chkpt_dict[chkpt_name]
-            for m, c in enumerate(model2chkpt):
-                if c >= 0:
-                    model_param[m].copy_(chkpt_param[c])
+            for m, c1 in enumerate(model2chkpt):
+                if c1 >= 0:
+                    # FIXME: ckpt head num_classes issue
+                    model_param[m].copy_(chkpt_param[c1])
 
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
