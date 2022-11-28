@@ -2,6 +2,7 @@ import numpy as np
 from torch.utils.data.sampler import Sampler
 import math
 from mpa.utils.logger import get_logger
+import random
 
 logger = get_logger()
 
@@ -19,8 +20,7 @@ class BalancedSampler(Sampler):
         efficient_mode (bool): Flag about using efficient mode
     """
     def __init__(self, dataset, batch_size, efficient_mode=True,
-                 num_replicas=1, rank=0, drop_last=False
-    ):
+                 num_replicas=1, rank=0, drop_last=False):
         self.batch_size = batch_size
         self.repeat = 1
         if hasattr(dataset, 'times'):
@@ -95,6 +95,9 @@ class BalancedSampler(Sampler):
                 # remove tail of data to make it evenly divisible.
                 indices = indices[:self.total_size]
             assert len(indices) == self.total_size
+
+            # shuffle before distributing indices
+            random.shuffle(indices)
 
             # subsample
             indices = indices[self.rank:self.total_size:self.num_replicas]
