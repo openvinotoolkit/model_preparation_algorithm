@@ -10,6 +10,8 @@ from mpa.utils.logger import get_logger
 from openvino.pyopenvino import Model, Node
 from openvino.runtime import Core
 
+from .omz_wrapper import AVAILABLE_OMZ_MODELS, get_omz_model
+
 
 logger = get_logger()
 
@@ -81,6 +83,13 @@ def to_dynamic_model(ov_model: Model) -> Model:
 def load_ov_model(
     model_path: str, weight_path: Optional[str] = None, convert_dynamic: bool = False
 ) -> Model:
+    if model_path.startswith("omz://"):
+        model_path = model_path.replace("omz://", "")
+        assert model_path in AVAILABLE_OMZ_MODELS
+        ov_ir_path = get_omz_model(model_path)
+        model_path = ov_ir_path["model_path"]
+        weight_path = ov_ir_path["weight_path"]
+
     if weight_path is None:
         weight_path = os.path.splitext(model_path)[0] + ".bin"
 
