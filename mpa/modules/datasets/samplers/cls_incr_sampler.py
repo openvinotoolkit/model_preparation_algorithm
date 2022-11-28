@@ -6,6 +6,7 @@ import math
 import numpy as np
 from torch.utils.data.sampler import Sampler
 from mpa.modules.utils.task_adapt import unwrap_dataset
+import random
 
 
 class ClsIncrSampler(Sampler):
@@ -22,8 +23,7 @@ class ClsIncrSampler(Sampler):
         efficient_mode (bool): Flag about using efficient mode
     """
     def __init__(self, dataset, samples_per_gpu, efficient_mode=False,
-                 num_replicas=1, rank=0, drop_last=False
-    ):
+                 num_replicas=1, rank=0, drop_last=False):
         self.samples_per_gpu = samples_per_gpu
         self.num_replicas = num_replicas
         self.rank = rank
@@ -110,6 +110,9 @@ class ClsIncrSampler(Sampler):
                 # remove tail of data to make it evenly divisible.
                 indices = indices[:self.total_size]
             assert len(indices) == self.total_size
+
+            # shuffle before distributing indices
+            random.shuffle(indices)
 
             # subsample
             indices = indices[self.rank:self.total_size:self.num_replicas]
