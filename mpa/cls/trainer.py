@@ -218,7 +218,10 @@ class ClsTrainer(ClsStage):
         if cfg.get('resume_from', False):
             runner.resume(cfg.resume_from)
         elif cfg.get('load_from', False):
-            runner.load_checkpoint(cfg.load_from)
+            if self.distributed:
+                runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{cfg.gpu_ids[0]}')
+            else:
+                runner.load_checkpoint(cfg.load_from)
         runner.run(data_loaders, cfg.workflow)
 
         logger.info(f'called train_worker() distributed={self.distributed}, validate=True')
