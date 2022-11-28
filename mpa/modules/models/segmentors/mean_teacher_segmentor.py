@@ -107,7 +107,7 @@ class MeanTeacherNaive(BaseSegmentor):
         x = self.model_s.extract_feat(img)
         x_u = self.model_s.extract_feat(ul_s_img)
         loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
-        loss_decode_u = self.model_s._decode_head_forward_train(x_u, img_metas, pl_from_teacher)
+        loss_decode_u = self.model_s._decode_head_forward_train(x_u, ul_s_img_metas, pl_from_teacher)
 
         for (k, v) in loss_decode_u.items():
             if v is None:

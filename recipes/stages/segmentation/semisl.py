@@ -47,13 +47,14 @@ optimizer_config = dict(
 # )
 
 # parameter manager
-params_config = dict(
-    type='FreezeLayers',
-    by_epoch=True,
-    iters=40,
-    open_layers=[r'\w*[.]?backbone\.aggregator\.', r'\w*[.]?neck\.',
-                 r'\w*[.]?decode_head\.', r'\w*[.]?auxiliary_head\.']
-)
+# 이게 뭐지?
+# params_config = dict(
+#     type='FreezeLayers',
+#     by_epoch=True,
+#     iters=10,
+#     open_layers=[r'\w*[.]?backbone\.aggregator\.', r'\w*[.]?neck\.',
+#                  r'\w*[.]?decode_head\.', r'\w*[.]?auxiliary_head\.']
+# )
 
 custom_hooks = [
     dict(
