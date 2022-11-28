@@ -15,7 +15,7 @@ from .poolings import AvgPoolV1
 @dataclass
 class BatchNormalizationV0Attribute(Attribute):
     epsilon: float
-    max_init_iter: int = field(default=10)
+    max_init_iter: int = field(default=2)
 
 
 @OPS.register()
@@ -26,11 +26,10 @@ class BatchNormalizationV0(Operation[BatchNormalizationV0Attribute]):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self._initialized = False
-        self._num_init_iter = 0
+        self.register_buffer("_num_init_iter", torch.tensor(0))
 
     def forward(self, input, gamma, beta, mean, variance):
+
         output = F.batch_norm(
             input=input,
             running_mean=mean,
@@ -38,10 +37,11 @@ class BatchNormalizationV0(Operation[BatchNormalizationV0Attribute]):
             weight=gamma,
             bias=beta,
             training=self.training,
+            momentum=0.1,
             eps=self.attrs.epsilon,
         )
 
-        if self.training and not self._initialized:
+        if self.training and self._num_init_iter < self.attrs.max_init_iter:
             n_dims = input.dim() - 2
             gamma = gamma.unsqueeze(0)
             beta = beta.unsqueeze(0)
@@ -51,9 +51,10 @@ class BatchNormalizationV0(Operation[BatchNormalizationV0Attribute]):
             output = input * gamma + beta
             self._num_init_iter += 1
             if self._num_init_iter >= self.attrs.max_init_iter:
+                # Adapt weight & bias using the first batch statistics
+                # to undo normalization approximately
                 gamma.data = gamma.data * mean
                 beta.data = beta.data + (mean / (variance + self.attrs.epsilon))
-                self._initialized = True
 
         return output
 
