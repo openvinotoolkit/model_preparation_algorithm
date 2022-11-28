@@ -14,22 +14,10 @@ class SemiDetectionStage(IncrDetectionStage):
         super().__init__(**kwargs)
 
     def configure_task(self, cfg, training, **kwargs):
-        if 'task_adapt' in cfg:
-            logger.info(f'task config!!!!: training={training}')
-            task_adapt_type = cfg['task_adapt'].get('type', None)
-            task_adapt_op = cfg['task_adapt'].get('op', 'REPLACE')
+        logger.info(f'Semi-SL task config!!!!: training={training}')
+        super().configure_task(cfg, training, **kwargs)
 
-            org_model_classes, model_classes, data_classes = \
-                self.configure_classes(cfg, task_adapt_type, task_adapt_op)
-            if data_classes != model_classes:
-                self.configure_task_data_pipeline(cfg, model_classes, data_classes)
-            # TODO[JAEGUK]: configure_anchor is not working
-            if cfg['task_adapt'].get('use_mpa_anchor', False):
-                self.configure_anchor(cfg)
-            self.configure_task_cls_incr(cfg, task_adapt_type, org_model_classes, model_classes)
-            self.configure_task_semi()
-
-    def configure_task_cls_incr(cfg, task_adapt_type, org_model_classes, model_classes):
+    def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
         """Patch for class incremental learning.
         Semi supervised learning should support incrmental learning
         """

@@ -2,6 +2,12 @@ _base_ = [
     './finetune.py',
 ]
 
+task_adapt = dict(
+    type='mpa',
+    op='REPLACE',
+    efficient_mode=False,
+)
+
 model = dict(
     unlabeled_loss_weight=1.0,
 )

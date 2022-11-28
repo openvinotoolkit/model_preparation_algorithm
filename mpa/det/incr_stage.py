@@ -22,8 +22,8 @@ class IncrDetectionStage(DetectionStage):
     def configure_task(self, cfg, training, **kwargs):
         """Patch config to support incremental learning
         """
+        logger.info(f'Incremental task config!!!!: training={training}')
         if 'task_adapt' in cfg:
-            logger.info(f'task config!!!!: training={training}')
             task_adapt_type = cfg['task_adapt'].get('type', None)
             task_adapt_op = cfg['task_adapt'].get('op', 'REPLACE')
 

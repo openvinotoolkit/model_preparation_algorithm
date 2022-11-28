@@ -128,6 +128,7 @@ class UnbiasedTeacher(SAMDetectorMixin, BaseDetector):
                 loss*self.unlabeled_loss_weight for loss in ul_loss
             ]
         # TODO: apply loss_bbox when adopting QFL;
+        # For debug
         # self.save_pseudo_labels(ul_img0, pseudo_bboxes, pseudo_labels)
 
         return losses

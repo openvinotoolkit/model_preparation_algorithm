@@ -33,6 +33,12 @@ logger = get_logger()
 @STAGES.register_module()
 class DetectionTrainer:
     def __init__(self, training_type='incremental', **kwargs):
+        # FIXME This is temporary solution for getting training type
+        # OTX task should give propoer training type to DetectionTrainer
+        if "config" in kwargs:
+            config = kwargs['config']
+            if 'unlabeled' in config.data:
+                training_type = 'semisl'
         self.patcher = load_patcher(training_type, **kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
