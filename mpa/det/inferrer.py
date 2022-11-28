@@ -13,16 +13,17 @@ from mmdet.parallel import MMDataCPU
 from mmdet.utils.deployment import get_saliency_map, get_feature_vector
 
 from mpa.registry import STAGES
-from .stage import DetectionStage
 from mpa.utils.logger import get_logger
+from mpa.det.utils import load_patcher
+from mpa.det.stage import DetectionStage
 
 logger = get_logger()
 
 
 @STAGES.register_module()
-class DetectionInferrer(DetectionStage):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class DetectionInferrer:
+    def __init__(self, training_type='incremental', **kwargs):
+        self.patcher = load_patcher(training_type, **kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         """Run inference stage for detection
@@ -31,15 +32,15 @@ class DetectionInferrer(DetectionStage):
         - Environment setup
         - Run inference via MMDetection -> MMCV
         """
-        self._init_logger()
+        self.patcher._init_logger()
         mode = kwargs.get('mode', 'train')
         eval = kwargs.get('eval', False)
         dump_features = kwargs.get('dump_features', False)
         dump_saliency_map = kwargs.get('dump_saliency_map', False)
-        if mode not in self.mode:
+        if mode not in self.patcher.mode:
             return {}
 
-        cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
+        cfg = self.patcher.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
         # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
         # logger.info('infer!')

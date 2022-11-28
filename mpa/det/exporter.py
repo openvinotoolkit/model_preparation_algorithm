@@ -12,25 +12,25 @@ from mmcv.runner import load_checkpoint
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
-from .stage import DetectionStage
+from mpa.det.utils import load_patcher
 
 logger = get_logger()
 
 
 @STAGES.register_module()
-class DetectionExporter(DetectionStage):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class DetectionExporter:
+    def __init__(self, training_type='incremental', **kwargs):
+        self.patcher = load_patcher(training_type, **kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
-        self._init_logger()
+        self.patcher._init_logger()
         logger.info('exporting the model')
         mode = kwargs.get('mode', 'train')
-        if mode not in self.mode:
+        if mode not in self.patcher.mode:
             logger.warning(f'mode for this stage {mode}')
             return {}
 
-        cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
+        cfg = self.patcher.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
         output_path = os.path.join(cfg.work_dir, 'export')
         os.makedirs(output_path, exist_ok=True)
@@ -47,7 +47,7 @@ class DetectionExporter(DetectionStage):
                 model = model.cpu()
             precision = kwargs.pop('precision', 'FP32')
             logger.info(f'Model will be exported with precision {precision}')
-            
+
             export_model(model, cfg, output_path, target='openvino', precision=precision)
         except Exception as ex:
             # output_model.model_status = ModelStatus.FAILED

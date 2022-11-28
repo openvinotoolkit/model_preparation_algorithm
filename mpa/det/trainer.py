@@ -21,18 +21,19 @@ from mmdet.utils import collect_env
 # from detection_tasks.apis.detection.config_utils import cluster_anchors
 
 from mpa.registry import STAGES
-from .stage import DetectionStage
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.utils.logger import get_logger
 from mpa.stage import Stage
+from mpa.det.utils import load_patcher
 
 logger = get_logger()
 
 
+#FIXME DetectionTrainer does not inherit from stage
 @STAGES.register_module()
-class DetectionTrainer(DetectionStage):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class DetectionTrainer:
+    def __init__(self, training_type='incremental', **kwargs):
+        self.patcher = load_patcher(training_type, **kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         """Run training stage for detection
@@ -41,12 +42,12 @@ class DetectionTrainer(DetectionStage):
         - Environment setup
         - Run training via MMDetection -> MMCV
         """
-        self._init_logger()
+        self.patcher._init_logger()
         mode = kwargs.get('mode', 'train')
-        if mode not in self.mode:
+        if mode not in self.patcher.mode:
             return {}
 
-        cfg = self.configure(model_cfg, model_ckpt, data_cfg, **kwargs)
+        cfg = self.patcher.configure(model_cfg, model_ckpt, data_cfg, **kwargs)
         logger.info('train!')
 
         # # Work directory
