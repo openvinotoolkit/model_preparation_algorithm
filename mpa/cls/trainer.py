@@ -6,6 +6,12 @@
 import os.path as osp
 import time
 from torch import nn
+import os
+import pynvml
+from multiprocessing import Pipe, Process
+import uuid
+import re
+import datetime
 
 import warnings
 
@@ -96,6 +102,11 @@ class ClsTrainer(ClsStage):
         # Save config
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
+        
+        # run GPU utilization getter process
+        parent_conn, child_conn = Pipe()
+        p = Process(target=self.calculate_average_gpu_util, args=(cfg.work_dir, child_conn,))
+        p.start()
 
         # model
         model = build_classifier(cfg.model)
@@ -103,6 +114,7 @@ class ClsTrainer(ClsStage):
         if self.distributed:
             self._modify_cfg_for_distributed(model, cfg)
 
+        start_time = datetime.datetime.now()
         # prepare data loaders
         datasets = datasets if isinstance(datasets, (list, tuple)) else [datasets]
         train_data_cfg = Stage.get_train_data_cfg(cfg)
@@ -224,7 +236,14 @@ class ClsTrainer(ClsStage):
                 runner.load_checkpoint(cfg.load_from)
         runner.run(data_loaders, cfg.workflow)
 
+        with open(osp.join(cfg.work_dir, f"time_{uuid.uuid4().hex}.txt"), "wt") as f:
+            f.write(str(datetime.datetime.now() - start_time))
+
         logger.info(f'called train_worker() distributed={self.distributed}, validate=True')
+
+        # kill GPU utilization getter process
+        parent_conn.send(True)
+        p.join()
 
         # Save outputs
         output_ckpt_path = osp.join(cfg.work_dir, 'best_model.pth'
@@ -249,3 +268,46 @@ class ClsTrainer(ClsStage):
             checkpoint_config.setdefault('type', 'CheckpointHook')
             hook = mmcv.build_from_cfg(checkpoint_config, HOOKS)
         return hook
+
+    @staticmethod
+    def calculate_average_gpu_util(work_dir: str, pipe: Pipe):
+        pynvml.nvmlInit()
+        logger.info("GPU utilzer process start")
+        filter = re.compile(r"([-+]?\d+) \%.*([-+]?\d+) \%")
+
+        available_gpu = os.environ.get('CUDA_VISIBLE_DEVICES', None)
+        if available_gpu is None:
+            gpu_devices = [i for i in range(pynvml.nvmlDeviceGetCount())]
+        else:
+            gpu_devices = [int(gpuidx) for gpuidx in available_gpu.split(',')]
+
+        per_gpu_util = {gpuidx : 0 for gpuidx in gpu_devices}
+        num_total_util = 0
+        while True:
+            for gpuidx in gpu_devices:
+                handle = pynvml.nvmlDeviceGetHandleByIndex(gpuidx)
+                use = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                result = filter.search(str(use))
+                if result is not None:
+                    per_gpu_util[gpuidx] += float(result.group(1))
+
+            if pipe.poll():
+                try:
+                    report = pipe.recv()
+                    if report:
+                        break
+                except EOFError:
+                    break
+
+            num_total_util += 1
+
+            time.sleep(1)
+
+        pynvml.nvmlShutdown()
+
+        with open(osp.join(work_dir, f"gpu_util_{os.getpid()}.txt"), "wt") as f:
+            for gpuidx, gpu_util in per_gpu_util.items():
+                f.write(f"#{gpuidx} average GPU util : {gpu_util / num_total_util}\n")
+            f.write(f"total average GPU util : {sum(per_gpu_util.values()) / (len(per_gpu_util) * num_total_util)}\n")
+
+        logger.info("GPU utilzer process is done")
