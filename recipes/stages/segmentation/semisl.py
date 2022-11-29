@@ -14,13 +14,6 @@ optimizer = dict(
     weight_decay=0.0
 )
 
-# optimizer = dict(
-#     type='SGD',
-#     lr=1e-3,
-#     momentum=0.9,
-#     weight_decay=0.0005
-# )
-
 optimizer_config = dict(
     _delete_=True,
     grad_clip=dict(
@@ -31,30 +24,6 @@ optimizer_config = dict(
         norm_type=2
     )
 )
-
-# lr_config = dict(
-#     _delete_=True,
-#     policy='customstep',
-#     by_epoch=True,
-#     gamma=0.1,
-#     step=[200, 250],
-#     fixed='constant',
-#     fixed_iters=40,
-#     fixed_ratio=10.0,
-#     warmup='cos',
-#     warmup_iters=80,
-#     warmup_ratio=1e-2,
-# )
-
-# parameter manager
-# 이게 뭐지?
-# params_config = dict(
-#     type='FreezeLayers',
-#     by_epoch=True,
-#     iters=10,
-#     open_layers=[r'\w*[.]?backbone\.aggregator\.', r'\w*[.]?neck\.',
-#                  r'\w*[.]?decode_head\.', r'\w*[.]?auxiliary_head\.']
-# )
 
 custom_hooks = [
     dict(
