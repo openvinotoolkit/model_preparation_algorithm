@@ -88,11 +88,11 @@ class MeanTeacherNaive(BaseSegmentor):
 
         ul_data = kwargs['extra_0']
         ul_w_img = ul_data['ul_w_img']
-        ul_w_img_metas = ul_data['ul_w_img_metas']
+        ul_img_metas = ul_data['img_metas']
 
         with torch.no_grad():
             teacher_feat = self.model_t.extract_feat(ul_w_img)
-            teacher_logit = self.model_t._decode_head_forward_test(teacher_feat, ul_w_img_metas)
+            teacher_logit = self.model_t._decode_head_forward_test(teacher_feat, ul_img_metas)
             teacher_logit = resize(input=teacher_logit,
                                    size=ul_w_img.shape[2:],
                                    mode='bilinear',
@@ -101,13 +101,12 @@ class MeanTeacherNaive(BaseSegmentor):
 
         losses = dict()
 
-        ul_s_img = ul_data['ul_s_img']
-        ul_s_img_metas = ul_data['ul_s_img_metas']
+        ul_s_img = ul_data['img']
 
         x = self.model_s.extract_feat(img)
         x_u = self.model_s.extract_feat(ul_s_img)
         loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
-        loss_decode_u = self.model_s._decode_head_forward_train(x_u, ul_s_img_metas, pl_from_teacher)
+        loss_decode_u = self.model_s._decode_head_forward_train(x_u, ul_img_metas, pl_from_teacher)
 
         for (k, v) in loss_decode_u.items():
             if v is None:
@@ -115,6 +114,43 @@ class MeanTeacherNaive(BaseSegmentor):
             losses[k] = (loss_decode[k] + loss_decode_u[k]*self.unsup_weight)
 
         return losses
+
+    # def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
+    #     self.count_iter += 1
+    #     if self.warmup_start_iter > self.count_iter:
+    #         x = self.model_s.extract_feat(img)
+    #         loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
+    #         return loss_decode
+
+    #     ul_data = kwargs['extra_0']
+    #     ul_w_img = ul_data['ul_w_img']
+    #     ul_w_img_metas = ul_data['ul_w_img_metas']
+
+    #     with torch.no_grad():
+    #         teacher_feat = self.model_t.extract_feat(ul_w_img)
+    #         teacher_logit = self.model_t._decode_head_forward_test(teacher_feat, ul_w_img_metas)
+    #         teacher_logit = resize(input=teacher_logit,
+    #                                size=ul_w_img.shape[2:],
+    #                                mode='bilinear',
+    #                                align_corners=self.align_corners)
+    #         conf_from_teacher, pl_from_teacher = torch.max(torch.softmax(teacher_logit, axis=1), axis=1, keepdim=True)        
+
+    #     losses = dict()
+
+    #     ul_s_img = ul_data['ul_s_img']
+    #     ul_s_img_metas = ul_data['ul_s_img_metas']
+
+    #     x = self.model_s.extract_feat(img)
+    #     x_u = self.model_s.extract_feat(ul_s_img)
+    #     loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
+    #     loss_decode_u = self.model_s._decode_head_forward_train(x_u, ul_s_img_metas, pl_from_teacher)
+
+    #     for (k, v) in loss_decode_u.items():
+    #         if v is None:
+    #             continue
+    #         losses[k] = (loss_decode[k] + loss_decode_u[k]*self.unsup_weight)
+
+    #     return losses
 
     @staticmethod
     def state_dict_hook(module, state_dict, *args, **kwargs):
