@@ -22,7 +22,15 @@ logger = get_logger()
 
 @STAGES.register_module()
 class DetectionInferrer:
-    def __init__(self, training_type='incremental', **kwargs):
+    def __init__(self, **kwargs):
+        # FIXME This is temporary solution for getting training type
+        # OTX task should give proper training type to DetectionTrainer
+        training_type = 'INCREMENTAL'
+        if "config" in kwargs:
+            config = kwargs['config']
+            if 'train_type' in config:
+                training_type = config.train_type.name
+        self.training_type = training_type
         self.patcher = load_patcher(training_type, **kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
@@ -176,15 +184,21 @@ class DetectionInferrer:
         feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
         saliency_map_hook = dump_saliency_hook if dump_saliency_map else dummy_dump_saliency_hook
 
-        # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
-        if is_module_wrapper(model):
-            model = model.module
-        with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
-            with eval_model.module.backbone.register_forward_hook(saliency_map_hook):
-                for data in data_loader:
-                    with torch.no_grad():
-                        result = eval_model(return_loss=False, rescale=True, **data)
-                    eval_predictions.extend(result)
+        # FIXME This is heuristic statement
+        if self.training_type == 'SEMISUPERVISED':
+            with eval_model.module.model_t.backbone.register_forward_hook(feature_vector_hook):
+                with eval_model.module.model_t.backbone.register_forward_hook(saliency_map_hook):
+                    for data in data_loader:
+                        with torch.no_grad():
+                            result = eval_model(return_loss=False, rescale=True, **data)
+                        eval_predictions.extend(result)
+        else:
+            with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
+                with eval_model.module.backbone.register_forward_hook(saliency_map_hook):
+                    for data in data_loader:
+                        with torch.no_grad():
+                            result = eval_model(return_loss=False, rescale=True, **data)
+                        eval_predictions.extend(result)
 
         for key in [
                 'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',

@@ -12,15 +12,16 @@ from mmcv.runner import load_checkpoint
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
+from mpa.det.inferrer import DetectionInferrer
 from mpa.det.utils import load_patcher
 
 logger = get_logger()
 
 
 @STAGES.register_module()
-class DetectionExporter:
-    def __init__(self, training_type='incremental', **kwargs):
-        self.patcher = load_patcher(training_type, **kwargs)
+class DetectionExporter(DetectionInferrer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         self.patcher._init_logger()

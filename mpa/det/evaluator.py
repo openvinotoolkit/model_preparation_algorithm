@@ -5,7 +5,7 @@
 import os.path as osp
 import json
 from mpa.registry import STAGES
-from .inferrer import DetectionInferrer
+from mpa.det.inferrer import DetectionInferrer
 from mpa.utils.logger import get_logger
 
 logger = get_logger()

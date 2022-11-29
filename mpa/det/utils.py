@@ -8,9 +8,9 @@ from mpa.det.semi_stage import SemiDetectionStage
 
 
 def load_patcher(training_type, **kwargs):
-    if training_type == 'incremental':
+    if training_type == 'INCREMENTAL':
         patcher = IncrDetectionStage(**kwargs)
-    elif training_type == 'semisl':
+    elif training_type == 'SEMISUPERVISED':
         patcher = SemiDetectionStage(**kwargs)
     else:
         raise NotImplementedError(f"{training_type} is not supported in detection task")

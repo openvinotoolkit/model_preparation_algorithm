@@ -24,6 +24,7 @@ from mpa.registry import STAGES
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.utils.logger import get_logger
 from mpa.stage import Stage
+from .inferrer import DetectionInferrer
 from mpa.det.utils import load_patcher
 
 logger = get_logger()
@@ -31,15 +32,9 @@ logger = get_logger()
 
 #FIXME DetectionTrainer does not inherit from stage
 @STAGES.register_module()
-class DetectionTrainer:
-    def __init__(self, training_type='incremental', **kwargs):
-        # FIXME This is temporary solution for getting training type
-        # OTX task should give propoer training type to DetectionTrainer
-        if "config" in kwargs:
-            config = kwargs['config']
-            if 'unlabeled' in config.data:
-                training_type = 'semisl'
-        self.patcher = load_patcher(training_type, **kwargs)
+class DetectionTrainer(DetectionInferrer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         """Run training stage for detection
