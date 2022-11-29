@@ -10,18 +10,15 @@ logger = get_logger()
 
 @SEGMENTORS.register_module()
 class MeanTeacherNaive(BaseSegmentor):
-    def __init__(self, ori_type=None, unsup_weight=0.1, **kwargs):
+    def __init__(self, ori_type=None, unsup_weight=0.1, warmup_start_iter=30, **kwargs):
         print('MeanTeacherNaive Segmentor init!')
         super(MeanTeacherNaive, self).__init__()
         self.test_cfg = kwargs['test_cfg']
-        self.warmup_start_iter = 30
+        self.warmup_start_iter = warmup_start_iter
         self.count_iter = 0
 
         cfg = kwargs.copy()
-        if ori_type == 'SemiSLSegmentor':
-            cfg['type'] = 'SemiSLSegmentor'
-            self.align_corners = cfg['decode_head'].align_corners
-        else:
+        if ori_type == 'EncoderDecoder':
             cfg['type'] = 'EncoderDecoder'
             self.align_corners = cfg['decode_head'].align_corners
         self.model_s = build_segmentor(cfg)
@@ -46,47 +43,15 @@ class MeanTeacherNaive(BaseSegmentor):
     def forward_dummy(self, img, **kwargs):
         return self.model_s.forward_dummy(img, **kwargs)
 
-    # def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
-    #     ul_data = kwargs['extra_0']
-    #     ul_img = ul_data['ul_img']
-    #     ul_img_metas = ul_data['ul_img_metas']
-
-    #     with torch.no_grad():
-    #         teacher_feat = self.model_t.extract_feat(ul_img)
-    #         teacher_logit = self.model_t._decode_head_forward_test(teacher_feat, ul_img_metas)
-    #         teacher_logit = resize(input=teacher_logit,
-    #                                size=ul_img.shape[2:],
-    #                                mode='bilinear',
-    #                                align_corners=self.align_corners)
-    #         conf_from_teacher, pl_from_teacher = torch.max(torch.softmax(teacher_logit, axis=1), axis=1, keepdim=True)
-    #         pl_from_teacher = torch.softmax(teacher_logit, dim=-1)
-        
-
-    #     losses = dict()
-
-    #     x = self.model_s.extract_feat(img)
-    #     x_u = self.model_s.extract_feat(ul_img)
-    #     loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
-    #     # FIXME : change consistency loss to mse
-    #     #loss_decode_u = self.model_s._decode_head_forward_train(x_u, img_metas, pl_from_teacher)
-
-    #     loss_decode_u = self.model_s._get_consistency_loss(x_u, ul_img_metas, pl_from_teacher)
-
-    #     for (k, v) in loss_decode_u.items():
-    #         if v is None:
-    #             continue
-    #         losses[k] = (loss_decode[k] + loss_decode_u[k]*self.unsup_weight)
-
-    #     return losses
-
     def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
         self.count_iter += 1
         if self.warmup_start_iter > self.count_iter:
             x = self.model_s.extract_feat(img)
-            loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
+            loss_decode, _ = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg=gt_semantic_seg)
             return loss_decode
 
         ul_data = kwargs['extra_0']
+        ul_s_img = ul_data['img']
         ul_w_img = ul_data['ul_w_img']
         ul_img_metas = ul_data['img_metas']
 
@@ -101,12 +66,10 @@ class MeanTeacherNaive(BaseSegmentor):
 
         losses = dict()
 
-        ul_s_img = ul_data['img']
-
         x = self.model_s.extract_feat(img)
         x_u = self.model_s.extract_feat(ul_s_img)
-        loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
-        loss_decode_u = self.model_s._decode_head_forward_train(x_u, ul_img_metas, pl_from_teacher)
+        loss_decode, _ = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg=gt_semantic_seg)
+        loss_decode_u, _ = self.model_s._decode_head_forward_train(x_u, ul_img_metas, gt_semantic_seg=pl_from_teacher)
 
         for (k, v) in loss_decode_u.items():
             if v is None:
@@ -114,43 +77,6 @@ class MeanTeacherNaive(BaseSegmentor):
             losses[k] = (loss_decode[k] + loss_decode_u[k]*self.unsup_weight)
 
         return losses
-
-    # def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
-    #     self.count_iter += 1
-    #     if self.warmup_start_iter > self.count_iter:
-    #         x = self.model_s.extract_feat(img)
-    #         loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
-    #         return loss_decode
-
-    #     ul_data = kwargs['extra_0']
-    #     ul_w_img = ul_data['ul_w_img']
-    #     ul_w_img_metas = ul_data['ul_w_img_metas']
-
-    #     with torch.no_grad():
-    #         teacher_feat = self.model_t.extract_feat(ul_w_img)
-    #         teacher_logit = self.model_t._decode_head_forward_test(teacher_feat, ul_w_img_metas)
-    #         teacher_logit = resize(input=teacher_logit,
-    #                                size=ul_w_img.shape[2:],
-    #                                mode='bilinear',
-    #                                align_corners=self.align_corners)
-    #         conf_from_teacher, pl_from_teacher = torch.max(torch.softmax(teacher_logit, axis=1), axis=1, keepdim=True)        
-
-    #     losses = dict()
-
-    #     ul_s_img = ul_data['ul_s_img']
-    #     ul_s_img_metas = ul_data['ul_s_img_metas']
-
-    #     x = self.model_s.extract_feat(img)
-    #     x_u = self.model_s.extract_feat(ul_s_img)
-    #     loss_decode = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg)
-    #     loss_decode_u = self.model_s._decode_head_forward_train(x_u, ul_s_img_metas, pl_from_teacher)
-
-    #     for (k, v) in loss_decode_u.items():
-    #         if v is None:
-    #             continue
-    #         losses[k] = (loss_decode[k] + loss_decode_u[k]*self.unsup_weight)
-
-    #     return losses
 
     @staticmethod
     def state_dict_hook(module, state_dict, *args, **kwargs):

@@ -6,4 +6,3 @@
 from . import class_incr_segmentor
 from . import mean_teacher_segmentor
 from . import cutmix_segmentor
-from . import semi_segmentor

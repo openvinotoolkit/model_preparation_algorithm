@@ -59,15 +59,6 @@ checkpoint_config = dict(
     interval=1,
 )
 
-# evaluation = dict(
-#     _delete_=True,
-#     interval=1,
-#     metric=['mIoU', 'mDice'],
-#     rule='greater',
-#     save_best='mDice',
-#     show_log=True
-# )
-
 evaluation = dict(
     interval=1,
     metric=['mDice', 'mIoU'],

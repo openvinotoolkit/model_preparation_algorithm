@@ -3,9 +3,8 @@ _base_ = './encoder_decoder.ote.py'
 __norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     type='MeanTeacherNaive',
-    ori_type='SemiSLSegmentor',
+    ori_type='EncoderDecoder',
     unsup_weight=0.1,
-    num_stages=1,
     # FIXME : this is hardcoded to hrnet_18_mod2
     decode_head=
         dict(
@@ -30,13 +29,7 @@ model = dict(
                 sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
                 loss_weight=1.0
                 )]),
-            #     dict(type='CrossEntropyLossWithIgnore',
-            #          use_sigmoid=False,
-            #          reduction='mean',
-            #          loss_jitter_prob=0.01,
-            #          sampler=dict(type='MaxPoolingPixelSampler', ratio=0.25, p=1.7),
-            #          loss_weight=1.0)
-            #  ]),
+
     train_cfg=dict(mix_loss=dict(enable=False, weight=0.1)),
     test_cfg=dict(mode='whole', output_scale=5.0),
 )
