@@ -5,18 +5,17 @@ import os.path as osp
 import torch
 
 import mmcv
-from mmcv.parallel import MMDataParallel, is_module_wrapper
+from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.models import build_detector
 from mmdet.parallel import MMDataCPU
 
+from mpa.det.stage import DetectionStage
 from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook
 from mpa.registry import STAGES
-from .stage import DetectionStage
 from mpa.utils.logger import get_logger
-
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
@@ -51,56 +50,32 @@ class DetectionExplainer(DetectionStage):
             outputs=outputs
         )
 
-    def explain(self, cfg):
+    def _explain(self, cfg):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
 
         data_cfg = cfg.data.test.copy()
-        # Input source
-        if 'input_source' in cfg:
-            input_source = cfg.get('input_source')
-            logger.info(f'Inferring on input source: data.{input_source}')
-            src_data_cfg = cfg.data[input_source]
-            data_cfg.test_mode = True
-            data_cfg.ann_file = src_data_cfg.ann_file
-            data_cfg.img_prefix = src_data_cfg.img_prefix
-            if 'classes' in src_data_cfg:
-                data_cfg.classes = src_data_cfg.classes
         self.explain_dataset = build_dataset(data_cfg)
+        explain_dataset = self.explain_dataset
 
         # Data loader
         explain_data_loader = build_dataloader(
-            self.explain_dataset,
+            explain_dataset,
             samples_per_gpu=samples_per_gpu,
             workers_per_gpu=cfg.data.workers_per_gpu,
             dist=False,
             shuffle=False)
 
-        # Target classes
-        if 'task_adapt' in cfg:
-            target_classes = cfg.task_adapt.final
-            if len(target_classes) < 1:
-                raise KeyError(f'target_classes={target_classes} is empty check the metadata from model ckpt or recipe '
-                               f'configuration')
-        else:
-            target_classes = self.explain_dataset.CLASSES
-
         # Model
         cfg.model.pretrained = None
         if cfg.model.get('neck'):
-            if isinstance(cfg.model.neck, list):
-                for neck_cfg in cfg.model.neck:
-                    if neck_cfg.get('rfp_backbone'):
-                        if neck_cfg.rfp_backbone.get('pretrained'):
-                            neck_cfg.rfp_backbone.pretrained = None
-            elif cfg.model.neck.get('rfp_backbone'):
-                if cfg.model.neck.rfp_backbone.get('pretrained'):
-                    cfg.model.neck.rfp_backbone.pretrained = None
+            for neck_cfg in list(cfg.model.neck):
+                if neck_cfg.get('rfp_backbone') and neck_cfg.rfp_backbone.get('pretrained'):
+                    neck_cfg.rfp_backbone.pretrained = None
 
         model = build_detector(cfg.model)
-        model.CLASSES = target_classes
         DetectionStage.set_inference_progress_callback(model, cfg)
 
         # Checkpoint
@@ -109,21 +84,20 @@ class DetectionExplainer(DetectionStage):
 
         model.eval()
         if torch.cuda.is_available():
-            model = MMDataParallel(model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
+            explain_backbone = MMDataParallel(
+                model.backbone.cuda(cfg.gpu_ids[0]),
+                device_ids=cfg.gpu_ids
+            )
         else:
-            model = MMDataCPU(model)
+            explain_backbone = MMDataCPU(model.backbone)
 
-        # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
-        if is_module_wrapper(model):
-            model = model.module
-
-        with self.explainer_hook(model.module.backbone) as forward_explainer_hook:
-            # do inference and record intermediate fmap
+        saliency_maps = []
+        with torch.no_grad():
             for data in explain_data_loader:
-                with torch.no_grad():
-                    _ = model(return_loss=False, **data)
-            saliency_maps = forward_explainer_hook.records
-
+                out = explain_backbone(data['img'][0])
+                saliency_maps.append(
+                    self.explainer_hook.func(out[-1]).squeeze(0).detach().cpu().numpy()
+                )
         outputs = dict(
             saliency_maps=saliency_maps
         )
