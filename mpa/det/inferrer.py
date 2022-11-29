@@ -1,6 +1,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+from contextlib import nullcontext
 from typing import List, Tuple
 
 import torch
@@ -16,6 +17,7 @@ from mmdet.apis import single_gpu_test
 from mpa.registry import STAGES
 from .stage import DetectionStage
 from mpa.utils.logger import get_logger
+from mpa.modules.hooks.auxiliary_hooks import SaliencyMapHookDet
 
 
 logger = get_logger()
@@ -148,7 +150,6 @@ class DetectionInferrer(DetectionStage):
 
         eval_predictions = []
         feature_vectors = []
-        saliency_maps = []
 
         def dump_features_hook(mod, inp, out):
             with torch.no_grad():
@@ -159,30 +160,15 @@ class DetectionInferrer(DetectionStage):
         def dummy_dump_features_hook(mod, inp, out):
             feature_vectors.append(None)
 
-        def dump_saliency_hook(model: torch.nn.Module, input: Tuple, out: List[torch.Tensor]):
-            """ Dump the last feature map to `saliency_maps` cache
-
-            Args:
-                model (torch.nn.Module): PyTorch model
-                input (Tuple): input
-                out (List[torch.Tensor]): a list of feature maps
-            """
-            with torch.no_grad():
-                saliency_map = get_saliency_map(out[-1])
-            saliency_maps.append(saliency_map.squeeze(0).detach().cpu().numpy())
-
-        def dummy_dump_saliency_hook(model, input, out):
-            saliency_maps.append(None)
-
         feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
-        saliency_map_hook = dump_saliency_hook if dump_saliency_map else dummy_dump_saliency_hook
 
         # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
         if is_module_wrapper(model):
             model = model.module
         with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
-            with eval_model.module.backbone.register_forward_hook(saliency_map_hook):
+            with SaliencyMapHookDet(eval_model.module) if dump_saliency_map else nullcontext() as shook:
                 eval_predictions = single_gpu_test(eval_model, data_loader)
+                saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
 
         for key in [
                 'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',
@@ -200,7 +186,6 @@ class DetectionInferrer(DetectionStage):
             dataset = dataset.dataset
 
         if isinstance(dataset, ImageTilingDataset):
-            saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
             feature_vectors = [feature_vectors[i] for i in range(dataset.num_samples)]
             if not dataset.merged_results:
                 eval_predictions = dataset.merge(eval_predictions)
