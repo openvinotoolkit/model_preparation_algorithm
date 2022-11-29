@@ -7,7 +7,7 @@ stages:
       type: SegTrainer
       task: segmentation
       mode: train
-      config: {{ fileDirname }}/stages/segmentation/cutmix_seg.py
+      config: {{ fileDirname }}/stages/segmentation/semisl.py
       output:
           - final_ckpt
 
@@ -15,7 +15,7 @@ stages:
       type: SegEvaluator
       task: segmentation
       mode: train
-      config: {{ fileDirname }}/stages/segmentation/cutmix_seg.py
+      config: {{ fileDirname }}/stages/segmentation/semisl.py
       input:
           pretrained:
               stage_name: train
@@ -25,6 +25,6 @@ stages:
       type: SegEvaluator
       task: segmentation
       mode: eval
-      config: {{ fileDirname }}/stages/segmentation/cutmix_seg.py
+      config: {{ fileDirname }}/stages/segmentation/semisl.py
 
 load_from: https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/custom_semantic_segmentation/litehrnet18_imagenet1k_rsc.pth

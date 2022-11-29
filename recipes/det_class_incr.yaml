@@ -7,7 +7,7 @@ stages:
       type: DetectionTrainer
       task: detection
       mode: train
-      config: {{ fileDirname }}/stages/detection/imbalance.py
+      config: {{ fileDirname }}/stages/detection/incremental.py
       output:
           - final_ckpt
 
@@ -15,7 +15,7 @@ stages:
       type: DetectionEvaluator
       task: detection
       mode: train
-      config: {{ fileDirname }}/stages/detection/imbalance.py
+      config: {{ fileDirname }}/stages/detection/incremental.py
       input:
           pretrained:
               stage_name: train
@@ -25,10 +25,10 @@ stages:
       type: DetectionEvaluator
       task: detection
       mode: eval
-      config: {{ fileDirname }}/stages/detection/imbalance.py
+      config: {{ fileDirname }}/stages/detection/incremental.py
 
     - name: infer-only
       type: DetectionInferrer
       task: detection
       mode: infer
-      config: {{ fileDirname }}/stages/detection/imbalance.py
+      config: {{ fileDirname }}/stages/detection/incremental.py
