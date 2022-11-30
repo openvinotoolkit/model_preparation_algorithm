@@ -150,6 +150,18 @@ class DetectionInferrer(DetectionStage):
 
         eval_predictions = []
         feature_vectors = []
+        activation_maps = []
+
+        def dump_activation_hook(model: torch.nn.Module, input: Tuple, out: List[torch.Tensor]):
+            """ Dump the last feature map to `saliency_maps` cache
+            Args:
+                model (torch.nn.Module): PyTorch model
+                input (Tuple): input
+                out (List[torch.Tensor]): a list of feature maps
+            """
+            with torch.no_grad():
+                saliency_map = get_saliency_map(out[-1])
+            activation_maps.append(saliency_map.squeeze(0).detach().cpu().numpy())
 
         def dump_features_hook(mod, inp, out):
             with torch.no_grad():
@@ -161,14 +173,19 @@ class DetectionInferrer(DetectionStage):
             feature_vectors.append(None)
 
         feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
+        activation_map_hook = dump_activation_hook
 
         # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
         if is_module_wrapper(model):
             model = model.module
         with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
-            with SaliencyMapHookDet(eval_model.module) if dump_saliency_map else nullcontext() as shook:
-                eval_predictions = single_gpu_test(eval_model, data_loader)
-                saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
+            with eval_model.module.backbone.register_forward_hook(activation_map_hook):
+                with SaliencyMapHookDet(eval_model.module) if dump_saliency_map else nullcontext() as shook:
+                    eval_predictions = single_gpu_test(eval_model, data_loader)
+                    saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
+
+        for i, active_map in enumerate(activation_maps):
+            saliency_maps[i] = torch.cat([saliency_maps[i], active_map], dim=0)
 
         for key in [
                 'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',
