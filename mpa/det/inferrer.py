@@ -160,8 +160,8 @@ class DetectionInferrer(DetectionStage):
                 out (List[torch.Tensor]): a list of feature maps
             """
             with torch.no_grad():
-                saliency_map = get_saliency_map(out[-1])
-            activation_maps.append(saliency_map.squeeze(0).detach().cpu().numpy())
+                activation_map = get_saliency_map(out[-1])
+            activation_maps.append(activation_map)
 
         def dump_features_hook(mod, inp, out):
             with torch.no_grad():
