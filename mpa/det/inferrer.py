@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 from contextlib import nullcontext
-from typing import List, Tuple
 
 import torch
 from mmcv.parallel import MMDataParallel, is_module_wrapper
@@ -11,7 +10,7 @@ from mmcv.runner import load_checkpoint
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
 from mmdet.parallel import MMDataCPU
-from mmdet.utils.deployment import get_saliency_map, get_feature_vector
+from mmdet.utils.deployment import get_feature_vector
 from mmdet.apis import single_gpu_test
 
 from mpa.registry import STAGES

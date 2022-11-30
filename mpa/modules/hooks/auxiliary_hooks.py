@@ -135,6 +135,15 @@ class SaliencyMapHook:
 
 
 class SaliencyMapHookDet(SaliencyMapHook):
+    """While registered with the designated PyTorch module, this class caches the saliency maps during forward pass.
+        Saliency maps are generated using classification head outputs
+
+    Example:
+        with SaliencyMapHookDet(model.module) as hook:
+            with torch.no_grad():
+                result = model(return_loss=False, rescale=True, **data)
+            print(hook.records)
+    """
     def __init__(self, module: torch.nn.Module) -> None:
         super().__init__(module.backbone)
         self._neck = module.neck if module.with_neck else None
@@ -145,12 +154,14 @@ class SaliencyMapHookDet(SaliencyMapHook):
         else:
             self._num_anchors = [1] * 10
 
-    def func(self, x: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]], _: int = 0, cls_scores_provided: bool = False) -> torch.Tensor:
+    def func(self, x: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]], _: int = 0,
+             cls_scores_provided: bool = False) -> torch.Tensor:
         """
         Generate the saliency map from raw classification head output, then normalizing to (0, 255).
-        :param x:
-        :param cls_scores_provided:
-        :return:
+
+        :param x: Feature maps from backbone/FPN or classification scores from cls_head
+        :param cls_scores_provided: If True - use 'x' as is, otherwise forward 'x' through the classification head
+        :return: Class-wise Saliency Maps. One saliency map per each class - [batch, class_id, H, W]
         """
         if cls_scores_provided:
             cls_scores = x
