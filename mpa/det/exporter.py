@@ -64,12 +64,16 @@ class DetectionExporter(DetectionStage):
             else:
                 self._naive_export(output_path, onnx_file_name, model, cfg)
         except Exception as ex:
-            # output_model.model_status = ModelStatus.FAILED
-            # raise RuntimeError('Optimization was unsuccessful.') from ex
-            return {
-                "outputs": None,
-                "msg": f"exception {type(ex)}: {ex}\n\n{traceback.format_exc()}"
-            }
+            if (
+                len([f for f in os.listdir(output_path) if f.endswith(".bin")]) == 0
+                and len([f for f in os.listdir(output_path) if f.endswith(".xml")]) == 0
+            ):
+                # output_model.model_status = ModelStatus.FAILED
+                # raise RuntimeError('Optimization was unsuccessful.') from ex
+                return {
+                    "outputs": None,
+                    "msg": f"exception {type(ex)}: {ex}\n\n{traceback.format_exc()}"
+                }
 
         bin_file = [f for f in os.listdir(output_path) if f.endswith(".bin")][0]
         xml_file = [f for f in os.listdir(output_path) if f.endswith(".xml")][0]
