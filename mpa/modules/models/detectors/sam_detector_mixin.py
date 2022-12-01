@@ -7,7 +7,7 @@ import torch
 from mmdet.models.detectors import BaseDetector
 from mmdet.utils.deployment.export_helpers import get_feature_vector
 from mmdet.integration.nncf.utils import no_nncf_trace
-from mpa.modules.hooks.auxiliary_hooks import SaliencyMapHookDet
+from mpa.modules.hooks.auxiliary_hooks import DetSaliencyMapHook
 
 
 class SAMDetectorMixin(BaseDetector):
@@ -28,7 +28,7 @@ class SAMDetectorMixin(BaseDetector):
             if torch.onnx.is_in_onnx_export():
                 feature_vector = get_feature_vector(x)
                 cls_scores = outs[0]
-                saliency_map = SaliencyMapHookDet(self).func(cls_scores, cls_scores_provided=True)
+                saliency_map = DetSaliencyMapHook(self).func(cls_scores, cls_scores_provided=True)
                 feature = feature_vector, saliency_map
                 return bbox_results[0], feature
 

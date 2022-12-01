@@ -16,7 +16,7 @@ from mmdet.apis import single_gpu_test
 from mpa.registry import STAGES
 from .stage import DetectionStage
 from mpa.utils.logger import get_logger
-from mpa.modules.hooks.auxiliary_hooks import SaliencyMapHookDet
+from mpa.modules.hooks.auxiliary_hooks import DetSaliencyMapHook
 
 
 logger = get_logger()
@@ -165,9 +165,9 @@ class DetectionInferrer(DetectionStage):
         if is_module_wrapper(model):
             model = model.module
         with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
-            with SaliencyMapHookDet(eval_model.module) if dump_saliency_map else nullcontext() as shook:
+            with DetSaliencyMapHook(eval_model.module) if dump_saliency_map else nullcontext() as saliency_hook:
                 eval_predictions = single_gpu_test(eval_model, data_loader)
-                saliency_maps = shook.records if dump_saliency_map else [None] * len(self.dataset)
+                saliency_maps = saliency_hook.records if dump_saliency_map else [None] * len(self.dataset)
 
         for key in [
                 'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',

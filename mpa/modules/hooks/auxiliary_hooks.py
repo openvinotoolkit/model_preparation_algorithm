@@ -134,12 +134,12 @@ class SaliencyMapHook:
         self._handle.remove()
 
 
-class SaliencyMapHookDet(SaliencyMapHook):
+class DetSaliencyMapHook(SaliencyMapHook):
     """While registered with the designated PyTorch module, this class caches the saliency maps during forward pass.
         Saliency maps are generated using classification head outputs
 
     Example:
-        with SaliencyMapHookDet(model.module) as hook:
+        with DetSaliencyMapHook(model.module) as hook:
             with torch.no_grad():
                 result = model(return_loss=False, rescale=True, **data)
             print(hook.records)
@@ -234,7 +234,7 @@ class SaliencyMapHookDet(SaliencyMapHook):
                 cls_scores = list(map_results)
             else:
                 raise NotImplemented("Not supported detection head provided. "
-                                     "SaliencyMapHookDet supports only the following single stage detectors: "
+                                     "DetSaliencyMapHook supports only the following single stage detectors: "
                                      "YOLOXHead, ATSSHead, SSDHead, VFNetHead.")
         return cls_scores
 
