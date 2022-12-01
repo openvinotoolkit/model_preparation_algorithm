@@ -8,7 +8,7 @@ from mpa.utils.logger import get_logger
 logger = get_logger()
 
 
-class SemiDetectionStage(IncrDetectionStage):
+class SemiSLDetectionStage(IncrDetectionStage):
     """Patch config to support semi supervised learning for object detection"""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

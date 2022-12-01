@@ -153,5 +153,7 @@ class DetectionStage(Stage):
 
     def configure_task(self, cfg, training, **kwargs):
         """Patch config to support training algorithm.
-        This should be implemented each algorithm patcher"""
+
+        This should be implemented each algorithm
+        """
         pass

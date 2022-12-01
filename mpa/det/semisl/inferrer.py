@@ -14,13 +14,13 @@ from mmdet.utils.deployment import get_saliency_map, get_feature_vector
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
-from mpa.det.incr_stage import IncrDetectionStage
+from mpa.det.semisl.semisl_stage import SemiSLDetectionStage
 
 logger = get_logger()
 
 
 @STAGES.register_module()
-class DetectionInferrer(IncrDetectionStage):
+class SemiSLDetectionInferrer(SemiSLDetectionStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -175,8 +175,8 @@ class DetectionInferrer(IncrDetectionStage):
         feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
         saliency_map_hook = dump_saliency_hook if dump_saliency_map else dummy_dump_saliency_hook
 
-        with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
-            with eval_model.module.backbone.register_forward_hook(saliency_map_hook):
+        with eval_model.module.model_t.backbone.register_forward_hook(feature_vector_hook):
+            with eval_model.module.model_t.backbone.register_forward_hook(saliency_map_hook):
                 for data in data_loader:
                     with torch.no_grad():
                         result = eval_model(return_loss=False, rescale=True, **data)

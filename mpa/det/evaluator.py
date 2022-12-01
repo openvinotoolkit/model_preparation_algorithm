@@ -24,7 +24,7 @@ class DetectionEvaluator(DetectionInferrer):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
-        if mode not in self.patcher.mode:
+        if mode not in self.mode:
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)

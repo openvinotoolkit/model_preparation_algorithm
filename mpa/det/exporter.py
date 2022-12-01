@@ -12,26 +12,25 @@ from mmcv.runner import load_checkpoint
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
-from mpa.det.inferrer import DetectionInferrer
-from mpa.det.utils import load_patcher
+from mpa.det.incr_stage import IncrDetectionStage
 
 logger = get_logger()
 
 
 @STAGES.register_module()
-class DetectionExporter(DetectionInferrer):
+class DetectionExporter(IncrDetectionStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
-        self.patcher._init_logger()
+        self._init_logger()
         logger.info('exporting the model')
         mode = kwargs.get('mode', 'train')
-        if mode not in self.patcher.mode:
+        if mode not in self.mode:
             logger.warning(f'mode for this stage {mode}')
             return {}
 
-        cfg = self.patcher.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
+        cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
         output_path = os.path.join(cfg.work_dir, 'export')
         os.makedirs(output_path, exist_ok=True)

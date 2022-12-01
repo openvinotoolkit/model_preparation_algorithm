@@ -23,14 +23,13 @@ from mmdet.utils import collect_env
 from mpa.registry import STAGES
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.utils.logger import get_logger
-from mpa.det.incr_stage import IncrDetectionStage
+from mpa.det.semisl.semisl_stage import SemiSLDetectionStage
 
 logger = get_logger()
 
 
-#FIXME DetectionTrainer does not inherit from stage
 @STAGES.register_module()
-class DetectionTrainer(IncrDetectionStage):
+class SemiSLDetectionTrainer(SemiSLDetectionStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -121,10 +120,10 @@ class DetectionTrainer(IncrDetectionStage):
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
-            mp.spawn(DetectionTrainer.train_worker, nprocs=len(cfg.gpu_ids),
+            mp.spawn(self.train_worker, nprocs=len(cfg.gpu_ids),
                      args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
         else:
-            DetectionTrainer.train_worker(
+            self.train_worker(
                 None,
                 target_classes,
                 datasets,
