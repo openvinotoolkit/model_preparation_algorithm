@@ -55,6 +55,23 @@ class SegTrainer(SegStage):
         # Work directory
         mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
 
+        from copy import deepcopy
+        cfg_for_save_dict = deepcopy(cfg)
+        for i, k in enumerate(cfg_for_save_dict['custom_hooks']):
+            if k['type'] == 'OTXProgressHook':
+                cfg_for_save_dict['custom_hooks'].pop(i)
+                break
+
+        cfg_for_save_dict['data']['train']['dataset'].pop('labels')
+        cfg_for_save_dict['data']['val'].pop('labels')
+
+        from mmcv import Config
+        cfg_for_save = Config(cfg_dict=cfg_for_save_dict, filename=cfg.filename)
+        with open(cfg.filename, 'r') as f:
+            text = f.read()
+            cfg_for_save.__setstate__((cfg_for_save_dict, 'hparams.py', text))
+        cfg_for_save.dump(os.path.join(os.path.abspath(cfg.work_dir), 'hparams.py'))
+
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment
