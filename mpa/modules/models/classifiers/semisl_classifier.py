@@ -41,27 +41,27 @@ class SemiSLClassifier(SAMClassifier):
             self.neck = build_neck(neck)
         if head is not None:
             self.head = build_head(head)
-        self.init_weights(pretrained=pretrained)
+    #     self.init_weights(pretrained=pretrained)
 
-    def init_weights(self, pretrained=None):
-        """Initialize weight of backbone, neck, head
-        pretrained arg for using the pretrained weight of the backbone
+    # def init_weights(self, pretrained=None):
+    #     """Initialize weight of backbone, neck, head
+    #     pretrained arg for using the pretrained weight of the backbone
 
-        Args:
-            pretrained (str or boolean): pre-trained weight of the backbone
-        """
-        super(SemiSLClassifier, self).init_weights(pretrained)
-        if pretrained is not None:
-            logger.info('pretrained model: {}'.format(pretrained))
-        self.backbone.init_weights(pretrained)
-        if self.with_neck:
-            if isinstance(self.neck, nn.Sequential):
-                for m in self.neck:
-                    m.init_weights()
-            else:
-                self.neck.init_weights()
-        if self.with_head:
-            self.head.init_weights()
+    #     Args:
+    #         pretrained (str or boolean): pre-trained weight of the backbone
+    #     """
+    #     super(SemiSLClassifier, self).init_weights(pretrained)
+    #     if pretrained is not None:
+    #         logger.info('pretrained model: {}'.format(pretrained))
+    #     self.backbone.init_weights(pretrained)
+    #     if self.with_neck:
+    #         if isinstance(self.neck, nn.Sequential):
+    #             for m in self.neck:
+    #                 m.init_weights()
+    #         else:
+    #             self.neck.init_weights()
+    #     if self.with_head:
+    #         self.head.init_weights()
 
     def extract_feat(self, imgs):
         """Directly extract features from the backbone + neck
@@ -87,7 +87,7 @@ class SemiSLClassifier(SAMClassifier):
             raise ValueError("'gt_label' does not exist in the labeled image")
         if 'extra_0' not in kwargs:
             raise ValueError("'extra_0' does not exist in the dataset")
-        target = kwargs['gt_label']
+        target = kwargs['gt_label'].squeeze()
         unlabeled_data = kwargs['extra_0']
 
         x = {}

@@ -46,6 +46,7 @@ class ComposedDL(object):
     def __init__(self, loaders=[]):
         self.loaders = loaders
         self.max_iter = len(self.loaders[0])
+        self.dataset = [i.dataset for i in self.loaders]
         logger.info(f'possible max iterations = {self.max_iter}')
         self._sampler = ComposedDL.DummySampler(self)
 
