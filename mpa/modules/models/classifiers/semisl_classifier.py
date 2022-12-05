@@ -3,56 +3,20 @@
 #
 
 import torch
-import torch.nn as nn
 
-from mmcls.models.builder import CLASSIFIERS, build_backbone, build_neck, build_head
+from mmcls.models.builder import CLASSIFIERS
 
-from mpa.modules.models.classifiers.sam_classifier import SAMClassifier
+from mpa.modules.models.classifiers.sam_classifier import SAMImageClassifier
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
 
 
 @CLASSIFIERS.register_module()
-class SemiSLClassifier(SAMClassifier):
+class SemiSLClassifier(SAMImageClassifier):
     """ Semi-SL Classifier
-
-    The classifier is a classifier that supports Semi-SL task
-    that handles unlabeled data.
-
-    Args:
-        backbone (dict): backbone network configuration
-        neck (dict): model neck configuration
-        head (dict): model head configuration
-        pretrained (str or boolean): Initialize to pre-trained weight
-            according to the backbone when the path
-            or boolean True of pre-trained weight is performed.
+    This classifier supports unlabeled data by overriding forward_train
     """
-
-    def __init__(self,
-                 backbone,
-                 neck=None,
-                 head=None,
-                 pretrained=None,
-                 **kwargs):
-        super(SemiSLClassifier, self).__init__()
-        self.backbone = build_backbone(backbone)
-        if neck is not None:
-            self.neck = build_neck(neck)
-        if head is not None:
-            self.head = build_head(head)
-
-    def extract_feat(self, imgs):
-        """Directly extract features from the backbone + neck
-
-        Args:
-            imgs (list[Tensor]): List of tensors of shape (1, C, H, W)
-        """
-        x = self.backbone(imgs)
-
-        if self.with_neck:
-            x = self.neck(x)
-        return x
 
     def forward_train(self, imgs, **kwargs):
         """Data is transmitted as a classifier training function
@@ -86,7 +50,3 @@ class SemiSLClassifier(SAMClassifier):
         losses.update(loss)
 
         return losses
-
-    def simple_test(self, img, **kwargs):
-        x = self.extract_feat(img)
-        return self.head.simple_test(x)
