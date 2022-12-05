@@ -5,20 +5,21 @@
 import torch
 
 from mmcls.models.builder import HEADS
-from mmcls.models.heads.linear_head import LinearClsHead
+from mpa.modules.models.heads.non_linear_cls_head import NonLinearClsHead
 
 
 @HEADS.register_module()
-class SemiSLClsHead(LinearClsHead):
-    """Semi-SL for Classification Head
+class SemiNonLinearClsHead(NonLinearClsHead):
+    """Non-linear classification head for Semi-SL
 
-    This ClsHead is a classification linear head based on the FixMatch algorithm.
-    This head uses the dynamic threshold for each class calculated based on
-    the confidence value of the model.
+    This head is designed to support FixMatch algorithm. (https://arxiv.org/abs/2001.07685)
+        - [OTX] supports dynamic threshold based on confidence for each class
 
     Args:
         num_classes (int): The number of classes of dataset used for training
         in_channels (int): The channels of input data from classifier
+        hid_channels (int): Number of channels of hidden layer.
+        act_cfg (dict): Config of activation layer.
         loss (dict): configuration of loss, default is CrossEntropyLoss
         topk (set): evaluation topk score, default is (1, )
         unlabeled_coef (float): unlabeled loss coefficient
@@ -29,8 +30,11 @@ class SemiSLClsHead(LinearClsHead):
     def __init__(self,
                  num_classes,
                  in_channels,
+                 hid_channels=1280,
+                 act_cfg=dict(type='ReLU'),
                  loss=dict(type="CrossEntropyLoss", loss_weight=1.0),
                  topk=(1, ),
+                 dropout=False,
                  unlabeled_coef=1.0,
                  use_dynamic_threshold=True,
                  min_threshold=0.5):
@@ -40,8 +44,8 @@ class SemiSLClsHead(LinearClsHead):
             raise ValueError("at least one class must be exist num_classes.")
 
         topk = (1, ) if num_classes < 5 else (1, 5)
-        super(SemiSLClsHead, self).__init__(
-            num_classes, in_channels, loss=loss, topk=topk
+        super(SemiNonLinearClsHead, self).__init__(
+            num_classes, in_channels, hid_channels=hid_channels, act_cfg=act_cfg, loss=loss, topk=topk, dropout=dropout
         )
         self.unlabeled_coef = unlabeled_coef
 
@@ -98,11 +102,11 @@ class SemiSLClsHead(LinearClsHead):
         """
         label_u, mask = None, None
         if isinstance(x, dict):
-            outputs = self.fc(x["labeled"])  # Logit of Labeled Img
+            outputs = self.classifier(x["labeled"])  # Logit of Labeled Img
             batch_size = len(outputs)
 
             with torch.no_grad():
-                logit_uw = self.fc(x["unlabeled_weak"])
+                logit_uw = self.classifier(x["unlabeled_weak"])
                 pseudo_label = torch.softmax(logit_uw.detach(), dim=-1)
                 max_probs, label_u = torch.max(pseudo_label, dim=-1)
 
@@ -131,9 +135,9 @@ class SemiSLClsHead(LinearClsHead):
                         current_conf = current_conf[~current_conf.isnan()].mean()
                         self.classwise_acc[i] = max(current_conf, self.min_threshold)
 
-            outputs = torch.cat((outputs, self.fc(x["unlabeled_strong"])))
+            outputs = torch.cat((outputs, self.classifier(x["unlabeled_strong"])))
         else:
-            outputs = self.fc(x)
+            outputs = self.classifier(x)
             batch_size = len(outputs)
 
         logits_x = outputs[:batch_size]
