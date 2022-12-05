@@ -4,7 +4,7 @@
 
 import torch
 
-from mmdet.models.detectors import BaseDetector
+from mmdet.models.detectors import BaseDetector, SingleStageDetector
 from mmdet.utils.deployment.export_helpers import get_feature_vector
 from mmdet.integration.nncf.utils import no_nncf_trace
 from mpa.modules.hooks.auxiliary_hooks import DetSaliencyMapHook
@@ -19,9 +19,23 @@ class SAMDetectorMixin(BaseDetector):
         self.current_batch = data
         return super().train_step(data, optimizer, **kwargs)
 
-    def simple_test(self, img, img_metas, rescale=False, postprocess=True):
+    def simple_test(self,
+                    img,
+                    img_metas,
+                    proposals=None,
+                    rescale=False,
+                    postprocess=True):
         x = self.extract_feat(img)
-        outs = self.bbox_head(x)
+        if isinstance(self, SingleStageDetector):
+            outs = self.bbox_head(x)
+        else:
+            if proposals is None:
+                proposal_list = self.rpn_head.simple_test_rpn(x, img_metas)
+            else:
+                proposal_list = proposals
+            outs = self.roi_head.simple_test(x, proposal_list, \
+                img_metas, rescale=rescale, postprocess=postprocess)
+
         with no_nncf_trace():
             bbox_results = \
                 self.bbox_head.get_bboxes(*outs, img_metas, self.test_cfg, False)
