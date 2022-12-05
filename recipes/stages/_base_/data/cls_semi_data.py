@@ -22,7 +22,9 @@ data = dict(
         pipeline=dict(
                 weak=__train_pipeline,
                 strong=__train_pipeline_strong
-        )),
+        ),
+        samples_per_gpu=64*3,
+        ),
     val=dict(
         type=__dataset_type,
         test_mode=True,

@@ -67,6 +67,10 @@ class ClsTrainer(ClsStage):
         # Data
         if 'unlabeled' in cfg.data and cfg.train_type == 'SEMISUPERVISED':
             datasets = [[build_dataset(cfg.data.train), build_dataset(cfg.data.unlabeled)]]
+            datasets[0][0].samples_per_gpu = cfg.data.samples_per_gpu
+            datasets[0][0].workers_per_gpu = cfg.data.workers_per_gpu
+            datasets[0][1].samples_per_gpu = cfg.data.unlabeled.get('samples_per_gpu', cfg.data.samples_per_gpu)
+            datasets[0][1].workers_per_gpu = cfg.data.unlabeled.get('workers_per_gpu', cfg.data.workers_per_gpu)
         else:
             datasets = [build_dataset(cfg.data.train)]
 
@@ -161,8 +165,8 @@ class ClsTrainer(ClsStage):
                 sub_loaders = [
                     build_dataloader(
                         sub_ds,
-                        sub_ds.samples_per_gpu if hasattr(sub_ds, 'samples_per_gpu') else cfg.data.samples_per_gpu,
-                        sub_ds.workers_per_gpu if hasattr(sub_ds, 'workers_per_gpu') else cfg.data.workers_per_gpu,
+                        sub_ds.samples_per_gpu,
+                        sub_ds.workers_per_gpu,
                         num_gpus=len(cfg.gpu_ids),
                         dist=distributed,
                         round_up=True,
