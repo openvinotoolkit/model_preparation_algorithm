@@ -6,7 +6,6 @@ import math
 import numpy as np
 from torch.utils.data.sampler import Sampler
 from mpa.modules.utils.task_adapt import unwrap_dataset
-import random
 
 
 class ClsIncrSampler(Sampler):

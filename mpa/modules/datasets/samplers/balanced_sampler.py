@@ -2,7 +2,6 @@ import numpy as np
 from torch.utils.data.sampler import Sampler
 import math
 from mpa.utils.logger import get_logger
-import random
 
 logger = get_logger()
 
