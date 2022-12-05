@@ -112,11 +112,13 @@ class SegTrainer(SegStage):
         # cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
+        # TODO (sungchul): check other condition for vaildation
+        validate = False if cfg.model.type in ['DetConB'] else True
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             mp.spawn(SegTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
+                     args=(target_classes, datasets, cfg, distributed, validate, timestamp, meta))
         else:
             SegTrainer.train_worker(
                 None,
@@ -124,7 +126,7 @@ class SegTrainer(SegStage):
                 datasets,
                 cfg,
                 distributed,
-                True,
+                validate,
                 timestamp,
                 meta
             )
@@ -158,7 +160,7 @@ class SegTrainer(SegStage):
             datasets,
             cfg,
             distributed=distributed,
-            validate=True,
+            validate=validate,
             timestamp=timestamp,
             meta=meta
         )
