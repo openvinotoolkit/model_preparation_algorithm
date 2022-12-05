@@ -40,7 +40,6 @@ class SemiSLDetectionTrainer(SemiSLDetectionStage):
         - Environment setup
         - Run training via MMDetection -> MMCV
         """
-        breakpoint()
         self._init_logger()
         mode = kwargs.get('mode', 'train')
         if mode not in self.mode:
