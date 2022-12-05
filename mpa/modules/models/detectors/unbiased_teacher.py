@@ -138,7 +138,7 @@ class UnbiasedTeacher(SAMDetectorMixin, BaseDetector):
         import os
         import cv2 as cv
 
-        self.save_dir = "/home/jaeguk/workspace/tmp/semisl-det/"
+        self.save_dir = "/tmp/semisl-det/"
         os.makedirs(self.save_dir, exist_ok=True)
 
         if not hasattr(self, "prefix"):
