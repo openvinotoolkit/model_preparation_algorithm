@@ -111,11 +111,10 @@ class ClsIncrSampler(Sampler):
                 indices = indices[:self.total_size]
             assert len(indices) == self.total_size
 
-            # shuffle before distributing indices
-            random.shuffle(indices)
+            # split and distribute indices
+            len_indices = len(indices)
+            indices = indices[self.rank * len_indices // self.num_replicas : (self.rank+1) * len_indices // self.num_replicas]
 
-            # subsample
-            indices = indices[self.rank:self.total_size:self.num_replicas]
             assert len(indices) == self.num_samples
 
         return iter(indices)
