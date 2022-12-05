@@ -4,7 +4,7 @@
 
 import torch
 
-from mmdet.models.detectors import BaseDetector, SingleStageDetector
+from mmdet.models.detectors import BaseDetector, TwoStageDetector
 from mmdet.utils.deployment.export_helpers import get_feature_vector, get_saliency_map
 from mmdet.integration.nncf.utils import no_nncf_trace
 from mpa.modules.hooks.auxiliary_hooks import DetSaliencyMapHook
@@ -25,12 +25,13 @@ class SAMDetectorMixin(BaseDetector):
                     proposals=None,
                     rescale=False,
                     postprocess=True):
-
         """
         Class-wise Saliency map for Single-Stage Detector, otherwise use class-ignore saliency map.
         """
-        x = self.extract_feat(img)
-        if isinstance(self, SingleStageDetector):
+        if isinstance(self, TwoStageDetector):
+            return super().simple_test(img, img_metas, proposals, rescale, postprocess)
+        else:
+            x = self.extract_feat(img)
             outs = self.bbox_head(x)
             with no_nncf_trace():
                 bbox_results = \
@@ -48,18 +49,3 @@ class SAMDetectorMixin(BaseDetector):
                     for det_bboxes, det_labels in bbox_results
                 ]
             return bbox_results
-
-        else:
-            if proposals is None:
-                proposal_list = self.rpn_head.simple_test_rpn(x, img_metas)
-            else:
-                proposal_list = proposals
-
-            out = self.roi_head.simple_test(x, proposal_list, img_metas, rescale=rescale, postprocess=postprocess)
-            with no_nncf_trace():
-                if torch.onnx.is_in_onnx_export():
-                    feature_vector = get_feature_vector(x)
-                    saliency_map = get_saliency_map(x[-1])
-                    feature = feature_vector, saliency_map
-                    return out, feature
-            return out
