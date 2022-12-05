@@ -32,19 +32,3 @@ data = dict(
         test_mode=True,
         pipeline=__test_pipeline)
 )
-
-# dict(
-#     type=__dataset_type,
-#     base='CIFAR10',
-#     train=True,
-#     data_prefix='data/torchvision/cifar10',
-#     num_images=7000,
-#     pipeline=dict(
-#         weak=__train_pipeline,
-#         strong=__train_pipeline_strong
-#     ),
-#     samples_per_gpu=56,
-#     workers_per_gpu=4,
-#     download=True,
-#     use_labels=False,
-# )
