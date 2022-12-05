@@ -69,7 +69,7 @@ class ClsTrainer(ClsStage):
             datasets = [[build_dataset(cfg.data.train), build_dataset(cfg.data.unlabeled)]]
             datasets[0][0].samples_per_gpu = cfg.data.samples_per_gpu
             datasets[0][0].workers_per_gpu = cfg.data.workers_per_gpu
-            datasets[0][1].samples_per_gpu = cfg.data.unlabeled.get('samples_per_gpu', cfg.data.samples_per_gpu)
+            datasets[0][1].samples_per_gpu = cfg.data.unlabeled.get('samples_per_gpu', cfg.data.samples_per_gpu*3)
             datasets[0][1].workers_per_gpu = cfg.data.unlabeled.get('workers_per_gpu', cfg.data.workers_per_gpu)
         else:
             datasets = [build_dataset(cfg.data.train)]
