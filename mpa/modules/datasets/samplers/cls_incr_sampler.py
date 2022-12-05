@@ -6,6 +6,7 @@ import math
 import numpy as np
 from torch.utils.data.sampler import Sampler
 from mpa.modules.utils.task_adapt import unwrap_dataset
+import random
 
 
 class ClsIncrSampler(Sampler):
@@ -110,10 +111,11 @@ class ClsIncrSampler(Sampler):
                 indices = indices[:self.total_size]
             assert len(indices) == self.total_size
 
-            # split and distribute indices
-            len_indices = len(indices)
-            indices = indices[self.rank * len_indices // self.num_replicas : (self.rank+1) * len_indices // self.num_replicas]
+            # shuffle before distributing indices
+            random.shuffle(indices)
 
+            # subsample
+            indices = indices[self.rank:self.total_size:self.num_replicas]
             assert len(indices) == self.num_samples
 
         return iter(indices)
