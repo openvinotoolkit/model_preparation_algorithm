@@ -18,16 +18,16 @@ def build_classification_loss(name, **kwargs):
         return CrossEntropyLoss(**kwargs)
     elif name == 'ce_smooth':
         from .cross_entropy_loss import CrossEntropySmoothLoss
-        return CrossEntropySmooth(**kwargs)
+        return CrossEntropySmoothLoss(**kwargs)
     elif name == 'nce':
         from .cross_entropy_loss import NormalizedCrossEntropyLoss
-        return NormalizedCrossEntropy(**kwargs)
+        return NormalizedCrossEntropyLoss(**kwargs)
     elif name == 'rce':
         from .cross_entropy_loss import ReverseCrossEntropyLoss
-        return ReverseCrossEntropy(**kwargs)
+        return ReverseCrossEntropyLoss(**kwargs)
     elif name == 'sl':
         from .cross_entropy_loss import SymmetricCrossEntropyLoss
-        return SymmetricCrossEntropy(**kwargs)
+        return SymmetricCrossEntropyLoss(**kwargs)
     elif name == 'apl':
         from .cross_entropy_loss import ActivePassiveLoss
         return ActivePassiveLoss(**kwargs)
