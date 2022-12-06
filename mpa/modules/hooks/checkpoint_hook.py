@@ -53,14 +53,15 @@ class CheckpointHookWithValResults(Hook):
             return
         if hasattr(runner, 'save_ckpt'):
             if runner.save_ckpt:
-                if runner.save_ema_model:
+                # TODO: Do we need this even after we moved from torchreid to mmcls?
+                if getattr(runner, "save_ema_model", False):
                     backup_model = runner.model
                     runner.model = runner.ema_model
                 runner.logger.info(f'Saving checkpoint at {runner.epoch + 1} epochs')
                 if self.sync_buffer:
                     allreduce_params(runner.model.buffers())
                 self._save_checkpoint(runner)
-                if runner.save_ema_model:
+                if getattr(runner, "save_ema_model", False):
                     runner.model = backup_model
             runner.save_ckpt = False
 
