@@ -14,7 +14,7 @@ from mmdet.utils.deployment import get_saliency_map, get_feature_vector
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
-from mpa.det.incr_stage import IncrDetectionStage
+from mpa.det.incremental import IncrDetectionStage
 
 logger = get_logger()
 

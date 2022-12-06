@@ -128,44 +128,8 @@ class UnbiasedTeacher(SAMDetectorMixin, BaseDetector):
                 loss*self.unlabeled_loss_weight for loss in ul_loss
             ]
         # TODO: apply loss_bbox when adopting QFL;
-        # For debug
-        # self.save_pseudo_labels(ul_img0, pseudo_bboxes, pseudo_labels)
 
         return losses
-
-    def save_pseudo_labels(self, ul_imgs, pseudo_bboxes, pseudo_labels):
-        """This saves unlabeled image with pseudo bboxes, this is for debug."""
-        import os
-        import cv2 as cv
-
-        self.save_dir = "/tmp/semisl-det/"
-        os.makedirs(self.save_dir, exist_ok=True)
-
-        if not hasattr(self, "prefix"):
-            self.prefix = 0
-        else:
-            self.prefix += 1
-
-        colors = [[0,0,255], [0,255,0], [255,0,0]]
-
-        for idx, (ul_img, pseudo_bbox, pseudo_label) in enumerate(zip(ul_imgs, pseudo_bboxes, pseudo_labels)):
-            # Change tensor to numpy image
-            ul_img = ul_img.cpu().permute(1, 2, 0).numpy()
-            # Reverse normalization
-            ul_img = ul_img * 255
-            ul_img = np.ascontiguousarray(ul_img, dtype=np.uint8)
-            # If there is no pseudo box, then save image
-            if len(pseudo_bbox) == 0:
-                cv.imwrite(os.path.join(self.save_dir, f"{self.prefix}_{idx}.jpg"), ul_img)
-                continue
-            # Draw bbox
-            for bbox, label in zip(pseudo_bbox, pseudo_label):
-                x1, y1, x2, y2 = bbox.to(int).cpu().numpy()
-                start = (x1, y1)
-                end = (x2, y2)
-                ul_img = cv.rectangle(ul_img, start, end, colors[label], 1)
-            # Save image to pre-defined path
-            cv.imwrite(os.path.join(self.save_dir, f"{self.prefix}_{idx}.jpg"), ul_img)
 
     def generate_pseudo_labels(self, teacher_outputs, **kwargs):
         all_pseudo_bboxes = []

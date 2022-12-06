@@ -9,6 +9,7 @@ from . import inferrer
 from . import stage
 from . import trainer
 
+from . import incremental
 from . import semisl
 
 import mpa.modules.datasets.pipelines.torchvision2mmdet

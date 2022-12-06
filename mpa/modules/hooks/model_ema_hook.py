@@ -125,15 +125,6 @@ class DualModelEMAHook(Hook):
 
     def _ema_model(self):
         momentum = min(self.momentum, 1.0)
-
-        # For debug
-        # if hasattr(self, "momentum_cache"):
-        #     if self.momentum != self.momentum_cache:
-        #         print(f"Momentum is changed: {self.momentum_cache} ==> {self.momentum}")
-        #         self.momentum_cache = self.momentum
-        # else:
-        #     self.momentum_cache = self.momentum
-
         with torch.no_grad():
             for name, src_param in self.src_params.items():
                 dst_param = self.dst_params[name]

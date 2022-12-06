@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from mpa.det.incr_stage import IncrDetectionStage
+from mmcv import ConfigDict
+from mpa.det.incremental import IncrDetectionStage
+from mpa.utils.config_utils import update_or_add_custom_hook
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -28,3 +30,22 @@ class SemiSLDetectionStage(IncrDetectionStage):
         else:
             src_data_cfg = self.get_train_data_cfg(cfg)
             src_data_cfg.pop('old_new_indices', None)
+
+    @staticmethod
+    def configure_task_adapt_hook(cfg, org_model_classes, model_classes):
+        """Add TaskAdaptHook for sampler.
+
+        TaskAdaptHook does not support ComposedDL
+        """
+        sampler_flag = False
+        update_or_add_custom_hook(
+            cfg,
+            ConfigDict(
+                type='TaskAdaptHook',
+                src_classes=org_model_classes,
+                dst_classes=model_classes,
+                model_type=cfg.model.type,
+                sampler_flag=sampler_flag,
+                efficient_mode=cfg['task_adapt'].get('efficient_mode', False)
+            )
+        )
