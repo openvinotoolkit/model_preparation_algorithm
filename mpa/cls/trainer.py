@@ -117,14 +117,16 @@ class ClsTrainer(ClsStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
+        model = kwargs.get("model", None)
+
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
 
             mp.spawn(ClsTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(datasets, cfg, distributed, True, timestamp, meta))
+                     args=(datasets, cfg, model, distributed, True, timestamp, meta))
         else:
-            ClsTrainer.train_worker(None, datasets, cfg,
+            ClsTrainer.train_worker(None, datasets, cfg, model,
                                     distributed,
                                     True,
                                     timestamp,
@@ -137,7 +139,7 @@ class ClsTrainer(ClsStage):
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
-    def train_worker(gpu, dataset, cfg, distributed, validate, timestamp, meta):
+    def train_worker(gpu, dataset, cfg, model, distributed, validate, timestamp, meta):
         logger.info(f'called train_worker() gpu={gpu}, distributed={distributed}, validate={validate}')
         if distributed:
             torch.cuda.set_device(gpu)
@@ -146,7 +148,8 @@ class ClsTrainer(ClsStage):
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
         # model
-        model = build_classifier(cfg.model)
+        if model is None:
+            model = build_classifier(cfg.model)
 
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
