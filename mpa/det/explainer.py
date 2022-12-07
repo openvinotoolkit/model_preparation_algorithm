@@ -13,13 +13,14 @@ from mmdet.models import build_detector
 from mmdet.parallel import MMDataCPU
 
 from mpa.det.stage import DetectionStage
-from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook, DetSaliencyMapHook
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
     'activationmap': ActivationMapHook,
+    'detsaliencymap': DetSaliencyMapHook,
 }
 
 
