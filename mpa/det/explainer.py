@@ -8,6 +8,7 @@ import mmcv
 from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint
 
+from mmdet.apis import single_gpu_test
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
 from mmdet.parallel import MMDataCPU
@@ -57,8 +58,7 @@ class DetectionExplainer(DetectionStage):
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
 
-        data_cfg = cfg.data.test.copy()
-        self.explain_dataset = build_dataset(data_cfg)
+        self.explain_dataset = build_dataset(cfg.data.test)
         explain_dataset = self.explain_dataset
 
         # Data loader
@@ -67,7 +67,8 @@ class DetectionExplainer(DetectionStage):
             samples_per_gpu=samples_per_gpu,
             workers_per_gpu=cfg.data.workers_per_gpu,
             dist=False,
-            shuffle=False)
+            shuffle=False,
+        )
 
         # Model
         cfg.model.pretrained = None
@@ -85,18 +86,16 @@ class DetectionExplainer(DetectionStage):
 
         model.eval()
         if torch.cuda.is_available():
-            model = MMDataParallel(model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
+            explain_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
         else:
-            model = MMDataCPU(model)
+            explain_model = MMDataCPU(model)
 
-        saliency_maps = []
         if is_module_wrapper(model):
             model = model.module
-        with torch.no_grad():
-            with self.explainer_hook(model.backbone) as forward_explainer_hook:
-                for data in explain_data_loader:
-                    with torch.no_grad():
-                        _ = model(return_loss=False, **data)
+        saliency_maps = []
+        with self.explainer_hook(explain_model.module) as forward_explainer_hook:
+            with torch.no_grad():
+                _ = single_gpu_test(explain_model, explain_data_loader)
                 saliency_maps = forward_explainer_hook.records
 
         # Check and unwrap ImageTilingDataset object from TaskAdaptEvalDataset

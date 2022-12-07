@@ -76,7 +76,11 @@ class BaseRecordingForwardHook(ABC):
 
 class EigenCamHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(x_: torch.Tensor) -> torch.Tensor:
+    def func(x_: torch.Tensor, fpn_idx: int = 0) -> torch.Tensor:
+        if isinstance(feature_map, list):
+            assert fpn_idx < len(feature_map), \
+                f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
+            feature_map = feature_map[fpn_idx]
         x = x_.type(torch.float)
         bs, c, h, w = x.size()
         reshaped_fmap = x.reshape((bs, c, h * w)).transpose(1, 2)
@@ -144,9 +148,11 @@ class DetSaliencyMapHook(BaseRecordingForwardHook):
         else:
             self._num_anchors = [1] * 10
 
-    @staticmethod
-    def func(self, x: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]], _: int = 0,
-             cls_scores_provided: bool = False) -> torch.Tensor:
+    def func(self,
+             x: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]],
+             _: int = 0,
+             cls_scores_provided: bool = False
+        ) -> torch.Tensor:
         """
         Generate the saliency map from raw classification head output, then normalizing to (0, 255).
 
