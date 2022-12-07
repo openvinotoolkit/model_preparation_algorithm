@@ -5,10 +5,10 @@ import os.path as osp
 import torch
 
 import mmcv
-from mmcv.parallel import MMDataParallel
+from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint
 
-from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
+from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
 from mmdet.parallel import MMDataCPU
 
@@ -84,20 +84,27 @@ class DetectionExplainer(DetectionStage):
 
         model.eval()
         if torch.cuda.is_available():
-            explain_backbone = MMDataParallel(
-                model.backbone.cuda(cfg.gpu_ids[0]),
-                device_ids=cfg.gpu_ids
-            )
+            model = MMDataParallel(model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
         else:
-            explain_backbone = MMDataCPU(model.backbone)
+            model = MMDataCPU(model)
 
         saliency_maps = []
+        if is_module_wrapper(model):
+            model = model.module
         with torch.no_grad():
-            for data in explain_data_loader:
-                out = explain_backbone(data['img'][0])
-                saliency_maps.append(
-                    self.explainer_hook.func(out[-1]).squeeze(0).detach().cpu().numpy()
-                )
+            with self.explainer_hook(model.backbone) as forward_explainer_hook:
+                for data in explain_data_loader:
+                    with torch.no_grad():
+                        _ = model(return_loss=False, **data)
+                saliency_maps = forward_explainer_hook.records
+
+        # Check and unwrap ImageTilingDataset object from TaskAdaptEvalDataset
+        while hasattr(explain_dataset, 'dataset') and not isinstance(explain_dataset, ImageTilingDataset):
+            explain_dataset = explain_dataset.dataset
+
+        if isinstance(explain_dataset, ImageTilingDataset):
+            saliency_maps = [saliency_maps[i] for i in range(explain_dataset.num_samples)]
+
         outputs = dict(
             saliency_maps=saliency_maps
         )
