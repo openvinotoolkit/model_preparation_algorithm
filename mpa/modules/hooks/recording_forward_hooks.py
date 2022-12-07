@@ -76,12 +76,12 @@ class BaseRecordingForwardHook(ABC):
 
 class EigenCamHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(x_: torch.Tensor, fpn_idx: int = 0) -> torch.Tensor:
+    def func(feature_map: torch.Tensor, fpn_idx: int = 0) -> torch.Tensor:
         if isinstance(feature_map, list):
             assert fpn_idx < len(feature_map), \
                 f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
             feature_map = feature_map[fpn_idx]
-        x = x_.type(torch.float)
+        x = feature_map.type(torch.float)
         bs, c, h, w = x.size()
         reshaped_fmap = x.reshape((bs, c, h * w)).transpose(1, 2)
         reshaped_fmap = reshaped_fmap - reshaped_fmap.mean(1)[:, None, :]
