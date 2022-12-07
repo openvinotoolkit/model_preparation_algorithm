@@ -14,12 +14,13 @@ from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook, ReciproCAMHook
 from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
     'activationmap': ActivationMapHook,
+    'reciprocam': ReciproCAMHook,
 }
 
 
@@ -75,7 +76,7 @@ class ClsExplainer(ClsStage):
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
-        with self.explainer_hook(model.module.backbone) as forward_explainer_hook:
+        with self.explainer_hook(model.module) as forward_explainer_hook:
             # do inference and record intermediate fmap
             for data in explain_data_loader:
                 with torch.no_grad():
