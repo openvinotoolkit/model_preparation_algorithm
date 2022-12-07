@@ -2,6 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from .incr_stage import IncrDetectionStage
+from .stage import IncrDetectionStage
 
 __all__ = ["IncrDetectionStage"]
