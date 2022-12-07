@@ -1,9 +1,13 @@
 _base_ = [
-    './finetune.py',
+    './train.py',
+    '../_base_/data/coco_ubt.py',
+    '../_base_/models/detectors/detector.py'
 ]
 
-model = dict(
-    unlabeled_loss_weight=1.0,
+task_adapt = dict(
+    type='mpa',
+    op='REPLACE',
+    efficient_mode=False,
 )
 
 custom_hooks = [
@@ -13,6 +17,11 @@ custom_hooks = [
         start_epoch=2,
         # min_pseudo_label_ratio=0.1,
         min_pseudo_label_ratio=0.0,
+    ),
+    dict(
+        type='DualModelEMAHook',
+        epoch_momentum=0.4,
+        start_epoch=2,
     ),
     dict(
         type='LazyEarlyStoppingHook',
