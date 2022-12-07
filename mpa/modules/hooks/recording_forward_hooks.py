@@ -37,7 +37,6 @@ class BaseRecordingForwardHook(ABC):
     """
     def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
         self._module = module
-        self._backbone = module.backbone
         self._handle = None
         self._records = []
         self._fpn_idx = fpn_idx
@@ -68,7 +67,7 @@ class BaseRecordingForwardHook(ABC):
             self._records.append(tensor)
 
     def __enter__(self) -> BaseRecordingForwardHook:
-        self._handle = self._module.register_forward_hook(self._recording_forward)
+        self._handle = self._module.backbone.register_forward_hook(self._recording_forward)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -136,7 +135,7 @@ class FeatureVectorHook(BaseRecordingForwardHook):
 class DetSaliencyMapHook(BaseRecordingForwardHook):
     """Saliency map hook for object detection models."""
     def __init__(self, module: torch.nn.Module) -> None:
-        super().__init__(module.backbone)
+        super().__init__(module)
         self._neck = module.neck if module.with_neck else None
         self._bbox_head = module.bbox_head
         self._num_cls_out_channels = module.bbox_head.cls_out_channels  # SSD-like heads also have background class
@@ -145,6 +144,7 @@ class DetSaliencyMapHook(BaseRecordingForwardHook):
         else:
             self._num_anchors = [1] * 10
 
+    @staticmethod
     def func(self, x: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]], _: int = 0,
              cls_scores_provided: bool = False) -> torch.Tensor:
         """
