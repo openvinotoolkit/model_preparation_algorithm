@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, Sequence
 
 import torch
 
@@ -29,6 +29,7 @@ class BaseRecordingForwardHook(ABC):
     Args:
         module (torch.nn.Module): The PyTorch module to be registered in forward pass
     """
+
     def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
         self._module = module
         self._handle = None
@@ -51,7 +52,9 @@ class BaseRecordingForwardHook(ABC):
         """
         raise NotImplementedError
 
-    def _recording_forward(self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor):
+    def _recording_forward(
+        self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
+    ):
         tensor = self.func(output)
         tensor = tensor.detach().cpu().numpy()
         if len(tensor) > 1:
@@ -91,11 +94,14 @@ class EigenCamHook(BaseRecordingForwardHook):
 
 class ActivationMapHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+    def func(
+        feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0
+    ) -> torch.Tensor:
         """Generate the saliency map by average feature maps then normalizing to (0, 255)."""
-        if isinstance(feature_map, list):
-            assert fpn_idx < len(feature_map), \
-                f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
+        if isinstance(feature_map, (list, tuple)):
+            assert fpn_idx < len(
+                feature_map
+            ), f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
             feature_map = feature_map[fpn_idx]
 
         bs, c, h, w = feature_map.size()
@@ -115,12 +121,16 @@ class ActivationMapHook(BaseRecordingForwardHook):
 
 class FeatureVectorHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]]) -> torch.Tensor:
+    def func(feature_map: Union[torch.Tensor, Sequence[torch.Tensor]]) -> torch.Tensor:
         """Generate the feature vector by average pooling feature maps."""
-        if isinstance(feature_map, list):
+        if isinstance(feature_map, (list, tuple)):
             # aggregate feature maps from Feature Pyramid Network
-            feature_vector = [torch.nn.functional.adaptive_avg_pool2d(f, (1, 1)) for f in feature_map]
+            feature_vector = [
+                torch.nn.functional.adaptive_avg_pool2d(f, (1, 1)) for f in feature_map
+            ]
             feature_vector = torch.cat(feature_vector, 1)
         else:
-            feature_vector = torch.nn.functional.adaptive_avg_pool2d(feature_map, (1, 1))
+            feature_vector = torch.nn.functional.adaptive_avg_pool2d(
+                feature_map, (1, 1)
+            )
         return feature_vector
