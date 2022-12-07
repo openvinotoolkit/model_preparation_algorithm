@@ -16,21 +16,20 @@ class ClassIncrSegmentor(EncoderDecoder):
     """
     """
 
-    def __init__(self, *args, is_task_adapt=True, task_adapt=None, **kwargs):
+    def __init__(self, *args, task_adapt=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Hook for class-sensitive weight loading
-        if is_task_adapt:
-            assert task_adapt is not None, 'When using task_adapt, task_adapt must be set.'
+        assert task_adapt is not None, 'When using task_adapt, task_adapt must be set.'
 
-            self._register_load_state_dict_pre_hook(
-                functools.partial(
-                    self.load_state_dict_pre_hook,
-                    self,  # model
-                    task_adapt['dst_classes'],  # model_classes
-                    task_adapt['src_classes']   # chkpt_classes
-                )
+        self._register_load_state_dict_pre_hook(
+            functools.partial(
+                self.load_state_dict_pre_hook,
+                self,  # model
+                task_adapt['dst_classes'],  # model_classes
+                task_adapt['src_classes']   # chkpt_classes
             )
+        )
         self.feature_maps = None
 
     @staticmethod

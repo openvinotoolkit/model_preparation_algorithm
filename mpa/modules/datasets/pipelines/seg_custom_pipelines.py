@@ -7,12 +7,9 @@ from mmcv.utils import build_from_cfg
 
 import mmcv
 import numpy as np
-from torchvision import transforms as T
-from mmseg.datasets.pipelines.formating import ImageToTensor, to_tensor
-from PIL import Image, ImageFilter
+from mmseg.datasets.pipelines.formating import to_tensor
 
 from mmcv.parallel import DataContainer as DC
-
 
 
 @PIPELINES.register_module(force=True)

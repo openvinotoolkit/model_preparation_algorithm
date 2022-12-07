@@ -11,7 +11,6 @@ train_pipeline = [
     dict(type='RandomRotate', prob=0.5, degree=30, pad_val=0, seg_pad_val=255),
     dict(type='Normalize', **__img_norm_cfg),
     dict(type='Pad', size=__crop_size, pad_val=0, seg_pad_val=255),
-    #dict(type='RandomRotate', prob=0.3, degree=30, pad_val=0, seg_pad_val=255),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_semantic_seg'])
 ]
@@ -38,9 +37,7 @@ unlabeled_pipeline = [
     dict(type='RandomCrop', crop_size=__crop_size, cat_max_ratio=0.75),
     dict(type='RandomFlip', prob=0.5, direction='horizontal'),
     dict(type='RandomRotate', prob=0.5, degree=30, pad_val=0, seg_pad_val=255),
-    # dict(type='Normalize', **__img_norm_cfg),
     dict(type='Pad', size=__crop_size, pad_val=0, seg_pad_val=255),
-    # dict(type='RandomRotate', prob=0.5, degree=30, pad_val=0, seg_pad_val=255),
     dict(type='BranchImage', key_map=dict(img='ul_w_img')),
     dict(type='ProbCompose', probs=[0.7, 0.3],
         transforms=[

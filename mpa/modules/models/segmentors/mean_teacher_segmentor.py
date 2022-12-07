@@ -11,7 +11,7 @@ logger = get_logger()
 @SEGMENTORS.register_module()
 class MeanTeacherNaive(BaseSegmentor):
     def __init__(self, ori_type=None, unsup_weight=0.1, warmup_start_iter=30, **kwargs):
-        print('MeanTeacherNaive Segmentor init!')
+        logger.info('MeanTeacherNaive Segmentor init!')
         super(MeanTeacherNaive, self).__init__()
         self.test_cfg = kwargs['test_cfg']
         self.warmup_start_iter = warmup_start_iter

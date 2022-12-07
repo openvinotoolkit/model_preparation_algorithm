@@ -10,7 +10,6 @@ from . import stage
 from . import trainer
 
 import mpa.modules.datasets.pipelines.seg_custom_pipelines
-
 import mpa.modules.datasets.seg_unlabeled_dataset
 import mpa.modules.datasets.seg_incr_cityscapes_dataset
 import mpa.modules.datasets.seg_incr_voc_dataset
@@ -24,4 +23,3 @@ import mpa.modules.models.heads.custom_ocr_head
 import mpa.modules.models.losses.am_softmax_loss_with_ignore
 import mpa.modules.models.losses.cross_entropy_loss_with_ignore
 import mpa.modules.models.losses.recall_loss
-

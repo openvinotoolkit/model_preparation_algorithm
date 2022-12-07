@@ -1,6 +1,5 @@
 _base_ = [
-    #'./pipelines/incr_seg.py',
-    './pipelines/semi_seg.py'
+    './pipelines/incr_seg.py'
 ]
 
 __dataset_type = ''

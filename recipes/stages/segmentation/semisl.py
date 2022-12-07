@@ -1,10 +1,8 @@
 _base_ = [
+    '../_base_/data/seg_semisl.py',
+    '../_base_/models/segmentors/segmentor.py',
     './train.py',
-    '../_base_/models/segmentors/seg_semisl.py',
-    '../_base_/data/kvasir_seg_semi.py'
 ]
-
-model_config_path = '../_base_/models/segmentors/seg_semisl.py'
 
 optimizer = dict(
     _delete_=True,
@@ -17,7 +15,7 @@ optimizer = dict(
 optimizer_config = dict(
     _delete_=True,
     grad_clip=dict(
-        # method='adaptive',
+        # method='adaptive'
         # clip=0.2,
         # method='default', # ?
         max_norm=40,
@@ -39,8 +37,6 @@ log_config = dict(
     interval=1,
     hooks=[
         dict(type='TextLoggerHook', by_epoch=True),
-        # dict(type='TensorboardLoggerHook'),
-        # dict(type='WandbLoggerHook', commit=False, init_kwargs=dict(name='EXP_NAME'))
     ]
 )
 
@@ -65,8 +61,13 @@ evaluation = dict(
     show_log=True
 )
 
-find_unused_parameters = False
+task_adapt = dict(_delete_=True)
+# task_adapt = dict(
+#     type='mpa',
+#     op='REPLACE',
+# )
 ignore = True
 
+
+find_unused_parameters = False
 seed = 42
-task_adapt = dict(_delete_=True)

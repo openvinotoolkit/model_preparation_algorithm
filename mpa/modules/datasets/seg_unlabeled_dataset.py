@@ -1,7 +1,11 @@
 from mmseg.datasets import DATASETS, build_dataset
 import numpy as np
+from mpa.utils.logger import get_logger
+
 from mmseg.datasets import CustomDataset
 from mmseg.datasets.pipelines import Compose
+
+logger = get_logger()
 
 @DATASETS.register_module()
 class UnlabeledSegDataset(CustomDataset):
@@ -12,9 +16,7 @@ class UnlabeledSegDataset(CustomDataset):
         # Original dataset
         dataset_cfg = kwargs.copy()
         if 'cutmix' in dataset_cfg:
-            self.cutmix_flag = dataset_cfg.pop('cutmix', False)
-        else:
-            self.cutmix_flag = False
+            logger.warning("Currently cutmix is not supported. It will be added soon.")
         dataset_cfg['type'] = orig_type
 
         self.unlabeled_dataset = build_dataset(dataset_cfg)
@@ -22,16 +24,12 @@ class UnlabeledSegDataset(CustomDataset):
         # Subsets
         self.num_unlabeled = len(self.unlabeled_dataset)
         self.unlabeled_index = np.random.permutation(self.num_unlabeled)
-        if self.cutmix_flag:
-            self.cutmix_unlabeled_index = np.random.permutation(self.num_unlabeled)
-        print('----------- #Unlabeled: ', self.num_unlabeled)
 
     def __len__(self):
         """Total number of samples of data."""
         return self.num_unlabeled
 
     def __getitem__(self, idx):
-        data = {}
         unlabeled_idx = int(self.unlabeled_index[idx])
         unlabeled_data = self.unlabeled_dataset[unlabeled_idx]
 
