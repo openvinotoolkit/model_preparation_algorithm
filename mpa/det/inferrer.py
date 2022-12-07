@@ -186,10 +186,15 @@ class DetectionInferrer(DetectionStage):
 
         if isinstance(dataset, ImageTilingDataset):
             feature_vectors = [feature_vectors[i] for i in range(dataset.num_samples)]
+            saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
             if not dataset.merged_results:
                 eval_predictions = dataset.merge(eval_predictions)
             else:
                 eval_predictions = dataset.merged_results
+
+        assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
+               'Number of elements should be the same, however, number of outputs are ' \
+               f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
 
         outputs = dict(
             classes=target_classes,
