@@ -8,6 +8,8 @@ from . import exporter
 from . import inferrer
 from . import stage
 from . import trainer
+from .semisl import trainer
+from .semisl import inferrer
 
 import mpa.modules.datasets.pipelines.seg_custom_pipelines
 import mpa.modules.datasets.seg_unlabeled_dataset

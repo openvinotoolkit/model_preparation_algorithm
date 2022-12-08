@@ -87,7 +87,7 @@ class MeanTeacherNaive(BaseSegmentor):
         for k, v in state_dict.items():
             if 'model_s.' in k:
                 k = k.replace('model_s.', '')
-            output[k] = v
+                output[k] = v
         return output
 
     @staticmethod

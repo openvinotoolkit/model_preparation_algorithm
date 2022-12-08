@@ -22,14 +22,15 @@ from mmseg.models import build_segmentor
 from mmseg.utils import collect_env
 
 from mpa.registry import STAGES
-from mpa.seg.stage import SegStage
+from .stage import SemiSegStage
+
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
 
 
 @STAGES.register_module()
-class SegTrainer(SegStage):
+class SemiSegTrainer(SemiSegStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -115,10 +116,10 @@ class SegTrainer(SegStage):
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
-            mp.spawn(SegTrainer.train_worker, nprocs=len(cfg.gpu_ids),
+            mp.spawn(SemiSegTrainer.train_worker, nprocs=len(cfg.gpu_ids),
                      args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
         else:
-            SegTrainer.train_worker(
+            SemiSegTrainer.train_worker(
                 None,
                 target_classes,
                 datasets,
