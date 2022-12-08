@@ -61,11 +61,9 @@ evaluation = dict(
     show_log=True
 )
 
-task_adapt = dict(_delete_=True)
-# task_adapt = dict(
-#     type='mpa',
-#     op='REPLACE',
-# )
+task_adapt = dict(
+    op='REPLACE',
+)
 ignore = True
 
 
