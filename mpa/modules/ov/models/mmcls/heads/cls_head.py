@@ -6,7 +6,7 @@ from mmcls.models.builder import HEADS
 from mmcls.models.heads import ClsHead as OriginClsHead
 
 
-@HEADS.register_module()
+@HEADS.register_module(force=True)
 class ClsHead(OriginClsHead):
 
     def __init__(self, *args, **kwargs):

@@ -12,7 +12,7 @@ from torch.nn import functional as F
 from torch.nn.modules.utils import _pair
 
 
-@ROI_EXTRACTORS.register_module()
+@ROI_EXTRACTORS.register_module(force=True)
 class SingleRoIExtractor(OriginSingleRoIExtractor):
     def build_roi_layers(self, layer_cfg, featmap_strides):
 
