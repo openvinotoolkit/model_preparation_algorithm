@@ -2,13 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import importlib
 from mmcv.runner import get_dist_info
 from mmcv.runner import HOOKS, Hook
-# from mmseg.datasets import build_dataset, build_dataloader
-
 from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.utils.logger import get_logger
-import importlib
 
 logger = get_logger()
 task_lib_name=dict(classification="mmcls",detection="mmdet",segmentation="mmseg")
