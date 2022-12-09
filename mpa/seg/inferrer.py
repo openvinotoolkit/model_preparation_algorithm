@@ -116,7 +116,7 @@ class SegInferrer(IncrSegStage):
         model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
-        SegStage.set_inference_progress_callback(model, cfg)
+        IncrSegStage.set_inference_progress_callback(model, cfg)
 
         eval_predictions = []
         feature_vectors = []

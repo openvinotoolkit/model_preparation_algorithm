@@ -36,8 +36,8 @@ class SegStage(Stage):
             else:
                 raise ValueError("Unexpected config was passed through 'model_cfg'. "
                                  "it should have 'model' attribute in the config")
-            model_task = cfg.model.pop('task', 'segmentation')
-            if model_task != 'segmentation':
+            cfg.model_task = cfg.model.pop('task', 'segmentation')
+            if cfg.model_task != 'segmentation':
                 raise ValueError(
                     f'Given model_cfg ({model_cfg.filename}) is not supported by segmentation recipe'
                 )
