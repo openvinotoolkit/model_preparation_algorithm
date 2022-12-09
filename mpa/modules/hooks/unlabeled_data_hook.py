@@ -9,7 +9,8 @@ from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
-task_lib_name=dict(classification="mmcls",detection="mmdet",segmentation="mmseg")
+task_lib_name=dict(classification="mmcls", detection="mmdet", segmentation="mmseg")
+
 
 @HOOKS.register_module()
 class UnlabeledDataHook(Hook):
