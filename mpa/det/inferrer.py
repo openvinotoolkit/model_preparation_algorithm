@@ -37,6 +37,7 @@ class DetectionInferrer(DetectionStage):
         eval = kwargs.get('eval', False)
         dump_features = kwargs.get('dump_features', False)
         dump_saliency_map = kwargs.get('dump_saliency_map', False)
+        model = kwargs.get("model", None)
         if mode not in self.mode:
             return {}
 
@@ -47,7 +48,7 @@ class DetectionInferrer(DetectionStage):
 
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
-        outputs = self.infer(cfg, eval=eval, dump_features=dump_features,
+        outputs = self.infer(cfg, eval=eval, model=model, dump_features=dump_features,
                              dump_saliency_map=dump_saliency_map)
 
         # Save outputs
@@ -71,7 +72,7 @@ class DetectionInferrer(DetectionStage):
         print(json_dump)
         """
 
-    def infer(self, cfg, eval=False, dump_features=False, dump_saliency_map=False):
+    def infer(self, cfg, eval=False, model=None, dump_features=False, dump_saliency_map=False):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
@@ -112,18 +113,19 @@ class DetectionInferrer(DetectionStage):
             target_classes = dataset.CLASSES
 
         # Model
-        cfg.model.pretrained = None
-        if cfg.model.get('neck'):
-            if isinstance(cfg.model.neck, list):
-                for neck_cfg in cfg.model.neck:
-                    if neck_cfg.get('rfp_backbone'):
-                        if neck_cfg.rfp_backbone.get('pretrained'):
-                            neck_cfg.rfp_backbone.pretrained = None
-            elif cfg.model.neck.get('rfp_backbone'):
-                if cfg.model.neck.rfp_backbone.get('pretrained'):
-                    cfg.model.neck.rfp_backbone.pretrained = None
+        if model is None:
+            cfg.model.pretrained = None
+            if cfg.model.get('neck'):
+                if isinstance(cfg.model.neck, list):
+                    for neck_cfg in cfg.model.neck:
+                        if neck_cfg.get('rfp_backbone'):
+                            if neck_cfg.rfp_backbone.get('pretrained'):
+                                neck_cfg.rfp_backbone.pretrained = None
+                elif cfg.model.neck.get('rfp_backbone'):
+                    if cfg.model.neck.rfp_backbone.get('pretrained'):
+                        cfg.model.neck.rfp_backbone.pretrained = None
 
-        model = build_detector(cfg.model)
+            model = build_detector(cfg.model)
         model.CLASSES = target_classes
 
         # TODO: Check Inference FP16 Support

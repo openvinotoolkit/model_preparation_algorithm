@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from mmcls.models.builder import LOSSES
-from mmcls.models.losses import CrossEntropy
+from mmcls.models.losses import CrossEntropyLoss
 from mmcls.models.losses.utils import weight_reduce_loss
 
 
@@ -98,9 +98,9 @@ class WeightedCrossEntropyLoss(nn.Module):
         return loss_cls
 
 
-class CrossEntropySmooth(nn.Module):
+class CrossEntropySmoothLoss(nn.Module):
     def __init__(self, epsilon=0.1, weight=1.0):
-        super(CrossEntropySmooth, self).__init__()
+        super(CrossEntropySmoothLoss, self).__init__()
         self.epsilon = epsilon
         self.weight = weight
 
@@ -121,9 +121,9 @@ class CrossEntropySmooth(nn.Module):
         return self.weight * losses
 
 
-class NormalizedCrossEntropy(nn.Module):
+class NormalizedCrossEntropyLoss(nn.Module):
     def __init__(self, weight=1.0):
-        super(NormalizedCrossEntropy, self).__init__()
+        super(NormalizedCrossEntropyLoss, self).__init__()
         self.weight = weight
 
     def forward(self, logits, target):
@@ -142,9 +142,9 @@ class NormalizedCrossEntropy(nn.Module):
         return losses
 
 
-class ReverseCrossEntropy(nn.Module):
+class ReverseCrossEntropyLoss(nn.Module):
     def __init__(self, scale=4.0, weight=1.0):
-        super(ReverseCrossEntropy, self).__init__()
+        super(ReverseCrossEntropyLoss, self).__init__()
         self.weight = weight * abs(float(scale))
 
     def forward(self, logits, target):
@@ -162,16 +162,16 @@ class ReverseCrossEntropy(nn.Module):
         return losses
 
 
-class SymmetricCrossEntropy(nn.Module):
+class SymmetricCrossEntropyLoss(nn.Module):
     def __init__(self, alpha=1.0, beta=1.0):
-        super(SymmetricCrossEntropy, self).__init__()
-        self.ce = CrossEntropy(
+        super(SymmetricCrossEntropyLoss, self).__init__()
+        self.ce = CrossEntropyLoss(
             use_sigmoid=False,
             use_soft=False,
             reduction='none',
             loss_weight=alpha,
         )
-        self.rce = ReverseCrossEntropy(weight=beta)
+        self.rce = ReverseCrossEntropyLoss(weight=beta)
 
     def forward(self, logits, target):
         return self.ce(logits, target) + self.rce(logits, target)
@@ -180,8 +180,8 @@ class SymmetricCrossEntropy(nn.Module):
 class ActivePassiveLoss(nn.Module):
     def __init__(self, alpha=100.0, beta=1.0):
         super(ActivePassiveLoss, self).__init__()
-        self.active_loss = NormalizedCrossEntropy(weight=alpha)
-        self.passive_loss = ReverseCrossEntropy(weight=beta)
+        self.active_loss = NormalizedCrossEntropyLoss(weight=alpha)
+        self.passive_loss = ReverseCrossEntropyLoss(weight=beta)
 
     def forward(self, logits, target):
         return self.active_loss(logits, target) + self.passive_loss(logits, target)

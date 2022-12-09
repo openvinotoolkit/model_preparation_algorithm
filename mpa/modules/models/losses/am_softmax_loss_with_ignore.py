@@ -14,20 +14,20 @@ from .mpa_pixel_base import MPABasePixelLoss
 def build_classification_loss(name, **kwargs):
     # TODO: mmseg
     if name == 'ce':
-        from mmcls.models.losses import CrossEntropy
-        return CrossEntropy(**kwargs)
+        from mmcls.models.losses import CrossEntropyLoss
+        return CrossEntropyLoss(**kwargs)
     elif name == 'ce_smooth':
-        from .cross_entropy_loss import CrossEntropySmooth
-        return CrossEntropySmooth(**kwargs)
+        from .cross_entropy_loss import CrossEntropySmoothLoss
+        return CrossEntropySmoothLoss(**kwargs)
     elif name == 'nce':
-        from .cross_entropy_loss import NormalizedCrossEntropy
-        return NormalizedCrossEntropy(**kwargs)
+        from .cross_entropy_loss import NormalizedCrossEntropyLoss
+        return NormalizedCrossEntropyLoss(**kwargs)
     elif name == 'rce':
-        from .cross_entropy_loss import ReverseCrossEntropy
-        return ReverseCrossEntropy(**kwargs)
+        from .cross_entropy_loss import ReverseCrossEntropyLoss
+        return ReverseCrossEntropyLoss(**kwargs)
     elif name == 'sl':
-        from .cross_entropy_loss import SymmetricCrossEntropy
-        return SymmetricCrossEntropy(**kwargs)
+        from .cross_entropy_loss import SymmetricCrossEntropyLoss
+        return SymmetricCrossEntropyLoss(**kwargs)
     elif name == 'apl':
         from .cross_entropy_loss import ActivePassiveLoss
         return ActivePassiveLoss(**kwargs)

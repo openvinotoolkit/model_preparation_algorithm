@@ -7,7 +7,6 @@ import torch.nn as nn
 from mmseg.core import add_prefix
 from mmseg.models.builder import build_loss
 
-from ...hooks.auxiliary_hooks import FeatureVectorHook
 from ..losses.utils import LossEqualizer
 
 
@@ -49,7 +48,7 @@ class PixelWeightsMixin(nn.Module):
     def set_step_params(self, init_iter, epoch_size):
         self.decode_head.set_step_params(init_iter, epoch_size)
 
-        if self.auxiliary_head is not None:
+        if getattr(self, "auxiliary_head", None) is not None:
             if isinstance(self.auxiliary_head, nn.ModuleList):
                 for aux_head in self.auxiliary_head:
                     aux_head.set_step_params(init_iter, epoch_size)
@@ -184,33 +183,3 @@ class PixelWeightsMixin(nn.Module):
                 losses[loss_name] = loss_value
 
         return losses
-
-    def extract_feat(self, img):
-        """Extract features from images."""
-        x = self.backbone(img)
-        if torch.onnx.is_in_onnx_export():
-            self.feature_maps = x
-        if self.with_neck:
-            x = self.neck(x)
-        return x
-
-    def simple_test(self, img, img_meta, rescale=True, output_logits=False):
-        """Simple test with single image."""
-
-        seg_logit = self.inference(img, img_meta, rescale)
-        if output_logits:
-            seg_pred = seg_logit
-        else:
-            seg_pred = seg_logit.argmax(dim=1)
-
-        if torch.onnx.is_in_onnx_export():
-            feature_vector = FeatureVectorHook.func(self.feature_maps)
-            if not output_logits:
-                # our inference backend only support 4D output
-                seg_pred = seg_pred.unsqueeze(0)
-            return seg_pred, feature_vector
-
-        seg_pred = seg_pred.cpu().numpy()
-        seg_pred = list(seg_pred)
-
-        return seg_pred

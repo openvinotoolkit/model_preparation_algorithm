@@ -120,17 +120,20 @@ class SegTrainer(SegStage):
                 dict(type=type, **fp16_cfg, distributed=distributed)
             )
 
+        model = kwargs.get("model", None)
+
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             mp.spawn(SegTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, distributed, True, timestamp, meta))
+                     args=(target_classes, datasets, cfg, model, distributed, True, timestamp, meta))
         else:
             SegTrainer.train_worker(
                 None,
                 target_classes,
                 datasets,
                 cfg,
+                model,
                 distributed,
                 True,
                 timestamp,
@@ -148,8 +151,8 @@ class SegTrainer(SegStage):
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
-    def train_worker(gpu, target_classes, datasets, cfg, distributed=False, validate=False,
-                     timestamp=None, meta=None):
+    def train_worker(gpu, target_classes, datasets, cfg, model=None, distributed=False,
+                     validate=False, timestamp=None, meta=None):
         # logger = get_logger()
         if distributed:
             torch.cuda.set_device(gpu)
@@ -158,7 +161,8 @@ class SegTrainer(SegStage):
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
         # Model
-        model = build_segmentor(cfg.model)
+        if model is None:
+            model = build_segmentor(cfg.model)
         model.CLASSES = target_classes
 
         train_segmentor(
@@ -166,7 +170,7 @@ class SegTrainer(SegStage):
             datasets,
             cfg,
             distributed=distributed,
-            validate=True,
+            validate=validate,
             timestamp=timestamp,
             meta=meta
         )

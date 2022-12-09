@@ -71,3 +71,33 @@ class ClassIncrSegmentor(MixLossMixin, PixelWeightsMixin, EncoderDecoder):
 
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
+
+    def extract_feat(self, img):
+        """Extract features from images."""
+        x = self.backbone(img)
+        if torch.onnx.is_in_onnx_export():
+            self.feature_maps = x
+        if self.with_neck:
+            x = self.neck(x)
+        return x
+
+    def simple_test(self, img, img_meta, rescale=True, output_logits=False):
+        """Simple test with single image."""
+
+        seg_logit = self.inference(img, img_meta, rescale)
+        if output_logits:
+            seg_pred = seg_logit
+        else:
+            seg_pred = seg_logit.argmax(dim=1)
+
+        if torch.onnx.is_in_onnx_export():
+            feature_vector = FeatureVectorHook.func(self.feature_maps)
+            if not output_logits:
+                # our inference backend only support 4D output
+                seg_pred = seg_pred.unsqueeze(0)
+            return seg_pred, feature_vector
+
+        seg_pred = seg_pred.cpu().numpy()
+        seg_pred = list(seg_pred)
+
+        return seg_pred
