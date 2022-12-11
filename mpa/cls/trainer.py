@@ -118,16 +118,16 @@ class ClsTrainer(ClsStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        model = kwargs.get("model", None)
+        model_builder = kwargs.get("model_builder", None)
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
 
             mp.spawn(ClsTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(datasets, cfg, model, distributed, True, timestamp, meta))
+                     args=(datasets, cfg, model_builder, distributed, True, timestamp, meta))
         else:
-            ClsTrainer.train_worker(None, datasets, cfg, model,
+            ClsTrainer.train_worker(None, datasets, cfg, model_builder,
                                     distributed,
                                     True,
                                     timestamp,
@@ -137,10 +137,21 @@ class ClsTrainer(ClsStage):
         output_ckpt_path = osp.join(cfg.work_dir, 'best_model.pth'
                                     if osp.exists(osp.join(cfg.work_dir, 'best_model.pth'))
                                     else 'latest.pth')
-        return dict(final_ckpt=output_ckpt_path)
+        # NNCF model
+        compression_state_path = osp.join(cfg.work_dir, "compression_state.pth")
+        if not os.path.exists(compression_state_path):
+            compression_state_path = None
+        before_ckpt_path = osp.join(cfg.work_dir, "before_training.pth")
+        if not os.path.exists(before_ckpt_path):
+            before_ckpt_path = None
+        return dict(
+            final_ckpt=output_ckpt_path,
+            compression_state_path=compression_state_path,
+            before_ckpt_path=before_ckpt_path,
+        )
 
     @staticmethod
-    def train_worker(gpu, dataset, cfg, model, distributed, validate, timestamp, meta):
+    def train_worker(gpu, dataset, cfg, model_builder, distributed, validate, timestamp, meta):
         logger.info(f'called train_worker() gpu={gpu}, distributed={distributed}, validate={validate}')
         if distributed:
             torch.cuda.set_device(gpu)
@@ -149,9 +160,10 @@ class ClsTrainer(ClsStage):
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
         # model
-        if model is None:
+        if model_builder is not None:
+            model = model_builder(cfg)
+        else:
             model = build_classifier(cfg.model)
-
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
 
@@ -281,6 +293,7 @@ class ClsTrainer(ClsStage):
                 runner.load_checkpoint(cfg.load_from)
             else:
                 runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{gpu}')
+
         runner.run(data_loaders, cfg.workflow)
 
     @staticmethod

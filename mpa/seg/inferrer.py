@@ -35,7 +35,7 @@ class SegInferrer(SegStage):
         self._init_logger()
         dump_features = kwargs.get('dump_features', False)
         mode = kwargs.get('mode', 'train')
-        model = kwargs.get("model", None)
+        model_builder = kwargs.get("model_builder", None)
         if mode not in self.mode:
             return {}
 
@@ -44,7 +44,7 @@ class SegInferrer(SegStage):
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
-        outputs = self.infer(cfg, model=model, dump_features=dump_features)
+        outputs = self.infer(cfg, model_builder=model_builder, dump_features=dump_features)
         # outputs = np.array(outputs)
 
         # Save outputs
@@ -56,7 +56,7 @@ class SegInferrer(SegStage):
             outputs=outputs
         )
 
-    def infer(self, cfg, model=None, dump_features=False):
+    def infer(self, cfg, model_builder=None, dump_features=False):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
@@ -95,18 +95,20 @@ class SegInferrer(SegStage):
             target_classes = dataset.CLASSES
 
         # Model
-        if model is None:
-            cfg.model.pretrained = None
-            if cfg.model.get('neck'):
-                if isinstance(cfg.model.neck, list):
-                    for neck_cfg in cfg.model.neck:
-                        if neck_cfg.get('rfp_backbone'):
-                            if neck_cfg.rfp_backbone.get('pretrained'):
-                                neck_cfg.rfp_backbone.pretrained = None
-                elif cfg.model.neck.get('rfp_backbone'):
-                    if cfg.model.neck.rfp_backbone.get('pretrained'):
-                        cfg.model.neck.rfp_backbone.pretrained = None
-            cfg.model.test_cfg.return_repr_vector = True
+        cfg.model.pretrained = None
+        if cfg.model.get('neck'):
+            if isinstance(cfg.model.neck, list):
+                for neck_cfg in cfg.model.neck:
+                    if neck_cfg.get('rfp_backbone'):
+                        if neck_cfg.rfp_backbone.get('pretrained'):
+                            neck_cfg.rfp_backbone.pretrained = None
+            elif cfg.model.neck.get('rfp_backbone'):
+                if cfg.model.neck.rfp_backbone.get('pretrained'):
+                    cfg.model.neck.rfp_backbone.pretrained = None
+        cfg.model.test_cfg.return_repr_vector = True
+        if model_builder is not None:
+            model = model_builder(cfg)
+        else:
             model = build_segmentor(cfg.model, train_cfg=None, test_cfg=None)
         model.CLASSES = target_classes
 

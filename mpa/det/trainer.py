@@ -117,20 +117,20 @@ class DetectionTrainer(DetectionStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        model = kwargs.get("model", None)
+        model_builder = kwargs.get("model_builder", None)
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             mp.spawn(DetectionTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, model, distributed, True, timestamp, meta))
+                     args=(target_classes, datasets, cfg, model_builder, distributed, True, timestamp, meta))
         else:
             DetectionTrainer.train_worker(
                 None,
                 target_classes,
                 datasets,
                 cfg,
-                model,
+                model_builder,
                 distributed,
                 True,
                 timestamp,
@@ -141,10 +141,21 @@ class DetectionTrainer(DetectionStage):
         best_ckpt_path = glob.glob(osp.join(cfg.work_dir, 'best_*.pth'))
         if len(best_ckpt_path) > 0:
             output_ckpt_path = best_ckpt_path[0]
-        return dict(final_ckpt=output_ckpt_path)
+        # NNCF model
+        compression_state_path = osp.join(cfg.work_dir, "compression_state.pth")
+        if not os.path.exists(compression_state_path):
+            compression_state_path = None
+        before_ckpt_path = osp.join(cfg.work_dir, "before_training.pth")
+        if not os.path.exists(before_ckpt_path):
+            before_ckpt_path = None
+        return dict(
+            final_ckpt=output_ckpt_path,
+            compression_state_path=compression_state_path,
+            before_ckpt_path=before_ckpt_path,
+        )
 
     @staticmethod
-    def train_worker(gpu, target_classes, datasets, cfg, model=None, distributed=False,
+    def train_worker(gpu, target_classes, datasets, cfg, model_builder=None, distributed=False,
                      validate=False, timestamp=None, meta=None):
         if distributed:
             torch.cuda.set_device(gpu)
@@ -153,7 +164,9 @@ class DetectionTrainer(DetectionStage):
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
         # model
-        if model is None:
+        if model_builder is not None:
+            model = model_builder(cfg)
+        else:
             model = build_detector(cfg.model)
         model.CLASSES = target_classes
         # Do clustering for SSD model
