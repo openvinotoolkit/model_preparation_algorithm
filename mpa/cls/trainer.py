@@ -6,6 +6,7 @@ import os
 import numbers
 import os.path as osp
 import time
+import copy
 import warnings
 import torch
 import numpy as np
@@ -153,42 +154,34 @@ class ClsTrainer(ClsStage):
 
         # prepare data loaders
         dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
-        train_data_cfg = Stage.get_train_data_cfg(cfg)
-        drop_last = train_data_cfg.drop_last if train_data_cfg.get('drop_last', False) else False
 
         # updated to adapt list of dataset for the 'train'
+        loader_cfg = dict(
+            samples_per_gpu=cfg.data.samples_per_gpu,
+            workers_per_gpu=cfg.data.workers_per_gpu,
+            # cfg.gpus will be ignored if distributed
+            num_gpus=len(cfg.gpu_ids),
+            dist=distributed,
+            round_up=True,
+            seed=cfg.seed,
+        )
         data_loaders = []
         sub_loaders = []
         for ds in dataset:
             if isinstance(ds, list):
-                sub_loaders = [
-                    build_dataloader(
-                        sub_ds,
-                        sub_ds.samples_per_gpu if hasattr(sub_ds, 'samples_per_gpu') else cfg.data.samples_per_gpu,
-                        sub_ds.workers_per_gpu if hasattr(sub_ds, 'workers_per_gpu') else cfg.data.workers_per_gpu,
-                        num_gpus=len(cfg.gpu_ids),
-                        dist=distributed,
-                        round_up=True,
-                        seed=cfg.seed,
-                        drop_last=drop_last,
-                        persistent_workers=False
-                    ) for sub_ds in ds
-                ]
+                sub_loaders = []
+                for sub_ds in ds:
+                    sub_loader_cfg = copy.deepcopy(loader_cfg)
+                    sub_loader_cfg.update(cfg.data.get("train_dataloader", {}))
+                    if hasattr(sub_ds, "samples_per_gpu"):
+                        sub_loader_cfg["samples_per_gpu"] = sub_ds.samples_per_gpu
+                    if hasattr(sub_ds, "workers_per_gpu"):
+                        sub_loader_cfg["workers_per_gpu"] = sub_ds.workers_per_gpu
+                    sub_loaders.append(build_dataloader(sub_ds, **sub_loader_cfg))
                 data_loaders.append(ComposedDL(sub_loaders))
             else:
-                data_loaders.append(
-                    build_dataloader(
-                        ds,
-                        cfg.data.samples_per_gpu,
-                        cfg.data.workers_per_gpu,
-                        # cfg.gpus will be ignored if distributed
-                        num_gpus=len(cfg.gpu_ids),
-                        dist=distributed,
-                        round_up=True,
-                        seed=cfg.seed,
-                        drop_last=drop_last,
-                        persistent_workers=False
-                    ))
+                loader_cfg.update(cfg.data.get("train_dataloader", {}))
+                data_loaders.append(build_dataloader(ds, **loader_cfg,))
 
         # put model on gpus
         if torch.cuda.is_available():
@@ -240,7 +233,7 @@ class ClsTrainer(ClsStage):
         # fp16 setting
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
-            if cfg.optimizer_config.get('type', False)=='SAMOptimizerHook':
+            if cfg.optimizer_config.get('type', False) == 'SAMOptimizerHook':
                 opt_hook = Fp16SAMOptimizerHook
             else:
                 opt_hook = Fp16OptimizerHook
