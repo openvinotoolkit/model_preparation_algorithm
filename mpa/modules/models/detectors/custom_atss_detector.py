@@ -83,7 +83,10 @@ class CustomATSS(SAMDetectorMixin, L2SPDetectorMixin, ATSS):
 
 if is_mmdeploy_enabled():
     from mmdeploy.core import FUNCTION_REWRITER
-    from mpa.modules.utils.export_helpers import get_feature_vector, get_saliency_map
+    from mpa.modules.hooks.recording_forward_hooks import (
+        FeatureVectorHook,
+        ActivationMapHook,
+    )
 
     @FUNCTION_REWRITER.register_rewriter(
         "mpa.modules.models.detectors.custom_atss_detector."
@@ -92,6 +95,6 @@ if is_mmdeploy_enabled():
     def custom_atss__simple_test(ctx, self, img, img_metas, **kwargs):
         feat = self.extract_feat(img)
         out = self.bbox_head.simple_test(feat, img_metas, **kwargs)
-        feature_vector = get_feature_vector(feat)
-        sailency_map = get_saliency_map(feat[-1])
+        feature_vector = FeatureVectorHook.func(feat)
+        sailency_map = ActivationMapHook.func(feat[-1])
         return (*out, feature_vector, sailency_map)

@@ -273,29 +273,6 @@ class SAMImageClassifier(ImageClassifier):
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
 
-    #  def extract_feat(self, img):
-    #      """Directly extract features from the backbone + neck
-    #         Overriding for OpenVINO export with features
-    #      """
-    #      x = self.backbone(img)
-    #
-    #      if self.with_neck:
-    #          x = self.neck(x)
-    #      return x
-    #
-    #  def simple_test(self, img, img_metas):
-    #      """Test without augmentation.
-    #         Overriding for OpenVINO export with features
-    #      """
-    #      x = self.extract_feat(img)
-    #      logits = self.head.simple_test(x)
-    #      if self.featuremap is not None and torch.onnx.is_in_onnx_export():
-    #          saliency_map = ActivationMapHook.func(self.featuremap)
-    #          feature_vector = FeatureVectorHook.func(self.featuremap)
-    #          return logits, feature_vector, saliency_map
-    #      else:
-    #          return logits
-
 
 if is_mmdeploy_enabled():
     from mmdeploy.core import FUNCTION_REWRITER
@@ -306,11 +283,11 @@ if is_mmdeploy_enabled():
         "SAMImageClassifier.extract_feat"
     )
     def sam_image_classifier__extract_feat(ctx, self, img):
-        x = self.backbone(img)
-        backbone_feat = x
+        feat = self.backbone(img)
+        backbone_feat = feat
         if self.with_neck:
-            x = self.neck(x)
-        return x, backbone_feat
+            feat = self.neck(backbone_feat)
+        return feat, backbone_feat
 
     @FUNCTION_REWRITER.register_rewriter(
         "mpa.modules.models.classifiers.sam_classifier."

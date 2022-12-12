@@ -77,7 +77,10 @@ class CustomMaskRCNN(SAMDetectorMixin, L2SPDetectorMixin, MaskRCNN):
 
 if is_mmdeploy_enabled():
     from mmdeploy.core import FUNCTION_REWRITER
-    from mpa.modules.utils.export_helpers import get_saliency_map, get_feature_vector
+    from mpa.modules.hooks.recording_forward_hooks import (
+        FeatureVectorHook,
+        ActivationMapHook,
+    )
 
     @FUNCTION_REWRITER.register_rewriter(
         "mpa.modules.models.detectors.custom_maskrcnn_detector."
@@ -88,8 +91,8 @@ if is_mmdeploy_enabled():
     ):
         assert self.with_bbox, "Bbox head must be implemented."
         x = self.extract_feat(img)
-        feature_vector = get_feature_vector(x)
-        sailency_map = get_saliency_map(x[-1])
+        feature_vector = FeatureVectorHook.func(x)
+        sailency_map = ActivationMapHook.func(x[-1])
         if proposals is None:
             proposals, _ = self.rpn_head.simple_test_rpn(x, img_metas)
         out = self.roi_head.simple_test(x, proposals, img_metas, rescale=False)
