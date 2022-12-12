@@ -22,7 +22,7 @@ class SemiSegStage(IncrSegStage):
 
     def configure_semi(self, cfg, **kwargs):
         # Set unlabeled data hook
-        if 'unlabeled' in cfg.data:
+        if cfg.data.get('unlabeled', False) and cfg.data.unlabeled.get('otx_dataset', False):
             update_or_add_custom_hook(
                 cfg,
                 ConfigDict(
