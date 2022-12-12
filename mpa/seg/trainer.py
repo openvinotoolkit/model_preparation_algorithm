@@ -22,9 +22,7 @@ from mmseg.models import build_segmentor
 from mmseg.utils import collect_env
 
 from mpa.registry import STAGES
-#from mpa.seg.stage import SegStage
-#from mpa.seg.semisl.stage import SemiSegStage
-from mpa.seg.incr.stage import IncrSegStage
+from .incr.stage import IncrSegStage
 
 from mpa.utils.logger import get_logger
 

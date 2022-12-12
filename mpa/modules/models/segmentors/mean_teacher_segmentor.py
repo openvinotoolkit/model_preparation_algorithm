@@ -30,7 +30,7 @@ class MeanTeacherNaive(BaseSegmentor):
         self._register_load_state_dict_pre_hook(
             functools.partial(self.load_state_dict_pre_hook, self)
         )
-    
+
     def extract_feat(self, imgs):
         return self.model_s.extract_feat(imgs)
 
@@ -62,7 +62,7 @@ class MeanTeacherNaive(BaseSegmentor):
                                    size=ul_w_img.shape[2:],
                                    mode='bilinear',
                                    align_corners=self.align_corners)
-            conf_from_teacher, pl_from_teacher = torch.max(torch.softmax(teacher_logit, axis=1), axis=1, keepdim=True)        
+            conf_from_teacher, pl_from_teacher = torch.max(torch.softmax(teacher_logit, axis=1), axis=1, keepdim=True)
 
         losses = dict()
 

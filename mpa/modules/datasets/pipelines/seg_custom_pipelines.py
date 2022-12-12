@@ -3,7 +3,6 @@
 #
 
 from mmseg.datasets import PIPELINES
-from mmcv.utils import build_from_cfg
 
 import mmcv
 import numpy as np

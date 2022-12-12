@@ -24,11 +24,11 @@ class SemiSegInferrer(SemiSegStage):
 
     def configure(self, model_cfg, model_ckpt, data_cfg, training=False, **kwargs):
         cfg = super().configure(model_cfg, model_ckpt, data_cfg, training=training, **kwargs)
-        
+
         cfg.model.type = cfg.model.ori_type
         cfg.model.pop("ori_type")
         cfg.model.pop("unsup_weight")
-        
+
         return cfg
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):

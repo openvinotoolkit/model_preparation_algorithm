@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import numpy as np
-from mmcv import ConfigDict
-from mmseg.utils import get_root_logger
 from mpa.stage import Stage
 from mpa.utils.logger import get_logger
 

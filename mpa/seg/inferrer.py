@@ -12,7 +12,7 @@ from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
 from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
 from mpa.registry import STAGES
-from mpa.seg.incr.stage import IncrSegStage
+from .incr.stage import IncrSegStage
 from mpa.stage import Stage
 import torch
 

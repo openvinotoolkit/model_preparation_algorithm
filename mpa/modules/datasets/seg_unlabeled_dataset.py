@@ -3,9 +3,9 @@ import numpy as np
 from mpa.utils.logger import get_logger
 
 from mmseg.datasets import CustomDataset
-from mmseg.datasets.pipelines import Compose
 
 logger = get_logger()
+
 
 @DATASETS.register_module()
 class UnlabeledSegDataset(CustomDataset):

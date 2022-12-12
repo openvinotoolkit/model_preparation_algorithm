@@ -12,6 +12,7 @@ from mpa.utils.logger import get_logger
 
 logger = get_logger()
 
+
 class IncrSegStage(SegStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -68,9 +69,9 @@ class IncrSegStage(SegStage):
         return org_model_classes, model_classes, data_classes
 
     def configure_cls_incr(self, cfg, org_model_classes, model_classes):
-        
+
         new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
-        
+
         # FIXME : can be naive supervised learning (from-scratch ver.)
         # Check if new classes are added
         has_new_class = True if len(new_classes) > 0 else False
