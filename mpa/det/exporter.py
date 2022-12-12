@@ -36,16 +36,17 @@ class DetectionExporter(DetectionStage):
 
         output_path = os.path.join(cfg.work_dir, "export")
         os.makedirs(output_path, exist_ok=True)
-        if kwargs.get("model", None) is not None:
-            model = kwargs.get("model")
-        else:
+
+        model_builder = kwargs.get("model_builder", None)
+        if model_builder is None:
             model = build_detector(cfg.model)
-            if model_ckpt:
-                logger.info(f"model checkpoint load: {model_ckpt}")
-                load_checkpoint(model=model, filename=model_ckpt, map_location="cpu")
+        else:
+            model = model_builder(cfg)
+        if model_ckpt:
+            logger.info(f"model checkpoint load: {model_ckpt}")
+            load_checkpoint(model=model, filename=model_ckpt, map_location="cpu")
 
         from torch.jit._trace import TracerWarning
-
         warnings.filterwarnings("ignore", category=TracerWarning)
         model = model.cpu()
         model.eval()

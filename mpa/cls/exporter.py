@@ -4,6 +4,7 @@
 
 import os
 import torch.onnx
+import traceback
 from functools import partial
 
 from mmcv.runner import load_checkpoint, wrap_fp16_model
@@ -55,57 +56,53 @@ class ClsExporter(ClsStage):
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
         output_path = os.path.join(cfg.work_dir, 'export')
-        onnx_path = output_path+'/model.onnx'
         os.makedirs(output_path, exist_ok=True)
 
-        # build the model and load checkpoint
-        model = build_classifier(cfg.model)
+        model_builder = kwargs.get("model_builder", None)
+        if model_builder is None:
+            model = build_classifier(cfg.model)
+        else:
+            model = model_builder(cfg)
+        if model_ckpt:
+            logger.info(f"model checkpoint load: {model_ckpt}")
+            load_checkpoint(model=model, filename=model_ckpt, map_location="cpu")
 
-        logger.info('load checkpoint from ' + cfg.load_from)
-        _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
         if hasattr(model, 'is_export'):
             model.is_export = True
+
+        from torch.jit._trace import TracerWarning
+        warnings.filterwarnings("ignore", category=TracerWarning)
+        model = model.cpu()
         model.eval()
-        model.forward = partial(model.forward, img_metas={}, return_loss=False)
-
-        data = self.get_fake_input(cfg)
-        fake_img = data['img'].unsqueeze(0)
-
-        precision = kwargs.pop('precision', 'FP32')
-        logger.info(f'Model will be exported with precision {precision}')
+        precision = kwargs.pop("precision", "FP32")
+        if precision != "FP32":
+            raise NotImplementedError
+        logger.info(f"Model will be exported with precision {precision}")
+        onnx_file_name = cfg.get("model_name", "model") + ".onnx"
 
         try:
-            torch.onnx.export(model,
-                              fake_img,
-                              onnx_path,
-                              verbose=False,
-                              export_params=True,
-                              input_names=['data'],
-                              output_names=['logits', 'feature_vector', 'saliency_map'],
-                              dynamic_axes={},
-                              opset_version=11,
-                              operator_export_type=torch.onnx.OperatorExportTypes.ONNX
-                              )
-
-            mean_values, scale_values = self.get_norm_values(cfg)
-            mo_args = {
-                'input_model': onnx_path,
-                'mean_values': mean_values,
-                'scale_values': scale_values,
-                'data_type': precision,
-                'model_name': 'model',
-                'reverse_input_channels': None,
-            }
-
-            ret, msg = mo_wrapper.generate_ir(output_path, output_path, silent=True, **mo_args)
-            os.remove(onnx_path)
-
+            deploy_cfg = kwargs.get("deploy_cfg", None)
+            if deploy_cfg is not None:
+                self._mmdeploy_export(
+                    output_path, onnx_file_name, model, cfg, deploy_cfg
+                )
+            else:
+                self._naive_export(output_path, onnx_file_name, model, cfg)
         except Exception as ex:
-            return {'outputs': None, 'msg': f'exception {type(ex)}'}
+            if (
+                len([f for f in os.listdir(output_path) if f.endswith(".bin")]) == 0
+                and len([f for f in os.listdir(output_path) if f.endswith(".xml")]) == 0
+            ):
+                # output_model.model_status = ModelStatus.FAILED
+                # raise RuntimeError('Optimization was unsuccessful.') from ex
+                return {
+                    "outputs": None,
+                    "msg": f"exception {type(ex)}: {ex}\n\n{traceback.format_exc()}"
+                }
+
         bin_file = [f for f in os.listdir(output_path) if f.endswith('.bin')][0]
         xml_file = [f for f in os.listdir(output_path) if f.endswith('.xml')][0]
         logger.info('Exporting completed')
-
         return {
             'outputs': {
                 'bin': os.path.join(output_path, bin_file),
@@ -113,3 +110,38 @@ class ClsExporter(ClsStage):
             },
             'msg': ''
         }
+
+    def _mmdeploy_export(self, output_path, onnx_file_name, model, cfg, deploy_cfg):
+        raise NotImplementedError()
+
+    def _naive_export(self, output_path, onnx_file_name, model, cfg):
+
+        model.forward = partial(model.forward, img_metas={}, return_loss=False)
+
+        data = self.get_fake_input(cfg)
+        fake_img = data['img'].unsqueeze(0)
+
+        torch.onnx.export(model,
+                          fake_img,
+                          onnx_path,
+                          verbose=False,
+                          export_params=True,
+                          input_names=['data'],
+                          output_names=['logits', 'feature_vector', 'saliency_map'],
+                          dynamic_axes={},
+                          opset_version=11,
+                          operator_export_type=torch.onnx.OperatorExportTypes.ONNX
+                          )
+
+        mean_values, scale_values = self.get_norm_values(cfg)
+        mo_args = {
+            'input_model': onnx_path,
+            'mean_values': mean_values,
+            'scale_values': scale_values,
+            'data_type': precision,
+            'model_name': 'model',
+            'reverse_input_channels': None,
+        }
+
+        ret, msg = mo_wrapper.generate_ir(output_path, output_path, silent=True, **mo_args)
+        os.remove(onnx_path)
