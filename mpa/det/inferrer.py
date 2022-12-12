@@ -173,14 +173,6 @@ class DetectionInferrer(DetectionStage):
         if is_module_wrapper(model):
             model = model.module
 
-        # Class-wise Saliency map for Single-Stage Detector, otherwise use class-ignore saliency map.
-        if not dump_saliency_map:
-            saliency_hook = nullcontext()
-        elif hasattr(model, 'bbox_head'):
-            saliency_hook = DetSaliencyMapHook(eval_model.module)
-        else:
-            saliency_hook = SaliencyMapHook(eval_model.module.backbone)
-
         # Inference with hooks
         with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
             with saliency_hook:
