@@ -45,7 +45,7 @@ class MeanTeacherNaive(BaseSegmentor):
 
     def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
         self.count_iter += 1
-        if self.warmup_start_iter > self.count_iter:
+        if self.warmup_start_iter > self.count_iter or 'extra_0' not in kwargs:
             x = self.model_s.extract_feat(img)
             loss_decode, _ = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg=gt_semantic_seg)
             return loss_decode
