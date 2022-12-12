@@ -10,7 +10,7 @@ logger = get_logger()
 
 @SEGMENTORS.register_module()
 class MeanTeacherNaive(BaseSegmentor):
-    def __init__(self, ori_type=None, unsup_weight=0.1, warmup_start_iter=30, **kwargs):
+    def __init__(self, orig_type=None, unsup_weight=0.1, warmup_start_iter=30, **kwargs):
         logger.info('MeanTeacherNaive Segmentor init!')
         super(MeanTeacherNaive, self).__init__()
         self.test_cfg = kwargs['test_cfg']
@@ -18,7 +18,7 @@ class MeanTeacherNaive(BaseSegmentor):
         self.count_iter = 0
 
         cfg = kwargs.copy()
-        if ori_type == 'EncoderDecoder':
+        if orig_type == 'EncoderDecoder':
             cfg['type'] = 'EncoderDecoder'
             self.align_corners = cfg['decode_head'].align_corners
         self.model_s = build_segmentor(cfg)

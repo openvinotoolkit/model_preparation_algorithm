@@ -15,9 +15,6 @@ optimizer = dict(
 optimizer_config = dict(
     _delete_=True,
     grad_clip=dict(
-        # method='adaptive'
-        # clip=0.2,
-        # method='default', # ?
         max_norm=40,
         norm_type=2
     )

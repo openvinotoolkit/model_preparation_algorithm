@@ -3,8 +3,8 @@ __img_scale = (544, 544)
 __crop_size = (512, 512)
 
 train_pipeline = [
-    dict(type='LoadImageFromOTXDataset'),
-    dict(type='LoadAnnotationFromOTXDataset'),
+    dict(type='LoadImageFromFile'),
+    dict(type='LoadAnnotations'),
     dict(type='Resize', img_scale=__img_scale, ratio_range=(0.5, 2.0), keep_ratio=False),
     dict(type='RandomCrop', crop_size=__crop_size, cat_max_ratio=0.75),
     dict(type='RandomFlip', prob=0.5, direction='horizontal'),
@@ -15,7 +15,7 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_semantic_seg'])
 ]
 test_pipeline = [
-    dict(type='LoadImageFromOTXDataset'),
+    dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
         img_scale=__img_scale,
@@ -31,8 +31,8 @@ test_pipeline = [
 ]
 
 unlabeled_pipeline = [
-    dict(type='LoadImageFromOTXDataset'),
-    dict(type='LoadAnnotationFromOTXDataset'),
+    dict(type='LoadImageFromFile'),
+    dict(type='LoadAnnotations'),
     dict(type='Resize', img_scale=__img_scale, ratio_range=(0.5, 2.0), keep_ratio=False),
     dict(type='RandomCrop', crop_size=__crop_size, cat_max_ratio=0.75),
     dict(type='RandomFlip', prob=0.5, direction='horizontal'),

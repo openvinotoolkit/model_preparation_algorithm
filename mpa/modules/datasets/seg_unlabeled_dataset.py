@@ -18,10 +18,8 @@ class UnlabeledSegDataset(CustomDataset):
         if 'cutmix' in dataset_cfg:
             logger.warning("Currently cutmix is not supported. It will be added soon.")
         dataset_cfg['type'] = orig_type
-
         self.unlabeled_dataset = build_dataset(dataset_cfg)
 
-        # Subsets
         self.num_unlabeled = len(self.unlabeled_dataset)
         self.unlabeled_index = np.random.permutation(self.num_unlabeled)
 
