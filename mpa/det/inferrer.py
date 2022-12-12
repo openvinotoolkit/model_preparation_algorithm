@@ -9,6 +9,7 @@ from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
+from mmdet.models.detectors import TwoStageDetector
 from mmdet.parallel import MMDataCPU
 from mmdet.utils.deployment import get_feature_vector
 from mmdet.apis import single_gpu_test
@@ -161,19 +162,18 @@ class DetectionInferrer(DetectionStage):
 
         feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
 
-        # Class-wise Saliency map for Single-Stage Detector, otherwise use class-ignore saliency map.
-        if not dump_saliency_map:
-            saliency_hook = nullcontext()
-        elif hasattr(model, 'bbox_head'):
-            saliency_hook = DetSaliencyMapHook(eval_model.module)
-        else:
-            saliency_hook = SaliencyMapHook(eval_model.module.backbone)
-
         # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
         if is_module_wrapper(model):
             model = model.module
 
-        # Inference with hooks
+        # Class-wise Saliency map for Single-Stage Detector, otherwise use class-ignore saliency map.
+        if not dump_saliency_map:
+            saliency_hook = nullcontext()
+        elif isinstance(model, TwoStageDetector):
+            saliency_hook = SaliencyMapHook(eval_model.module.backbone)
+        else:
+            saliency_hook = DetSaliencyMapHook(eval_model.module)
+
         with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
             with saliency_hook:
                 eval_predictions = single_gpu_test(eval_model, data_loader)
