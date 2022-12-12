@@ -9,7 +9,7 @@ import traceback
 import numpy as np
 import torch
 from mmcv.runner import load_checkpoint
-from mmseg.models import build_segmentor
+from mmcv.runner import load_checkpoint
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
 
@@ -17,6 +17,13 @@ from .stage import SegStage
 
 
 logger = get_logger()
+
+
+def build_segmentor(config):
+    from mmseg.models import build_segmentor as origin_build_segmentor
+    model = origin_build_segmentor(config.model)
+    load_checkpoint(model=model, filename=config.load_from, map_location="cpu")
+    return model
 
 
 @STAGES.register_module()
@@ -37,12 +44,9 @@ class SegExporter(SegStage):
 
         model_builder = kwargs.get("model_builder", None)
         if model_builder is None:
-            model = build_segmentor(cfg.model)
+            model = build_segmentor(cfg)
         else:
             model = model_builder(cfg)
-        if model_ckpt:
-            logger.info(f"model checkpoint load: {model_ckpt}")
-            load_checkpoint(model=model, filename=model_ckpt, map_location="cpu")
 
         from torch.jit._trace import TracerWarning
         warnings.filterwarnings("ignore", category=TracerWarning)

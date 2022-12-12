@@ -9,7 +9,6 @@ import traceback
 import numpy as np
 import torch
 from mmcv.runner import load_checkpoint
-from mmdet.models import build_detector
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
 
@@ -17,6 +16,13 @@ from .stage import DetectionStage
 
 
 logger = get_logger()
+
+
+def build_detector(config):
+    from mmdet.models import build_detector as origin_build_detector
+    model = origin_build_detector(config.model)
+    load_checkpoint(model=model, filename=config.load_from, map_location="cpu")
+    return model
 
 
 @STAGES.register_module()
@@ -39,12 +45,9 @@ class DetectionExporter(DetectionStage):
 
         model_builder = kwargs.get("model_builder", None)
         if model_builder is None:
-            model = build_detector(cfg.model)
+            model = build_detector(cfg)
         else:
             model = model_builder(cfg)
-        if model_ckpt:
-            logger.info(f"model checkpoint load: {model_ckpt}")
-            load_checkpoint(model=model, filename=model_ckpt, map_location="cpu")
 
         from torch.jit._trace import TracerWarning
         warnings.filterwarnings("ignore", category=TracerWarning)

@@ -3,13 +3,13 @@
 #
 
 import os
+import warnings
 import torch.onnx
 import traceback
 from functools import partial
 
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 
-from mmcls.models import build_classifier
 from mpa.registry import STAGES
 from .stage import ClsStage
 from mpa.utils import mo_wrapper
@@ -18,6 +18,13 @@ import numpy as np
 import torch
 from mmcls.datasets.pipelines import Compose
 logger = get_logger()
+
+
+def build_classifier(config):
+    from mmcls.models import build_classifier as origin_build_classifier
+    model = origin_build_classifier(config.model)
+    load_checkpoint(model=model, filename=config.load_from, map_location="cpu")
+    return model
 
 
 @STAGES.register_module()
@@ -60,12 +67,9 @@ class ClsExporter(ClsStage):
 
         model_builder = kwargs.get("model_builder", None)
         if model_builder is None:
-            model = build_classifier(cfg.model)
+            model = build_classifier(cfg)
         else:
             model = model_builder(cfg)
-        if model_ckpt:
-            logger.info(f"model checkpoint load: {model_ckpt}")
-            load_checkpoint(model=model, filename=model_ckpt, map_location="cpu")
 
         if hasattr(model, 'is_export'):
             model.is_export = True
@@ -106,15 +110,37 @@ class ClsExporter(ClsStage):
         return {
             'outputs': {
                 'bin': os.path.join(output_path, bin_file),
-                'xml': os.path.join(output_path, xml_file)
+                'xml': os.path.join(output_path, xml_file),
             },
             'msg': ''
         }
 
     def _mmdeploy_export(self, output_path, onnx_file_name, model, cfg, deploy_cfg):
-        raise NotImplementedError()
+        from mpa.deploy.apis import onnx2openvino, torch2onnx
+
+        input_data_cfg = deploy_cfg.pop(
+            "input_data", {"shape": (128, 128, 3), "file_path": None}
+        )
+        if input_data_cfg.get("file_path"):
+            import cv2
+            input_data = cv2.imread(input_data_cfg.get("file_path"))
+        else:
+            input_data = np.zeros(input_data_cfg.shape, dtype=np.uint8)
+
+        torch2onnx(
+            input_data,
+            output_path,
+            onnx_file_name,
+            deploy_cfg=deploy_cfg,
+            model_cfg=cfg,
+            model=model,
+            device="cpu",
+        )
+
+        onnx2openvino(output_path, onnx_file_name, deploy_cfg)
 
     def _naive_export(self, output_path, onnx_file_name, model, cfg):
+        raise NotImplementedError()
 
         model.forward = partial(model.forward, img_metas={}, return_loss=False)
 
@@ -123,7 +149,7 @@ class ClsExporter(ClsStage):
 
         torch.onnx.export(model,
                           fake_img,
-                          onnx_path,
+                          os.path.join(output_path, onnx_file_name),
                           verbose=False,
                           export_params=True,
                           input_names=['data'],
@@ -135,13 +161,12 @@ class ClsExporter(ClsStage):
 
         mean_values, scale_values = self.get_norm_values(cfg)
         mo_args = {
-            'input_model': onnx_path,
+            'input_model': os.path.join(output_path, onnx_file_name),
             'mean_values': mean_values,
             'scale_values': scale_values,
-            'data_type': precision,
+            #  'data_type': "FP32",
             'model_name': 'model',
             'reverse_input_channels': None,
         }
 
         ret, msg = mo_wrapper.generate_ir(output_path, output_path, silent=True, **mo_args)
-        os.remove(onnx_path)
