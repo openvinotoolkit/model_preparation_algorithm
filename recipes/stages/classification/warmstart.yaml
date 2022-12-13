@@ -5,9 +5,7 @@ _base_: [
     '../_base_/optimizers/lars.py',
     '../_base_/runners/iter_runner.py',
     '../_base_/schedules/cos_anneal.py',
-    # '../_base_/models/cls_selfsl.py',
-    # '../_base_/data/selfsl_dataset_bs128.py',
-    '../_base_/data/selfsl_data_32.py',
+    '../_base_/data/warmstart_cls_data.py',
 ]
 
 # in default.py settings
