@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 import torch
 import torch.nn.functional as F
 
@@ -76,11 +76,10 @@ class BaseRecordingForwardHook(ABC):
 
 class EigenCamHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: torch.Tensor, fpn_idx: int = 0) -> torch.Tensor:
-        if isinstance(feature_map, list):
-            assert fpn_idx < len(feature_map), \
-                f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
+    def func(feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+        if isinstance(feature_map, (list, tuple)):
             feature_map = feature_map[fpn_idx]
+
         x = feature_map.type(torch.float)
         bs, c, h, w = x.size()
         reshaped_fmap = x.reshape((bs, c, h * w)).transpose(1, 2)
@@ -101,11 +100,9 @@ class EigenCamHook(BaseRecordingForwardHook):
 
 class ActivationMapHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+    def func(feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
         """Generate the saliency map by average feature maps then normalizing to (0, 255)."""
-        if isinstance(feature_map, list):
-            assert fpn_idx < len(feature_map), \
-                f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
+        if isinstance(feature_map, (list, tuple)):
             feature_map = feature_map[fpn_idx]
 
         bs, c, h, w = feature_map.size()
@@ -244,24 +241,22 @@ class ReciproCAMHook(BaseRecordingForwardHook):
     recipro-cam: gradient-free reciprocal class activation map (https://arxiv.org/pdf/2209.14074.pdf)
     """
     def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
-        super().__init__(module.backbone, fpn_idx)
+        super().__init__(module, fpn_idx)
         self._neck = module.neck if module.with_neck else None
         self._head = module.head
         self._num_classes = module.head.num_classes
 
-    @staticmethod
-    def func(self, feature_map: Union[torch.Tensor, List[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+    def func(self, feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
         """
         Generate the class-wise saliency maps using Recipro-CAM and then normalizing to (0, 255).
 
         Returns:
             torch.Tensor: Class-wise Saliency Maps. One saliency map per each class - [batch, class_id, H, W]
         """
-        if isinstance(feature_map, list):
+        if isinstance(feature_map, (list, tuple)):
             feature_map = feature_map[fpn_idx]
 
         bs, c, h, w = feature_map.size()
-
         saliency_maps = torch.empty(bs, self._num_classes, h, w)
         for f in range(bs):
             mosaic_feature_map = self._get_mosaic_feature_map(feature_map[f], c, h, w)

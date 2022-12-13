@@ -21,7 +21,7 @@ logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
     'activationmap': ActivationMapHook,
-    'detsaliencymap': DetSaliencyMapHook,
+    'classwisesaliencymap': DetSaliencyMapHook,
 }
 
 
@@ -73,9 +73,14 @@ class DetectionExplainer(DetectionStage):
         # Model
         cfg.model.pretrained = None
         if cfg.model.get('neck'):
-            for neck_cfg in list(cfg.model.neck):
-                if neck_cfg.get('rfp_backbone') and neck_cfg.rfp_backbone.get('pretrained'):
-                    neck_cfg.rfp_backbone.pretrained = None
+            if isinstance(cfg.model.neck, list):
+                for neck_cfg in cfg.model.neck:
+                    if neck_cfg.get('rfp_backbone'):
+                        if neck_cfg.rfp_backbone.get('pretrained'):
+                            neck_cfg.rfp_backbone.pretrained = None
+            elif cfg.model.neck.get('rfp_backbone'):
+                if cfg.model.neck.rfp_backbone.get('pretrained'):
+                    cfg.model.neck.rfp_backbone.pretrained = None
 
         model = build_detector(cfg.model)
         DetectionStage.set_inference_progress_callback(model, cfg)

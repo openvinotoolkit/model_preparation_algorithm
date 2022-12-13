@@ -20,7 +20,7 @@ logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
     'activationmap': ActivationMapHook,
-    'reciprocam': ReciproCAMHook,
+    'classwisesaliencymap': ReciproCAMHook,
 }
 
 

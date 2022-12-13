@@ -99,8 +99,8 @@ class ClsInferrer(ClsStage):
                 data_info['soft_label'] = {task: value[i] for task, value in old_prob.items()}
             outputs = data_infos
         else:
-            with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as feature_vector_hook:
-                with ActivationMapHook(model.module.backbone) if dump_saliency_map else nullcontext() \
+            with FeatureVectorHook(model.module) if dump_features else nullcontext() as feature_vector_hook:
+                with ActivationMapHook(model.module) if dump_saliency_map else nullcontext() \
                     as forward_explainer_hook:
                     for data in data_loader:
                         with torch.no_grad():
