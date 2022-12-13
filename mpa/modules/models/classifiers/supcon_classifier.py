@@ -11,14 +11,8 @@ from mmcls.models.classifiers.image import ImageClassifier
 @CLASSIFIERS.register_module()
 class SupConClassifier(ImageClassifier):
     def __init__(self, backbone, neck=None, head=None, pretrained=None, **kwargs):
-        if "multilabel" in kwargs:
-            self.multilabel = kwargs.pop("multilabel")
-        else:
-            self.multilabel = False
-        if "hierarchical" in kwargs:
-            self.hierarchical = kwargs.pop("hierarchical")
-        else:
-            self.hierarchical = False
+        self.multilabel = kwargs.pop("multilabel", False)
+        self.hierarchical = kwargs.pop("hierarchical", False)
         super().__init__(backbone, neck=neck, head=head, pretrained=pretrained, **kwargs)
 
     def forward_train(self, img, gt_label, **kwargs):
