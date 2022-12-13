@@ -19,3 +19,6 @@ optimizer:
 evaluation:
     metric: ['accuracy', 'class_accuracy']
 
+task_adapt:
+    type: 'mpa'
+    op: 'REPLACE'
