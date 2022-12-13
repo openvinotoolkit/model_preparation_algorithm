@@ -36,11 +36,11 @@ runner:
 
 checkpoint_config:
     by_epoch: false
-    interval: 10
+    interval: 100
     max_keep_ckpts: 1
 
 log_config:
-    interval: 1
+    interval: 10
     ignore_last: false
 
 seed: 1234
