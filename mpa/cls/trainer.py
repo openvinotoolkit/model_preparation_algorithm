@@ -124,7 +124,7 @@ class ClsTrainer(ClsStage):
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
 
             mp.spawn(ClsTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                        args=(datasets, cfg, distributed, validate, timestamp, meta))
+                     args=(datasets, cfg, distributed, validate, timestamp, meta))
         else:
             ClsTrainer.train_worker(None, datasets, cfg,
                                     distributed,
