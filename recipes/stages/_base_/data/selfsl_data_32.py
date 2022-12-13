@@ -14,14 +14,14 @@ __train_pipeline_v0 = [
         type='RandomAppliedTrans',
         transforms=[
             dict(
-                type='ColorJitter',
+                type='OTXColorJitter',
                 brightness=0.4,
                 contrast=0.4,
                 saturation=0.2,
                 hue=0.1)
         ],
         p=0.8),
-    dict(type='RandomGrayscale', p=0.2),
+    dict(type='RandomGrayscale', gray_prob=0.2),
     dict(
         type='RandomAppliedTrans',
         transforms=[
@@ -45,14 +45,14 @@ __train_pipeline_v1 = [
         type='RandomAppliedTrans',
         transforms=[
             dict(
-                type='ColorJitter',
+                type='OTXColorJitter',
                 brightness=0.4,
                 contrast=0.4,
                 saturation=0.2,
                 hue=0.1)
         ],
         p=0.8),
-    dict(type='RandomGrayscale', p=0.2),
+    dict(type='RandomGrayscale', gray_prob=0.2),
     dict(
         type='RandomAppliedTrans',
         transforms=[
