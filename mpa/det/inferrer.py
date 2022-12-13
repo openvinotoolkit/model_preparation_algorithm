@@ -9,6 +9,7 @@ from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
+from mmdet.models.detectors import TwoStageDetector
 from mmdet.parallel import MMDataCPU
 from mmdet.utils.deployment import get_feature_vector
 from mmdet.apis import single_gpu_test
@@ -16,7 +17,7 @@ from mmdet.apis import single_gpu_test
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
 from mpa.det.incremental import IncrDetectionStage
-from mpa.modules.hooks.auxiliary_hooks import DetSaliencyMapHook
+from mpa.modules.hooks.auxiliary_hooks import DetSaliencyMapHook, SaliencyMapHook
 
 
 logger = get_logger()
@@ -161,8 +162,20 @@ class DetectionInferrer(IncrDetectionStage):
 
         feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
 
+        # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
+        if is_module_wrapper(model):
+            model = model.module
+
+        # Class-wise Saliency map for Single-Stage Detector, otherwise use class-ignore saliency map.
+        if not dump_saliency_map:
+            saliency_hook = nullcontext()
+        elif isinstance(model, TwoStageDetector):
+            saliency_hook = SaliencyMapHook(eval_model.module.backbone)
+        else:
+            saliency_hook = DetSaliencyMapHook(eval_model.module)
+
         with eval_model.module.backbone.register_forward_hook(feature_vector_hook):
-            with DetSaliencyMapHook(eval_model.module) if dump_saliency_map else nullcontext() as saliency_hook:
+            with saliency_hook:
                 eval_predictions = single_gpu_test(eval_model, data_loader)
                 saliency_maps = saliency_hook.records if dump_saliency_map else [None] * len(self.dataset)
 
@@ -190,7 +203,7 @@ class DetectionInferrer(IncrDetectionStage):
                 eval_predictions = dataset.merged_results
 
         assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
-               'Number of elements should be the same, however, number of outputs are ' \
+               "Number of elements should be the same, however, number of outputs are " \
                f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
 
         outputs = dict(
