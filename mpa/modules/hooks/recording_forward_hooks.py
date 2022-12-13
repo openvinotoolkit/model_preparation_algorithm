@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, List, Tuple
 
 import torch
 
@@ -91,9 +91,12 @@ class EigenCamHook(BaseRecordingForwardHook):
 
 class ActivationMapHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+    def func(
+        feature_map: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor, ...]],
+        fpn_idx: int = 0
+    ) -> torch.Tensor:
         """Generate the saliency map by average feature maps then normalizing to (0, 255)."""
-        if isinstance(feature_map, list):
+        if isinstance(feature_map, (tuple, list)):
             assert fpn_idx < len(feature_map), \
                 f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
             feature_map = feature_map[fpn_idx]
@@ -115,9 +118,11 @@ class ActivationMapHook(BaseRecordingForwardHook):
 
 class FeatureVectorHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]]) -> torch.Tensor:
+    def func(
+        feature_map: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor, ...]],
+    ) -> torch.Tensor:
         """Generate the feature vector by average pooling feature maps."""
-        if isinstance(feature_map, list):
+        if isinstance(feature_map, (tuple, list)):
             # aggregate feature maps from Feature Pyramid Network
             feature_vector = [torch.nn.functional.adaptive_avg_pool2d(f, (1, 1)) for f in feature_map]
             feature_vector = torch.cat(feature_vector, 1)

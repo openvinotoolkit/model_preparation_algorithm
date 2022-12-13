@@ -183,17 +183,22 @@ class ClsTrainer(ClsStage):
             if isinstance(ds, list):
                 sub_loaders = []
                 for sub_ds in ds:
-                    sub_loader_cfg = copy.deepcopy(loader_cfg)
-                    sub_loader_cfg.update(cfg.data.get("train_dataloader", {}))
+                    train_loader_cfg = {
+                        **copy.deepcopy(loader_cfg),
+                        **cfg.data.get("train_dataloader", {}),
+                    }
                     if hasattr(sub_ds, "samples_per_gpu"):
-                        sub_loader_cfg["samples_per_gpu"] = sub_ds.samples_per_gpu
+                        train_loader_cfg["samples_per_gpu"] = sub_ds.samples_per_gpu
                     if hasattr(sub_ds, "workers_per_gpu"):
-                        sub_loader_cfg["workers_per_gpu"] = sub_ds.workers_per_gpu
-                    sub_loaders.append(build_dataloader(sub_ds, **sub_loader_cfg))
+                        train_loader_cfg["workers_per_gpu"] = sub_ds.workers_per_gpu
+                    sub_loaders.append(build_dataloader(sub_ds, **train_loader_cfg))
                 data_loaders.append(ComposedDL(sub_loaders))
             else:
-                loader_cfg.update(cfg.data.get("train_dataloader", {}))
-                data_loaders.append(build_dataloader(ds, **loader_cfg,))
+                train_loader_cfg = {
+                    **copy.deepcopy(loader_cfg),
+                    **cfg.data.get("train_dataloader", {}),
+                }
+                data_loaders.append(build_dataloader(ds, **train_loader_cfg))
 
         # put model on gpus
         if torch.cuda.is_available():
@@ -259,10 +264,8 @@ class ClsTrainer(ClsStage):
 
         # register hooks
         runner.register_training_hooks(cfg.lr_config, optimizer_config,
-                                       None, cfg.log_config,
+                                       cfg.checkpoint_config, cfg.log_config,
                                        cfg.get('momentum_config', None))
-        if cfg.get('checkpoint_config', False):
-            runner.register_hook(ClsTrainer.register_checkpoint_hook(cfg.checkpoint_config))
 
         if distributed:
             runner.register_hook(DistSamplerSeedHook())
@@ -273,14 +276,13 @@ class ClsTrainer(ClsStage):
         # register eval hooks
         if validate:
             val_dataset = build_dataset(cfg.data.val, dict(test_mode=True))
-            val_dataloader = build_dataloader(
-                val_dataset,
-                samples_per_gpu=cfg.data.samples_per_gpu,
-                workers_per_gpu=cfg.data.workers_per_gpu,
-                dist=distributed,
-                shuffle=False,
-                round_up=True,
-                persistent_workers=False)
+            val_loader_cfg = {
+                **copy.deepcopy(loader_cfg),
+                'shuffle': False,  # Not shuffle by default
+                'sampler_cfg': None,  # Not use sampler by default
+                **cfg.data.get('val_dataloader', {}),
+            }
+            val_dataloader = build_dataloader(val_dataset, **val_loader_cfg)
             eval_cfg = cfg.get('evaluation', {})
             eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'
             eval_hook = DistCustomEvalHook if distributed else CustomEvalHook
@@ -295,12 +297,3 @@ class ClsTrainer(ClsStage):
                 runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{gpu}')
 
         runner.run(data_loaders, cfg.workflow)
-
-    @staticmethod
-    def register_checkpoint_hook(checkpoint_config):
-        if checkpoint_config.get('type', False):
-            hook = mmcv.build_from_cfg(checkpoint_config, HOOKS)
-        else:
-            checkpoint_config.setdefault('type', 'CheckpointHook')
-            hook = mmcv.build_from_cfg(checkpoint_config, HOOKS)
-        return hook
