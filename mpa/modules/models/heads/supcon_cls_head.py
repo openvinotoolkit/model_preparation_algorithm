@@ -32,6 +32,7 @@ class SupConClsHead(BaseHead):
             topk = (topk,)
         for _topk in topk:
             assert _topk > 0, "Top-k should be larger than 0"
+        topk = (1, ) if num_classes < 5 else (1, 5)
         super().__init__(init_cfg=init_cfg)
 
         self.topk = topk
@@ -40,7 +41,7 @@ class SupConClsHead(BaseHead):
 
         # Set up the standard classification head
         self.num_classes = num_classes
-        self.linear = nn.Linear(in_features=in_channels, out_features=self.num_classes)
+        self.fc = nn.Linear(in_features=in_channels, out_features=self.num_classes)
 
         # Set up the auxiliar head
         out_channels = aux_mlp["out_channels"]
@@ -66,7 +67,7 @@ class SupConClsHead(BaseHead):
         """
 
         losses = dict(loss=0.0)
-        fc_feats = self.linear(x)
+        cls_score = self.fc(x)
 
         bsz = gt_label.shape[0]
         # make sure we have two views for each label and split them
@@ -74,7 +75,7 @@ class SupConClsHead(BaseHead):
         feats1, feats2 = torch.split(self.aux_mlp(x), [bsz, bsz], dim=0)
         gt_label = torch.cat([gt_label, gt_label], dim=0)
 
-        loss = self.compute_loss(fc_feats, gt_label)
+        loss = self.compute_loss(cls_score, gt_label)
         aux_loss = self.aux_loss(feats1, feats2)
         losses["loss"] = loss + aux_loss
         return losses
@@ -83,7 +84,7 @@ class SupConClsHead(BaseHead):
         """
         Test without data augmentation.
         """
-        cls_score = self.linear(img)
+        cls_score = self.fc(img)
 
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
