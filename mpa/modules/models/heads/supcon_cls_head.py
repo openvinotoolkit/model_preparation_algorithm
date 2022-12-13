@@ -22,16 +22,7 @@ class SupConClsHead(BaseHead):
         topk (set): evaluation topk score, default is (1, )
     """
 
-    def __init__(
-        self,
-        num_classes: int,
-        in_channels: int,
-        aux_mlp,
-        loss,
-        topk=(1,),
-        init_cfg=None,
-        **kwargs
-    ):
+    def __init__(self, num_classes: int, in_channels: int, aux_mlp, loss, aux_loss, topk=(1,), init_cfg=None, **kwargs):
         if in_channels <= 0:
             raise ValueError(f"in_channels={in_channels} must be a positive integer")
         if num_classes <= 0:
@@ -45,6 +36,7 @@ class SupConClsHead(BaseHead):
 
         self.topk = topk
         self.compute_loss = build_loss(loss)
+        self.aux_loss = build_loss(aux_loss)
 
         # Set up the standard classification head
         self.num_classes = num_classes
@@ -73,17 +65,18 @@ class SupConClsHead(BaseHead):
             dict[str, Tensor]: A dictionary of loss components.
         """
 
-        losses = {}
+        losses = dict(loss=0.0)
         fc_feats = self.linear(x)
 
         bsz = gt_label.shape[0]
-        aux_feats = None
-        if x.shape[0] == 2 * bsz:
-            # reshape aux_feats from [2 * bsz, dims] to [bs, 2, dims]
-            feats1, feats2 = torch.split(self.aux_mlp(x), [bsz, bsz], dim=0)
-            aux_feats = torch.cat([feats1.unsqueeze(1), feats2.unsqueeze(1)], dim=1)
-        loss = self.compute_loss(fc_feats, gt_label, aux_feats=aux_feats)
-        losses.update(loss)
+        # make sure we have two views for each label and split them
+        assert x.shape[0] == 2 * bsz
+        feats1, feats2 = torch.split(self.aux_mlp(x), [bsz, bsz], dim=0)
+        gt_label = torch.cat([gt_label, gt_label], dim=0)
+
+        loss = self.compute_loss(fc_feats, gt_label)
+        aux_loss = self.aux_loss(feats1, feats2)
+        losses["loss"] = loss + aux_loss
         return losses
 
     def simple_test(self, img):

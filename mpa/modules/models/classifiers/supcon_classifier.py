@@ -3,22 +3,23 @@
 #
 
 import torch
-from torch.nn.functional import softmax
+from torch.nn.functional import softmax, sigmoid
 from mmcls.models.builder import CLASSIFIERS
 from mmcls.models.classifiers.image import ImageClassifier
 
 
 @CLASSIFIERS.register_module()
 class SupConClassifier(ImageClassifier):
-    def __init__(self, backbone=None, neck=None, head=None, pretrained=None, **kwargs):
-        super(SupConClassifier, self).__init__(
-            backbone=backbone,
-            neck=neck,
-            head=head,
-            pretrained=pretrained,
-        )
-        self.hierarchical = False
-        self.multilabel = False
+    def __init__(self, backbone, neck=None, head=None, pretrained=None, **kwargs):
+        if "multilabel" in kwargs:
+            self.multilabel = kwargs.pop("multilabel")
+        else:
+            self.multilabel = False
+        if "hierarchical" in kwargs:
+            self.hierarchical = kwargs.pop("hierarchical")
+        else:
+            self.hierarchical = False
+        super().__init__(backbone, neck=neck, head=head, pretrained=pretrained, **kwargs)
 
     def forward_train(self, img, gt_label, **kwargs):
         # concatenate the different image views along the batch size
@@ -26,11 +27,18 @@ class SupConClassifier(ImageClassifier):
             img = torch.cat([img[:, d, :, :, :] for d in range(img.shape[1])], dim=0)
         x = self.extract_feat(img)
         losses = dict()
-        loss = self.head.forward_train(x, gt_label)
+        if self.multilabel or self.hierarchical:
+            loss = self.head.forward_train(x, gt_label, **kwargs)
+        else:
+            gt_label = gt_label.squeeze(dim=1)
+            loss = self.head.forward_train(x, gt_label)
         losses.update(loss)
         return losses
 
     def extract_prob(self, img):
         """Test without augmentation."""
         x = self.extract_feat(img)
-        return softmax(self.head.fc(x)), x
+        if self.multilabel or self.hierarchical:
+            return sigmoid(self.head.fc(x)), x
+        else:
+            return softmax(self.head.fc(x)), x

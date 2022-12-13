@@ -11,11 +11,11 @@ model = dict(
         num_classes=10,
         in_channels=-1,
         aux_mlp=dict(hid_channels=0, out_channels=1024),
-        loss=dict(
+        loss=dict(type="CrossEntropyLoss", loss_weight=1.0),
+        aux_loss=dict(
             type="BarlowTwinsLoss",
             off_diag_penality=1.0 / 128.0,
             loss_weight=1.0,
-            cls_loss=dict(type="CrossEntropyLoss", loss_weight=1.0),
         ),
     ),
 )
