@@ -34,11 +34,3 @@ class SupConClassifier(ImageClassifier):
             loss = self.head.forward_train(x, gt_label)
         losses.update(loss)
         return losses
-
-    def extract_prob(self, img):
-        """Test without augmentation."""
-        x = self.extract_feat(img)
-        if self.multilabel or self.hierarchical:
-            return sigmoid(self.head.fc(x)), x
-        else:
-            return softmax(self.head.fc(x)), x
