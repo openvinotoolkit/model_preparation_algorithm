@@ -13,13 +13,24 @@ from ..parser import parameter_parser
 logger = get_logger()
 
 
+NECK_INPUT_TYPES = ["ReduceMean", "MaxPool", "AvgPool"]
+NECK_TYPES = [
+    "Reshape",
+    "Squeeze",
+    "Unsqueeze",
+    "Concat",
+    "Convert",
+    "ShapeOf",
+    "StridedSlice",
+    "Transpose",
+]
+
+
 @PARSERS.register()
 def cls_base_parser(
     graph, component: str = "backbone"
 ) -> Optional[Dict[str, List[str]]]:
     assert component in ["backbone", "neck", "head"]
-
-    possible_neck_input_types = ["ReduceMean", "MaxPool", "AvgPool"]
 
     result_nodes = graph.get_nodes_by_types(["Result"])
     if len(result_nodes) != 1:
@@ -29,7 +40,7 @@ def cls_base_parser(
 
     neck_input = None
     for _, node_to in graph.bfs(result_node, True, 20):
-        if node_to.type in possible_neck_input_types:
+        if node_to.type in NECK_INPUT_TYPES:
             logger.debug(f"Found neck_input: {node_to.name}")
             neck_input = node_to
             break
@@ -38,21 +49,11 @@ def cls_base_parser(
         logger.debug("Can not determine the output of backbone.")
         return None
 
-    part_of_neck_types = [
-        "Reshape",
-        "Squeeze",
-        "Unsqueeze",
-        "Concat",
-        "Convert",
-        "ShapeOf",
-        "StridedSlice",
-        "Transpose",
-    ]
     neck_output = neck_input
     for node_from, node_to in graph.bfs(neck_input, False, 10):
         done = False
         for node_to_ in node_to:
-            if node_to_.type not in part_of_neck_types:
+            if node_to_.type not in NECK_TYPES:
                 done = True
                 break
         neck_output = node_from
