@@ -38,37 +38,12 @@ class DetectionExplainer(DetectionStage):
         - Run inference via MMDetection -> MMCV
         """
         self._init_logger()
-        eval = kwargs.pop('eval', False)
-
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
-        # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
-        # logger.info(f'Config:\n{cfg.pretty_text}')
-        # logger.info('infer!')
+        outputs = self.explain(cfg)
 
-        # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-
-        outputs = self.explain(cfg, eval=eval)
-
-        # Save outputs
-        # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
-        # np.save(output_file_path, outputs, allow_pickle=True)
         return dict(
-            # output_file_path=output_file_path,
             outputs=outputs
         )
-        # TODO: save in json
-        """
-        class NumpyEncoder(json.JSONEncoder):
-            def default(self, obj):
-                if isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                return json.JSONEncoder.default(self, obj)
-
-        a = np.array([[1, 2, 3], [4, 5, 6]])
-        json_dump = json.dumps({'a': a, 'aa': [2, (2, 3, 4), a], 'bb': [2]},
-                               cls=NumpyEncoder)
-        print(json_dump)
-        """
 
     def explain(self, cfg):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
