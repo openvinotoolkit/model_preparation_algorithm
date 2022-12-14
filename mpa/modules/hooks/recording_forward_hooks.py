@@ -152,7 +152,6 @@ class DetSaliencyMapHook(BaseRecordingForwardHook):
         self._neck = module.neck if module.with_neck else None
         self._bbox_head = module.bbox_head
         self._num_cls_out_channels = module.bbox_head.cls_out_channels  # SSD-like heads also have background class
-        print(f"n_classes: {self._num_cls_out_channels}")
         if hasattr(module.bbox_head, 'anchor_generator'):
             self._num_anchors = module.bbox_head.anchor_generator.num_base_anchors
         else:
