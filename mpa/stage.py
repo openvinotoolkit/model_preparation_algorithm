@@ -243,7 +243,7 @@ class Stage(object):
                     hook.update(**opt)
 
         custom_hook_options = cfg.pop('custom_hook_options', {})
-        logger.info(f"configure_hook() {cfg.get('custom_hooks', [])} <- {custom_hook_options}")
+        # logger.info(f"configure_hook() {cfg.get('custom_hooks', [])} <- {custom_hook_options}")
         custom_hooks = cfg.get('custom_hooks', [])
         for idx, hook in enumerate(custom_hooks):
             for opt_key, opt in custom_hook_options.items():

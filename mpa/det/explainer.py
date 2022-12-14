@@ -31,44 +31,78 @@ class DetectionExplainer(DetectionStage):
         super().__init__(**kwargs)
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
-        """Run explain stage for detection
+        """Run inference stage for detection
+
         - Configuration
         - Environment setup
-        - Run explain via MMDetection -> MMCV
+        - Run inference via MMDetection -> MMCV
         """
         self._init_logger()
-        explainer = kwargs.get('explainer')
-        self.explainer_hook = EXPLAINER_HOOK_SELECTOR.get(explainer.lower(), None)
-        if self.explainer_hook is None:
-            raise NotImplementedError(f'Explainer algorithm {explainer} not supported!')
-        logger.info(
-            f'Explainer algorithm: {explainer}'
-        )
-        cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
+        eval = kwargs.pop('eval', False)
 
-        mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-        outputs = self._explain(cfg)
+        cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
+        # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
+        # logger.info(f'Config:\n{cfg.pretty_text}')
+        # logger.info('infer!')
+
+        # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
+
+        outputs = self.explain(cfg, eval=eval)
+
+        # Save outputs
+        # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
+        # np.save(output_file_path, outputs, allow_pickle=True)
         return dict(
+            # output_file_path=output_file_path,
             outputs=outputs
         )
+        # TODO: save in json
+        """
+        class NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return json.JSONEncoder.default(self, obj)
 
-    def _explain(self, cfg):
+        a = np.array([[1, 2, 3], [4, 5, 6]])
+        json_dump = json.dumps({'a': a, 'aa': [2, (2, 3, 4), a], 'bb': [2]},
+                               cls=NumpyEncoder)
+        print(json_dump)
+        """
+
+    def explain(self, cfg):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
 
-        self.explain_dataset = build_dataset(cfg.data.test)
-        explain_dataset = self.explain_dataset
+        data_cfg = cfg.data.test.copy()
+        # Input source
+        if 'input_source' in cfg:
+            input_source = cfg.get('input_source')
+            logger.info(f'Inferring on input source: data.{input_source}')
+            if input_source == 'train':
+                src_data_cfg = self.get_data_cfg(cfg, input_source)
+            else:
+                src_data_cfg = cfg.data[input_source]
+            data_cfg.test_mode = src_data_cfg.get('test_mode', False)
+            data_cfg.ann_file = src_data_cfg.ann_file
+            data_cfg.img_prefix = src_data_cfg.img_prefix
+            if 'classes' in src_data_cfg:
+                data_cfg.classes = src_data_cfg.classes
+        self.dataset = build_dataset(data_cfg)
+        dataset = self.dataset
 
         # Data loader
-        explain_data_loader = build_dataloader(
-            explain_dataset,
+        data_loader = build_dataloader(
+            dataset,
             samples_per_gpu=samples_per_gpu,
             workers_per_gpu=cfg.data.workers_per_gpu,
             dist=False,
-            shuffle=False,
-        )
+            shuffle=False)
+
+        # Target classes
+        target_classes = dataset.CLASSES
 
         # Model
         cfg.model.pretrained = None
@@ -83,6 +117,14 @@ class DetectionExplainer(DetectionStage):
                     cfg.model.neck.rfp_backbone.pretrained = None
 
         model = build_detector(cfg.model)
+        model.CLASSES = target_classes
+
+        # TODO: Check Inference FP16 Support
+        # fp16_cfg = cfg.get('fp16', None)
+        # if fp16_cfg is not None:
+        #     wrap_fp16_model(model)
+
+        # InferenceProgressCallback (Time Monitor enable into Infer task)
         DetectionStage.set_inference_progress_callback(model, cfg)
 
         # Checkpoint
@@ -91,24 +133,34 @@ class DetectionExplainer(DetectionStage):
 
         model.eval()
         if torch.cuda.is_available():
-            explain_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
+            eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
+                                        device_ids=cfg.gpu_ids)
         else:
-            explain_model = MMDataCPU(model)
+            eval_model = MMDataCPU(model)
 
+        # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
         if is_module_wrapper(model):
             model = model.module
-        saliency_maps = []
-        with self.explainer_hook(explain_model.module) as forward_explainer_hook:
-            with torch.no_grad():
-                _ = single_gpu_test(explain_model, explain_data_loader)
-                saliency_maps = forward_explainer_hook.records
+
+        # Class-wise Saliency map for Single-Stage Detector, otherwise use class-ignore saliency map.
+        saliency_hook = DetSaliencyMapHook(eval_model.module)
+
+        with saliency_hook:
+            _ = single_gpu_test(eval_model, data_loader)
+            saliency_maps = saliency_hook.records
+
+        for key in [
+                'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',
+                'rule', 'dynamic_intervals'
+        ]:
+            cfg.evaluation.pop(key, None)
 
         # Check and unwrap ImageTilingDataset object from TaskAdaptEvalDataset
-        while hasattr(explain_dataset, 'dataset') and not isinstance(explain_dataset, ImageTilingDataset):
-            explain_dataset = explain_dataset.dataset
+        while hasattr(dataset, 'dataset') and not isinstance(dataset, ImageTilingDataset):
+            dataset = dataset.dataset
 
-        if isinstance(explain_dataset, ImageTilingDataset):
-            saliency_maps = [saliency_maps[i] for i in range(explain_dataset.num_samples)]
+        if isinstance(dataset, ImageTilingDataset):
+            saliency_maps = [saliency_maps[i] for i in range(dataset.num_samples)]
 
         outputs = dict(
             saliency_maps=saliency_maps

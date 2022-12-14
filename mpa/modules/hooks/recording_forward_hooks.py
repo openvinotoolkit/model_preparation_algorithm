@@ -35,6 +35,7 @@ class BaseRecordingForwardHook(ABC):
     Args:
         module (torch.nn.Module): The PyTorch module to be registered in forward pass
     """
+
     def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
         self._module = module
         self._handle = None
@@ -57,7 +58,9 @@ class BaseRecordingForwardHook(ABC):
         """
         raise NotImplementedError
 
-    def _recording_forward(self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor):
+    def _recording_forward(
+        self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
+    ):
         tensor = self.func(output)
         tensor = tensor.detach().cpu().numpy()
         if len(tensor) > 1:
@@ -100,9 +103,14 @@ class EigenCamHook(BaseRecordingForwardHook):
 
 class ActivationMapHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+    def func(
+        feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0
+    ) -> torch.Tensor:
         """Generate the saliency map by average feature maps then normalizing to (0, 255)."""
         if isinstance(feature_map, (list, tuple)):
+            assert fpn_idx < len(
+                feature_map
+            ), f"fpn_idx: {fpn_idx} is out of scope of feature_map length {len(feature_map)}!"
             feature_map = feature_map[fpn_idx]
 
         bs, c, h, w = feature_map.size()
@@ -122,14 +130,18 @@ class ActivationMapHook(BaseRecordingForwardHook):
 
 class FeatureVectorHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, list[torch.Tensor]]) -> torch.Tensor:
+    def func(feature_map: Union[torch.Tensor, Sequence[torch.Tensor]]) -> torch.Tensor:
         """Generate the feature vector by average pooling feature maps."""
-        if isinstance(feature_map, list):
+        if isinstance(feature_map, (list, tuple)):
             # aggregate feature maps from Feature Pyramid Network
-            feature_vector = [F.adaptive_avg_pool2d(f, (1, 1)) for f in feature_map]
+            feature_vector = [
+                torch.nn.functional.adaptive_avg_pool2d(f, (1, 1)) for f in feature_map
+            ]
             feature_vector = torch.cat(feature_vector, 1)
         else:
-            feature_vector = F.adaptive_avg_pool2d(feature_map, (1, 1))
+            feature_vector = torch.nn.functional.adaptive_avg_pool2d(
+                feature_map, (1, 1)
+            )
         return feature_vector
 
 
@@ -140,6 +152,7 @@ class DetSaliencyMapHook(BaseRecordingForwardHook):
         self._neck = module.neck if module.with_neck else None
         self._bbox_head = module.bbox_head
         self._num_cls_out_channels = module.bbox_head.cls_out_channels  # SSD-like heads also have background class
+        print(f"n_classes: {self._num_cls_out_channels}")
         if hasattr(module.bbox_head, 'anchor_generator'):
             self._num_anchors = module.bbox_head.anchor_generator.num_base_anchors
         else:
