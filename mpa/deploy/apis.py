@@ -118,6 +118,14 @@ def torch2onnx(
         """NCNN backend needs a precise blob counts, while using onnx optimizer
         will merge duplicate initilizers without reference count."""
         optimize = False
+
+    # TODO: Need to investigate it why
+    # NNCF compressed model lost trace context from time to time with no reason
+    # even with 'torch.no_grad()'. Explicitly setting 'requires_grad' to'False'
+    # makes things easier.
+    for i in torch_model.parameters():
+        i.requires_grad = False
+
     with no_mp():
         export(
             torch_model,
