@@ -30,6 +30,8 @@ class MMOVRPNHead(RPNHead):
         ] = None,
         init_weight: bool = False,
         verify_shape: bool = True,
+        transpose_cls: bool = False,
+        transpose_reg: bool = False,
         *args,
         **kwargs,
     ):
@@ -39,6 +41,8 @@ class MMOVRPNHead(RPNHead):
         self._outputs = deepcopy(outputs)
         self._init_weight = init_weight
         self._verify_shape = verify_shape
+        self._transpose_cls = transpose_cls
+        self._transpose_reg = transpose_reg
 
         # dummy input
         in_channels = 1
@@ -58,12 +62,29 @@ class MMOVRPNHead(RPNHead):
         )
 
     def init_weights(self):
+        # TODO
         pass
 
     def forward_single(self, x):
         rpn_cls_score, rpn_bbox_pred = self.model(x)
-        # rpn_cls_score [B, num_anchors * 2, H, W]
-        # rpn_bbox_pred [B, 4 * num_anchors, H, W] -> [B, num_anchors * 4, H, W]
+
+        if self._transpose_reg:
+            # [B, 4 * num_anchors, H, W] -> [B, num_anchors * 4, H, W]
+            shape = rpn_bbox_pred.shape
+            rpn_bbox_pred = (
+                rpn_bbox_pred.reshape(shape[0], 4, -1, *shape[2:])
+                .transpose(1, 2)
+                .reshape(shape)
+            )
+
+        if self._transpose_cls:
+            # [B, 2 * num_anchors, H, W] -> [B, num_anchors * 2, H, W]
+            shape = rpn_cls_score.shape
+            rpn_cls_score = (
+                rpn_cls_score.reshape(shape[0], 2, -1, *shape[2:])
+                .transpose(1, 2)
+                .reshape(shape)
+            )
 
         # We set FG labels to [0, num_class-1] and BG label to
         # num_class in RPN head since mmdet v2.5, which is unified to
@@ -72,13 +93,5 @@ class MMOVRPNHead(RPNHead):
         bg = rpn_cls_score[:, 0::2]
         fg = rpn_cls_score[:, 1::2]
         rpn_cls_score = torch.flatten(torch.stack([fg, bg], dim=2), 1, 2)
-
-        # [B, 4 * num_anchors, H, W] -> [B, num_anchors * 4, H, W]
-        shape = rpn_bbox_pred.shape
-        rpn_bbox_pred = (
-            rpn_bbox_pred.reshape(shape[0], 4, shape[1] // 4, *shape[2:])
-            .permute(0, 2, 1, 3, 4)
-            .reshape(shape)
-        )
 
         return rpn_cls_score, rpn_bbox_pred
