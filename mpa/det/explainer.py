@@ -72,7 +72,7 @@ class DetectionExplainer(DetectionStage):
 
         # Data loader
         explain_data_loader = build_dataloader(
-            dataset,
+            explain_dataset,
             samples_per_gpu=samples_per_gpu,
             workers_per_gpu=cfg.data.workers_per_gpu,
             dist=False,
