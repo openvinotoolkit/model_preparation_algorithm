@@ -20,6 +20,7 @@ from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import DistSamplerSeedHook, Fp16OptimizerHook, build_optimizer, build_runner, HOOKS
 
 from mmcls import __version__
+from mmcls.apis import train_model
 from mmcls.datasets import build_dataset, build_dataloader
 from mmcls.models import build_classifier
 from mmcls.utils import collect_env
@@ -164,136 +165,50 @@ class ClsTrainer(ClsStage):
             model = model_builder(cfg)
         else:
             model = build_classifier(cfg.model)
-        # prepare data loaders
-        dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
 
-        # updated to adapt list of dataset for the 'train'
-        loader_cfg = dict(
-            samples_per_gpu=cfg.data.samples_per_gpu,
-            workers_per_gpu=cfg.data.workers_per_gpu,
-            # cfg.gpus will be ignored if distributed
-            num_gpus=len(cfg.gpu_ids),
-            dist=distributed,
-            round_up=True,
-            seed=cfg.seed,
-        )
-        data_loaders = []
-        sub_loaders = []
-        for ds in dataset:
-            if isinstance(ds, list):
-                sub_loaders = []
-                for sub_ds in ds:
-                    train_loader_cfg = {
-                        **copy.deepcopy(loader_cfg),
-                        **cfg.data.get("train_dataloader", {}),
-                    }
-                    if hasattr(sub_ds, "samples_per_gpu"):
-                        train_loader_cfg["samples_per_gpu"] = sub_ds.samples_per_gpu
-                    if hasattr(sub_ds, "workers_per_gpu"):
-                        train_loader_cfg["workers_per_gpu"] = sub_ds.workers_per_gpu
-                    sub_loaders.append(build_dataloader(sub_ds, **train_loader_cfg))
-                data_loaders.append(ComposedDL(sub_loaders))
-            else:
-                train_loader_cfg = {
-                    **copy.deepcopy(loader_cfg),
-                    **cfg.data.get("train_dataloader", {}),
-                }
-                data_loaders.append(build_dataloader(ds, **train_loader_cfg))
-
-        # put model on gpus
-        if torch.cuda.is_available():
-            model = model.cuda()
-
-        # put model on gpus
-        if torch.cuda.is_available():
-            if distributed:
-                # put model on gpus
-                find_unused_parameters = cfg.get('find_unused_parameters', False)
-                # Sets the `find_unused_parameters` parameter in
-                # torch.nn.parallel.DistributedDataParallel
-                model = MMDistributedDataParallel(
-                    model,
-                    device_ids=[torch.cuda.current_device()],
-                    broadcast_buffers=False,
-                    find_unused_parameters=find_unused_parameters)
-            else:
-                model = MMDataParallel(
-                    model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
-        else:
-            model = MMDataCPU(model)
-
-        # build runner
-        optimizer = build_optimizer(model, cfg.optimizer)
-
-        if cfg.get('runner') is None:
-            cfg.runner = {
-                'type': 'EpochBasedRunner',
-                'max_epochs': cfg.total_epochs
-            }
-            warnings.warn(
-                'config is now expected to have a `runner` section, '
-                'please set `runner` in your config.', UserWarning)
-
-        runner = build_runner(
-            cfg.runner,
-            default_args=dict(
-                model=model,
-                batch_processor=None,
-                optimizer=optimizer,
-                work_dir=cfg.work_dir,
-                logger=logger,
-                meta=meta))
-
-        # an ugly walkaround to make the .log and .log.json filenames the same
-        runner.timestamp = f'{timestamp}'
-
-        # fp16 setting
-        fp16_cfg = cfg.get('fp16', None)
+        # fp16 setting for custom sam optimizer
+        fp16_cfg = cfg.pop('fp16', None)
         if fp16_cfg is not None:
-            if cfg.optimizer_config.get('type', False) == 'SAMOptimizerHook':
-                opt_hook = Fp16SAMOptimizerHook
+            if cfg.optimizer_config.get('type', None) == 'SAMOptimizerHook':
+                cfg.optimizer_config.type = "Fp16SAMOptimizerHook"
+                cfg.optimizer_config.distributed = distributed
+                cfg.optimizer_config.loss_scale = fp16_cfg["loss_scale"]
             else:
-                opt_hook = Fp16OptimizerHook
-            cfg.optimizer_config.pop('type')
-            optimizer_config = opt_hook(
-                **cfg.optimizer_config, **fp16_cfg, distributed=distributed)
-        elif distributed and 'type' not in cfg.optimizer_config:
-            optimizer_config = DistOptimizerHook(**cfg.optimizer_config)
-        else:
-            optimizer_config = cfg.optimizer_config
+                cfg.fp16 = fp16_cfg
 
-        # register hooks
-        runner.register_training_hooks(cfg.lr_config, optimizer_config,
-                                       cfg.checkpoint_config, cfg.log_config,
-                                       cfg.get('momentum_config', None))
-
-        if distributed:
-            runner.register_hook(DistSamplerSeedHook())
-
-        for hook in cfg.get('custom_hooks', ()):
-            runner.register_hook_from_cfg(hook)
-
-        # register eval hooks
+        # register custom eval hooks
         if validate:
             val_dataset = build_dataset(cfg.data.val, dict(test_mode=True))
             val_loader_cfg = {
-                **copy.deepcopy(loader_cfg),
-                'shuffle': False,  # Not shuffle by default
-                'sampler_cfg': None,  # Not use sampler by default
+                "samples_per_gpu": cfg.data.samples_per_gpu,
+                "workers_per_gpu": cfg.data.workers_per_gpu,
+                # cfg.gpus will be ignored if distributed
+                "num_gpus": len(cfg.gpu_ids),
+                "dist": distributed,
+                "round_up": True,
+                "seed": cfg.seed,
+                "shuffle": False,     # Not shuffle by default
+                "sampler_cfg": None,  # Not use sampler by default
                 **cfg.data.get('val_dataloader', {}),
             }
             val_dataloader = build_dataloader(val_dataset, **val_loader_cfg)
             eval_cfg = cfg.get('evaluation', {})
             eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'
-            eval_hook = DistCustomEvalHook if distributed else CustomEvalHook
-            runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority='ABOVE_NORMAL')
+            cfg.custom_hooks.append(
+                dict(
+                    type="DistCustomEvalHook" if distributed else "CustomEvalHook",
+                    dataloader=val_dataloader,
+                    priority='ABOVE_NORMAL',
+                    **eval_cfg,
+                )
+            )
 
-        if cfg.get('resume_from', False):
-            runner.resume(cfg.resume_from)
-        elif cfg.get('load_from', False):
-            if gpu is None:
-                runner.load_checkpoint(cfg.load_from)
-            else:
-                runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{gpu}')
-
-        runner.run(data_loaders, cfg.workflow)
+        train_model(
+            model=model,
+            dataset=dataset,
+            cfg=cfg,
+            distributed=distributed,
+            validate=False,
+            timestamp=timestamp,
+            meta=meta,
+        )
