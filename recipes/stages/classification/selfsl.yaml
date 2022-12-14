@@ -44,3 +44,6 @@ log_config:
 custom_hooks:
     - type: EMAMomentumUpdateHook
       end_momentum: 1.0
+
+seed: 1234
+deterministic: true

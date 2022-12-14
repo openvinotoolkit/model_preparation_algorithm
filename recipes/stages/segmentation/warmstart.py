@@ -51,5 +51,6 @@ checkpoint_config = dict(
 )
 
 seed = 42
+deterministic = True
 find_unused_parameters = False
 task_adapt = None
