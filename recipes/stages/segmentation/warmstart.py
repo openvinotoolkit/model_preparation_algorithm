@@ -3,7 +3,7 @@ _base_ = [
     '../_base_/logs/tensorboard_logger.py',
     '../_base_/optimizers/sgd.py',
     '../_base_/runners/epoch_runner.py',
-    '../_base_/data/seg_warmstart.py'
+    '../_base_/data/warmstart_seg_data.py'
 ]
 
 optimizer = dict(
@@ -23,9 +23,6 @@ lr_config = dict(
 optimizer_config = dict(
     _delete_=True,
     grad_clip=dict(
-        # method='adaptive',
-        # clip=0.2,
-        # method='default',
         max_norm=40,
         norm_type=2
     )
@@ -35,7 +32,6 @@ log_config = dict(
     interval=1,
     hooks=[
         dict(type='TextLoggerHook', by_epoch=True, ignore_last=False),
-        # dict(type='TensorboardLoggerHook')
     ]
 )
 
