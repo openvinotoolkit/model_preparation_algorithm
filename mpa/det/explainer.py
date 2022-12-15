@@ -19,9 +19,9 @@ from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
+    'classwisesaliencymap': DetSaliencyMapHook,
     'eigencam': EigenCamHook,
     'activationmap': ActivationMapHook,
-    'classwisesaliencymap': DetSaliencyMapHook,
 }
 
 
