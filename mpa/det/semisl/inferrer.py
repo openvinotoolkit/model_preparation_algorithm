@@ -14,7 +14,7 @@ from mmdet.utils.deployment import get_saliency_map, get_feature_vector
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
-from mpa.det.semisl.semisl_stage import SemiSLDetectionStage
+from mpa.det.semisl.stage import SemiSLDetectionStage
 
 logger = get_logger()
 

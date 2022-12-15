@@ -23,7 +23,7 @@ from mmdet.utils import collect_env
 from mpa.registry import STAGES
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.utils.logger import get_logger
-from mpa.det.semisl.semisl_stage import SemiSLDetectionStage
+from mpa.det.semisl.stage import SemiSLDetectionStage
 
 logger = get_logger()
 
