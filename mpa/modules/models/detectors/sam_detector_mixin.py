@@ -42,3 +42,10 @@ class SAMDetectorMixin(BaseDetector):
                     saliency_map = DetSaliencyMapHook(self).func(cls_scores, cls_scores_provided=True)
                     feature = feature_vector, saliency_map
                     return bbox_results[0], feature
+
+            if postprocess:
+                bbox_results = [
+                    self.postprocess(det_bboxes, det_labels, None, img_metas, rescale=rescale)
+                    for det_bboxes, det_labels in bbox_results
+                ]
+            return bbox_results
