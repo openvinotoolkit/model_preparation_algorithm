@@ -32,6 +32,8 @@ import mpa.modules.models.heads.cls_incremental_head
 import mpa.modules.models.heads.multi_classifier_head
 import mpa.modules.models.heads.non_linear_cls_head
 import mpa.modules.models.heads.supcon_cls_head
+import mpa.modules.models.heads.supcon_multi_label_cls_head
+import mpa.modules.models.heads.supcon_hierarchical_cls_head
 
 import mpa.modules.models.heads.custom_cls_head
 import mpa.modules.models.heads.custom_multi_label_linear_cls_head

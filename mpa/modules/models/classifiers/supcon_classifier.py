@@ -3,6 +3,7 @@
 #
 
 import torch
+from torch import Tensor
 from torch.nn.functional import softmax, sigmoid
 from mmcls.models.builder import CLASSIFIERS
 from mmcls.models.classifiers.image import ImageClassifier
@@ -15,7 +16,7 @@ class SupConClassifier(ImageClassifier):
         self.hierarchical = kwargs.pop("hierarchical", False)
         super().__init__(backbone, neck=neck, head=head, pretrained=pretrained, **kwargs)
 
-    def forward_train(self, img, gt_label, **kwargs):
+    def forward_train(self, img: Tensor, gt_label: Tensor, **kwargs):
         # concatenate the different image views along the batch size
         if len(img.shape) == 5:
             img = torch.cat([img[:, d, :, :, :] for d in range(img.shape[1])], dim=0)
