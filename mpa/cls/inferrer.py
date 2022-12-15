@@ -1,26 +1,22 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+import os.path as osp
 from contextlib import nullcontext
 
-import os.path as osp
+import mmcv
 import numpy as np
 import torch
-
-import mmcv
-
-
-import torch
-from mmcv.runner import load_checkpoint, wrap_fp16_model
-
 from mmcls.datasets import build_dataloader, build_dataset
 from mmcls.models import build_classifier
-
-from mpa.registry import STAGES
+from mmcv.runner import load_checkpoint, wrap_fp16_model
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, FeatureVectorHook
+from mpa.modules.hooks.recording_forward_hooks import (ActivationMapHook,
+                                                       FeatureVectorHook)
 from mpa.modules.utils.task_adapt import prob_extractor
+from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
+
 logger = get_logger()
 
 
