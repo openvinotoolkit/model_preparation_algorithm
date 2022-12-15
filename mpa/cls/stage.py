@@ -121,7 +121,7 @@ class ClsStage(Stage):
             return
 
         # update model layer's in/out configuration
-        from mmcls.models.builder import BACKBONES as backbone_reg
+        from mmcv.cnn import MODELS as backbone_reg
         layer = build_from_cfg(cfg.model.backbone, backbone_reg)
         layer.eval()
         input_shape = [3, 224, 224]
