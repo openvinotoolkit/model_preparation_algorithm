@@ -75,7 +75,7 @@ class ClsExplainer(ClsStage):
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
-        with self.explainer_hook(model.module.backbone) as forward_explainer_hook:
+        with self.explainer_hook(model.module) as forward_explainer_hook:
             # do inference and record intermediate fmap
             for data in explain_data_loader:
                 with torch.no_grad():

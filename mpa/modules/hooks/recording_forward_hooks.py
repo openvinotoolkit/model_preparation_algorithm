@@ -14,9 +14,15 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Union, Sequence
-
+from typing import List, Sequence, Tuple, Union
 import torch
+import torch.nn.functional as F
+
+from mmcls.models.necks.gap import GlobalAveragePooling
+from mpa.modules.models.heads.custom_atss_head import CustomATSSHead
+from mpa.modules.models.heads.custom_ssd_head import CustomSSDHead
+from mpa.modules.models.heads.custom_vfnet_head import CustomVFNetHead
+from mpa.modules.models.heads.custom_yolox_head import CustomYOLOXHead
 
 
 class BaseRecordingForwardHook(ABC):
@@ -34,7 +40,7 @@ class BaseRecordingForwardHook(ABC):
         self._module = module
         self._handle = None
         self._records = []
-        self.fpn_idx = fpn_idx
+        self._fpn_idx = fpn_idx
 
     @property
     def records(self):
@@ -64,7 +70,7 @@ class BaseRecordingForwardHook(ABC):
             self._records.append(tensor)
 
     def __enter__(self) -> BaseRecordingForwardHook:
-        self._handle = self._module.register_forward_hook(self._recording_forward)
+        self._handle = self._module.backbone.register_forward_hook(self._recording_forward)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -73,8 +79,11 @@ class BaseRecordingForwardHook(ABC):
 
 class EigenCamHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(x_: torch.Tensor) -> torch.Tensor:
-        x = x_.type(torch.float)
+    def func(feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+        if isinstance(feature_map, (list, tuple)):
+            feature_map = feature_map[fpn_idx]
+
+        x = feature_map.type(torch.float)
         bs, c, h, w = x.size()
         reshaped_fmap = x.reshape((bs, c, h * w)).transpose(1, 2)
         reshaped_fmap = reshaped_fmap - reshaped_fmap.mean(1)[:, None, :]
@@ -134,3 +143,175 @@ class FeatureVectorHook(BaseRecordingForwardHook):
                 feature_map, (1, 1)
             )
         return feature_vector
+
+
+class DetSaliencyMapHook(BaseRecordingForwardHook):
+    """Saliency map hook for object detection models."""
+    def __init__(self, module: torch.nn.Module) -> None:
+        super().__init__(module)
+        self._neck = module.neck if module.with_neck else None
+        self._bbox_head = module.bbox_head
+        self._num_cls_out_channels = module.bbox_head.cls_out_channels  # SSD-like heads also have background class
+        if hasattr(module.bbox_head, 'anchor_generator'):
+            self._num_anchors = module.bbox_head.anchor_generator.num_base_anchors
+        else:
+            self._num_anchors = [1] * 10
+
+    def func(self,
+             x: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]],
+             _: int = 0,
+             cls_scores_provided: bool = False
+        ) -> torch.Tensor:
+        """
+        Generate the saliency map from raw classification head output, then normalizing to (0, 255).
+
+        :param x: Feature maps from backbone/FPN or classification scores from cls_head
+        :param cls_scores_provided: If True - use 'x' as is, otherwise forward 'x' through the classification head
+        :return: Class-wise Saliency Maps. One saliency map per each class - [batch, class_id, H, W]
+        """
+        if cls_scores_provided:
+            cls_scores = x
+        else:
+            cls_scores = self._get_cls_scores_from_feature_map(x)
+
+        bs, _, h, w = cls_scores[-1].size()
+        saliency_maps = torch.empty(bs, self._num_cls_out_channels, h, w)
+        for batch_idx in range(bs):
+            cls_scores_anchorless = []
+            for scale_idx, cls_scores_per_scale in enumerate(cls_scores):
+                cls_scores_anchor_grouped = cls_scores_per_scale[batch_idx].reshape(
+                    self._num_anchors[scale_idx],
+                    (self._num_cls_out_channels),
+                    *cls_scores_per_scale.shape[-2:]
+                )
+                cls_scores_out, _ = cls_scores_anchor_grouped.max(dim=0)
+                cls_scores_anchorless.append(cls_scores_out.unsqueeze(0))
+            cls_scores_anchorless_resized = []
+            for cls_scores_anchorless_per_level in cls_scores_anchorless:
+                cls_scores_anchorless_resized.append(
+                    F.interpolate(
+                        cls_scores_anchorless_per_level,
+                        (h, w),
+                        mode='bilinear'
+                    )
+                )
+            saliency_maps[batch_idx] = torch.cat(cls_scores_anchorless_resized, dim=0).mean(dim=0)
+
+        saliency_maps = saliency_maps.reshape((bs, self._num_cls_out_channels, -1))
+        max_values, _ = torch.max(saliency_maps, -1)
+        min_values, _ = torch.min(saliency_maps, -1)
+        saliency_maps = (
+                255
+                * (saliency_maps - min_values[:, :, None])
+                / (max_values - min_values + 1e-12)[:, :, None]
+        )
+        saliency_maps = saliency_maps.reshape((bs, self._num_cls_out_channels, h, w))
+        saliency_maps = saliency_maps.to(torch.uint8)
+        return saliency_maps
+
+    def _get_cls_scores_from_feature_map(self, x: torch.Tensor) -> List:
+        """Forward features through the classification head of the detector."""
+        with torch.no_grad():
+            if self._neck is not None:
+                x = self._neck(x)
+
+            if isinstance(self._bbox_head, CustomSSDHead):
+                cls_scores = []
+                for feat, cls_conv in zip(x, self._bbox_head.cls_convs):
+                    cls_scores.append(cls_conv(feat))
+            elif isinstance(self._bbox_head, CustomATSSHead):
+                cls_scores = []
+                for cls_feat in x:
+                    for cls_conv in self._bbox_head.cls_convs:
+                        cls_feat = cls_conv(cls_feat)
+                    cls_score = self._bbox_head.atss_cls(cls_feat)
+                    cls_scores.append(cls_score)
+            elif isinstance(self._bbox_head, CustomVFNetHead):
+                # Not clear how to separate cls_scores from bbox_preds
+                cls_scores, _, _ = self._bbox_head(x)
+            elif isinstance(self._bbox_head, CustomYOLOXHead):
+                def forward_single(x, cls_convs, conv_cls):
+                    """Forward feature of a single scale level."""
+                    cls_feat = cls_convs(x)
+                    cls_score = conv_cls(cls_feat)
+                    return cls_score
+
+                map_results = map(forward_single, x,
+                                  self._bbox_head.multi_level_cls_convs,
+                                  self._bbox_head.multi_level_conv_cls)
+                cls_scores = list(map_results)
+            else:
+                raise NotImplementedError("Not supported detection head provided. "
+                                          "DetSaliencyMapHook supports only the following single stage detectors: "
+                                          "YOLOXHead, ATSSHead, SSDHead, VFNetHead.")
+        return cls_scores
+
+
+class ReciproCAMHook(BaseRecordingForwardHook):
+    """
+    Implementation of recipro-cam for class-wise saliency map
+    recipro-cam: gradient-free reciprocal class activation map (https://arxiv.org/pdf/2209.14074.pdf)
+    """
+    def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
+        super().__init__(module, fpn_idx)
+        self._neck = module.neck if module.with_neck else None
+        self._head = module.head
+        self._num_classes = module.head.num_classes
+
+    def func(self, feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+        """
+        Generate the class-wise saliency maps using Recipro-CAM and then normalizing to (0, 255).
+
+        Returns:
+            torch.Tensor: Class-wise Saliency Maps. One saliency map per each class - [batch, class_id, H, W]
+        """
+        if isinstance(feature_map, (list, tuple)):
+            feature_map = feature_map[fpn_idx]
+
+        bs, c, h, w = feature_map.size()
+        saliency_maps = torch.empty(bs, self._num_classes, h, w)
+        for f in range(bs):
+            mosaic_feature_map = self._get_mosaic_feature_map(feature_map[f], c, h, w)
+            mosaic_prediction = self._predict_from_feature_map(mosaic_feature_map)
+            saliency_maps[f] = mosaic_prediction.transpose(0, 1).reshape((self._num_classes, h, w))
+
+        saliency_maps = saliency_maps.reshape((bs, self._num_classes, h * w))
+        max_values, _ = torch.max(saliency_maps, -1)
+        min_values, _ = torch.min(saliency_maps, -1)
+        saliency_maps = (
+            255
+            * (saliency_maps - min_values[:, :, None])
+            / (max_values - min_values + 1e-12)[:, :, None]
+        )
+        saliency_maps = saliency_maps.reshape((bs, self._num_classes, h, w))
+        saliency_maps = saliency_maps.to(torch.uint8)
+        return saliency_maps
+
+    def _predict_from_feature_map(self, x: torch.Tensor) -> torch.Tensor:
+        with torch.no_grad():
+            if self._neck is not None:
+                x = self._neck(x)
+            logits = self._head.simple_test(x)
+            if not isinstance(logits, torch.Tensor):
+                logits = torch.tensor(logits)
+        return logits
+
+    def _get_mosaic_feature_map(self, feature_map: torch.Tensor, c: int, h: int, w: int) -> torch.Tensor:
+        if self._neck is not None and isinstance(self._neck, GlobalAveragePooling):
+            """
+            Optimization workaround for the GAP case (simulate GAP with more simple compute graph)
+            Possible due to static sparsity of mosaic_feature_map
+            Makes the downstream GAP operation to be dummy
+            """
+            feature_map_transposed = torch.flatten(feature_map, start_dim=1).transpose(0, 1)[:, :, None, None]
+            mosaic_feature_map = feature_map_transposed / (h * w)
+        else:
+            feature_map_repeated = feature_map.repeat(h * w, 1, 1, 1)
+            mosaic_feature_map_mask = torch.zeros(h * w, c, h, w).to(feature_map.device)
+            spacial_order = torch.arange(h * w).reshape(h, w)
+            for i in range(h):
+                for j in range(w):
+                    k = spacial_order[i, j]
+                    mosaic_feature_map_mask[k, :, i, j] = torch.ones(c).to(feature_map.device)
+            mosaic_feature_map = feature_map_repeated * mosaic_feature_map_mask
+        return mosaic_feature_map
