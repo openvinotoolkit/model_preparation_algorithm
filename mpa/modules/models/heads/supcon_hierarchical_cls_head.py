@@ -17,8 +17,9 @@ class SupConHierarchicalClsHead(BaseHead):
         in_channels (int): The channels of input data from the backbone
         aux_mlp (dict): A dictionary with the out_channels and optionally the
                          hid_channels of the auxiliary MLP head.
-        loss (dict): The SelfSL loss: BarlowTwinsLoss (default)
-        topk (set): evaluation topk score, default is (1, )
+        loss (dict): The classification for each level (e.g. CrossEntropyLoss)
+        mulilabel_loss (dict): The global classification loss (e.g. AsymmetricLoss)
+        aux_loss (dict): The SelfSL loss (e.g. BarlowTwinsLoss)
     """
 
     def __init__(

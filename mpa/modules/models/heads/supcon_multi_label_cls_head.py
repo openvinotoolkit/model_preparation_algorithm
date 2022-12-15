@@ -18,7 +18,8 @@ class SupConMultiLabelClsHead(BaseHead):
         in_channels (int): The channels of input data from the backbone
         aux_mlp (dict): A dictionary with the out_channels and optionally the
                          hid_channels of the auxiliary MLP head.
-        loss (dict): The SelfSL loss: BarlowTwinsLoss (default)
+        loss (dict): The classification loss (e.g. CrossEntropyLoss)
+        aux_loss (dict): The SelfSL loss (e.g. BarlowTwinsLoss)
         scale (float): positive scale parameter.
     """
 
