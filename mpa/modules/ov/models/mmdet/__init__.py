@@ -3,10 +3,7 @@
 #
 
 # flake8: noqa
-
-try:
-    import openvino
-except ImportError:
-    pass
-else:
-    from . import ov
+from . import backbones
+from . import necks
+from . import dense_heads
+from . import roi_heads
