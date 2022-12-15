@@ -4,7 +4,7 @@ _base_ = [
     '../_base_/models/detectors/detector.py'
 ]
 
-model = dict(super_type='UnbiasedTeacher', pseudo_conf_thresh=0.25)  # Used as general framework
+model = dict(super_type='UnbiasedTeacher') # Used as general framework
 
 custom_hooks = [
     dict(
