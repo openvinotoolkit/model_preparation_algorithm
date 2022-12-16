@@ -4,8 +4,8 @@
 
 from mmcv.runner import get_dist_info
 from mmcv.runner import HOOKS, Hook
-
-from mmdet.datasets import build_dataset, build_dataloader
+# FIXME before merge : temporary solution to avoid task_type
+from mmcls.datasets import build_dataset, build_dataloader
 
 from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.utils.logger import get_logger

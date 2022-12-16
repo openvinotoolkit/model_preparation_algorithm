@@ -216,6 +216,19 @@ class Stage(object):
                 else:
                     logger.warning(f"type of split '{target}'' should be list or dict but {type(split)}")
 
+        if training:
+            if 'unlabeled' in cfg.data:
+                update_or_add_custom_hook(
+                    cfg,
+                    ConfigDict(
+                        type='UnlabeledDataHook',
+                        unlabeled_data_cfg=cfg.data.unlabeled,
+                        samples_per_gpu=cfg.data.unlabeled.pop('samples_per_gpu', cfg.data.samples_per_gpu*3),
+                        workers_per_gpu=cfg.data.unlabeled.pop('workers_per_gpu', cfg.data.workers_per_gpu),
+                        seed=cfg.seed
+                    )
+                )
+
         logger.info('configure_data()')
         logger.debug(f'[args] {cfg.data}')
         pipeline_options = cfg.data.pop('pipeline_options', None)

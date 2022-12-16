@@ -32,17 +32,16 @@ class SemiSLClassifier(SAMImageClassifier):
             raise ValueError("'extra_0' does not exist in the dataset")
         target = kwargs['gt_label'].squeeze()
         unlabeled_data = kwargs['extra_0']
-
         x = {}
         x['labeled'] = self.extract_feat(imgs)
 
-        img_uw = unlabeled_data['weak']['img']
+        img_uw = unlabeled_data['img_weak']
         # weakly augmented images are used only for getting the pseudo label.
         # not required to calculate gradients.
         with torch.no_grad():
             x['unlabeled_weak'] = self.extract_feat(img_uw)
 
-        img_us = unlabeled_data['strong']['img']
+        img_us = unlabeled_data['img']
         x['unlabeled_strong'] = self.extract_feat(img_us)
 
         losses = dict()

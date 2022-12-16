@@ -5,7 +5,7 @@ _base_ = [
 
 __dataset_type = 'ClsDirDataset'
 
-__train_pipeline_strong = {{_base_.train_pipeline_strong}}
+__unlabeled_pipeline = {{_base_.unlabeled_pipeline}}
 __train_pipeline = {{_base_.train_pipeline}}
 __test_pipeline = {{_base_.test_pipeline}}
 
@@ -19,10 +19,8 @@ data = dict(
         pipeline=__train_pipeline),
     unlabeled=dict(
         type=__dataset_type,
-        pipeline=dict(
-                weak=__train_pipeline,
-                strong=__train_pipeline_strong
-        )),
+        pipeline=__unlabeled_pipeline,
+        ),
     val=dict(
         type=__dataset_type,
         test_mode=True,
