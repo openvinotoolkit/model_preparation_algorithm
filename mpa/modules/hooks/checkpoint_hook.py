@@ -53,14 +53,14 @@ class CheckpointHookWithValResults(Hook):
             return
         if hasattr(runner, 'save_ckpt'):
             if runner.save_ckpt:
-                if getattr(runner, "save_ema_model", False):
+                if runner.save_ema_model:
                     backup_model = runner.model
                     runner.model = runner.ema_model
                 runner.logger.info(f'Saving checkpoint at {runner.epoch + 1} epochs')
                 if self.sync_buffer:
                     allreduce_params(runner.model.buffers())
                 self._save_checkpoint(runner)
-                if getattr(runner, "save_ema_model", False):
+                if runner.save_ema_model:
                     runner.model = backup_model
             runner.save_ckpt = False
 
