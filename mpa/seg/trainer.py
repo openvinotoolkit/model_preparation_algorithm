@@ -14,9 +14,7 @@ import mmcv
 from mmcv import get_git_hash
 
 from mmseg import __version__
-# from mmseg.apis import train_segmentor
 from .train import train_segmentor
-# from mmseg.datasets import build_dataset
 from .builder import build_dataset
 from mmseg.models import build_segmentor
 from mmseg.utils import collect_env
@@ -94,7 +92,6 @@ class SegTrainer(SegStage):
         # Metadata
         meta = dict()
         meta['env_info'] = env_info
-        # meta['config'] = cfg.pretty_text
         meta['seed'] = cfg.seed
         meta['exp_name'] = cfg.work_dir
         if cfg.checkpoint_config is not None:
@@ -108,10 +105,6 @@ class SegTrainer(SegStage):
                 logger.info(f'enabled linear scaling rule to the learning rate. \
                     changed LR from {cfg.optimizer.lr} to {new_lr}')
                 cfg.optimizer.lr = new_lr
-
-        # Save config
-        # cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
-        # logger.info(f'Config:\n{cfg.pretty_text}')
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
@@ -143,7 +136,6 @@ class SegTrainer(SegStage):
     @staticmethod
     def train_worker(gpu, target_classes, datasets, cfg, distributed=False, validate=False,
                      timestamp=None, meta=None):
-        # logger = get_logger()
         if distributed:
             torch.cuda.set_device(gpu)
             dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),

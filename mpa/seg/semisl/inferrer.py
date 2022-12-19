@@ -28,7 +28,7 @@ class SemiSegInferrer(SemiSegStage):
         cfg.model.type = cfg.model.orig_type
         cfg.model.pop("orig_type", False)
         cfg.model.pop("unsup_weight", False)
-        cfg.model.pop("warmup_start_iter", False)
+        cfg.model.pop("semisl_start_iter", False)
 
         return cfg
 
