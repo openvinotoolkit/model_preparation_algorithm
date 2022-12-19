@@ -5,12 +5,6 @@
 import importlib
 from mmcv.runner import get_dist_info
 from mmcv.runner import HOOKS, Hook
-<<<<<<< HEAD
-# FIXME before merge : temporary solution to avoid task_type
-from mmcls.datasets import build_dataset, build_dataloader
-
-=======
->>>>>>> cf408a5d8325d5b8f2499304081107043655677d
 from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.utils.logger import get_logger
 
