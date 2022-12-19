@@ -31,11 +31,11 @@ class UnlabeledDataHook(Hook):
         build_dataset = getattr(m, "build_dataset")
         build_dataloader = getattr(m, "build_dataloader")
 
-        logger.info('In UnlabeledDataHook.before_epoch, creating unlabeled dataset...')
         self.unlabeled_dataset = build_dataset(unlabeled_data_cfg)
 
         _, world_size = get_dist_info()
-        logger.info('In UnlabeledDataHook.before_epoch, creating unlabeled data_loader...')
+
+        logger.info('In UnlabeledDataHook, creating unlabeled data_loader...')
         self.unlabeled_loader = build_dataloader(
             self.unlabeled_dataset,
             samples_per_gpu,
@@ -52,6 +52,4 @@ class UnlabeledDataHook(Hook):
             logger.info('In UnlabeledDataHook.before_epoch, creating ComposedDL'
                         f'([labeled({len(runner.data_loader.dataset)}, unlabeled({len(self.unlabeled_loader.dataset)})])')
             self.composed_loader = ComposedDL([runner.data_loader, self.unlabeled_loader])
-        # Per-epoch replacement: train-only loader -> train+unlabeled loader
-        # (It's similar to local variable in epoch. Need to update every epoch...)
         runner.data_loader = self.composed_loader
