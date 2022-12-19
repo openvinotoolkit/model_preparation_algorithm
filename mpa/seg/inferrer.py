@@ -12,13 +12,13 @@ from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
 from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
 from mpa.registry import STAGES
-from .incr.stage import IncrSegStage
+from .stage import SegStage
 from mpa.stage import Stage
 import torch
 
 
 @STAGES.register_module()
-class SegInferrer(IncrSegStage):
+class SegInferrer(SegStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -116,7 +116,7 @@ class SegInferrer(IncrSegStage):
         model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
-        IncrSegStage.set_inference_progress_callback(model, cfg)
+        SegStage.set_inference_progress_callback(model, cfg)
 
         eval_predictions = []
         feature_vectors = []

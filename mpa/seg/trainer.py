@@ -22,7 +22,7 @@ from mmseg.models import build_segmentor
 from mmseg.utils import collect_env
 
 from mpa.registry import STAGES
-from .incr.stage import IncrSegStage
+from .stage import SegStage
 
 from mpa.utils.logger import get_logger
 
@@ -30,7 +30,7 @@ logger = get_logger()
 
 
 @STAGES.register_module()
-class SegTrainer(IncrSegStage):
+class SegTrainer(SegStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

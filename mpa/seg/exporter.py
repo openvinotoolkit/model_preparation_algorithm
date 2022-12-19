@@ -12,13 +12,13 @@ from mmcv.runner import load_checkpoint
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
-from mpa.seg.incr.stage import IncrSegStage
+from .stage import SegStage
 
 logger = get_logger()
 
 
 @STAGES.register_module()
-class SegExporter(IncrSegStage):
+class SegExporter(SegStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

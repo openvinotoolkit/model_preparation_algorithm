@@ -5,11 +5,11 @@
 from mmcv import ConfigDict
 from mpa.utils.config_utils import update_or_add_custom_hook, remove_custom_hook
 from mpa.utils.logger import get_logger
-from mpa.seg.incr.stage import IncrSegStage
+from mpa.seg.stage import SegStage
 logger = get_logger()
 
 
-class SemiSegStage(IncrSegStage):
+class SemiSegStage(SegStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
