@@ -3,10 +3,4 @@
 #
 
 # flake8: noqa
-
-try:
-    import openvino
-except ImportError:
-    pass
-else:
-    from . import ov
+from .mmov_mask_head import MMOVMaskHead

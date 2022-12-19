@@ -3,10 +3,6 @@
 #
 
 # flake8: noqa
-
-try:
-    import openvino
-except ImportError:
-    pass
-else:
-    from . import ov
+from . import bbox_heads
+from . import roi_extractors
+from . import mask_heads

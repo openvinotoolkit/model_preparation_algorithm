@@ -3,10 +3,5 @@
 #
 
 # flake8: noqa
-
-try:
-    import openvino
-except ImportError:
-    pass
-else:
-    from . import ov
+from . import backbones
+from . import decode_heads

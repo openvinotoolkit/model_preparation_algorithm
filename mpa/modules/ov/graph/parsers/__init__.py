@@ -3,10 +3,6 @@
 #
 
 # flake8: noqa
+from .builder import PARSERS
 
-try:
-    import openvino
-except ImportError:
-    pass
-else:
-    from . import ov
+from . import cls
