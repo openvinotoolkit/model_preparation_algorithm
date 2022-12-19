@@ -29,7 +29,6 @@ class SemiSLDetectionStage(IncrDetectionStage):
                         unlabeled_data_cfg=cfg.data.unlabeled,
                         samples_per_gpu=cfg.data.unlabeled.pop('samples_per_gpu', cfg.data.samples_per_gpu),
                         workers_per_gpu=cfg.data.unlabeled.pop('workers_per_gpu', cfg.data.workers_per_gpu),
-                        model_task=cfg.model_task,
                         seed=cfg.seed
                     )
                 )

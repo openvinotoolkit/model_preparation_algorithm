@@ -35,8 +35,7 @@ class ClsStage(Stage):
             else:
                 cfg.model = copy.deepcopy(model_cfg.model)
 
-        cfg.model_task = cfg.model.pop('task', 'CLASSIFICATION')
-        if cfg.model_task != 'CLASSIFICATION':
+        if cfg.model.pop('task', None) != 'classification':
             raise ValueError(
                 f'Given model_cfg ({model_cfg.filename}) is not supported by classification recipe'
             )
