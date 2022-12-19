@@ -5,6 +5,7 @@
 import os
 import warnings
 import traceback
+from functools import partial
 
 import numpy as np
 import torch
@@ -19,10 +20,14 @@ from .stage import SegStage
 logger = get_logger()
 
 
-def build_segmentor(config):
+def build_segmentor(config, checkpoint=None, device="cpu", cfg_options=None):
     from mmseg.models import build_segmentor as origin_build_segmentor
+    if cfg_options is not None:
+        config.merge_from_dict(cfg_options)
     model = origin_build_segmentor(config.model)
-    load_checkpoint(model=model, filename=config.load_from, map_location="cpu")
+    model = model.to(device)
+    if checkpoint is not None:
+        load_checkpoint(model=model, filename=checkpoint, map_location=device)
     return model
 
 
@@ -42,16 +47,10 @@ class SegExporter(SegStage):
         output_path = os.path.join(cfg.work_dir, "export")
         os.makedirs(output_path, exist_ok=True)
 
-        model_builder = kwargs.get("model_builder", None)
-        if model_builder is None:
-            model = build_segmentor(cfg)
-        else:
-            model = model_builder(cfg)
+        model_builder = kwargs.get("model_builder", build_segmentor)
 
         from torch.jit._trace import TracerWarning
         warnings.filterwarnings("ignore", category=TracerWarning)
-        model = model.cpu()
-        model.eval()
         precision = kwargs.pop("precision", "FP32")
         if precision != "FP32":
             raise NotImplementedError
@@ -62,10 +61,10 @@ class SegExporter(SegStage):
             deploy_cfg = kwargs.get("deploy_cfg", None)
             if deploy_cfg is not None:
                 self._mmdeploy_export(
-                    output_path, onnx_file_name, model, cfg, deploy_cfg
+                    output_path, onnx_file_name, model_builder, cfg, deploy_cfg
                 )
             else:
-                self._naive_export(output_path, onnx_file_name, model, cfg)
+                self._naive_export(output_path, onnx_file_name, model_builder, cfg)
         except Exception as ex:
             if (
                 len([f for f in os.listdir(output_path) if f.endswith(".bin")]) == 0
@@ -89,8 +88,16 @@ class SegExporter(SegStage):
             "msg": "",
         }
 
-    def _mmdeploy_export(self, output_path, onnx_file_name, model, cfg, deploy_cfg):
-        from mpa.deploy.apis import onnx2openvino, torch2onnx
+    def _mmdeploy_export(self, output_path, onnx_file_name, model_builder, cfg, deploy_cfg):
+        from mpa.deploy.apis import onnx2openvino
+        from mpa.deploy.utils import init_pytorch_model
+        from mmdeploy.apis import build_task_processor, torch2onnx
+
+        task_processor = build_task_processor(cfg, deploy_cfg, "cpu")
+        task_processor.__class__.init_pytorch_model = partial(
+            init_pytorch_model,
+            model_builder=model_builder
+        )
 
         input_data_cfg = deploy_cfg.pop(
             "input_data", {"shape": (128, 128, 3), "file_path": None}
@@ -107,11 +114,11 @@ class SegExporter(SegStage):
             onnx_file_name,
             deploy_cfg=deploy_cfg,
             model_cfg=cfg,
-            model=model,
+            model_checkpoint=cfg.load_from,
             device="cpu",
         )
 
         onnx2openvino(output_path, onnx_file_name, deploy_cfg)
 
-    def _naive_export(self, output_path, onnx_file_name, model, cfg):
+    def _naive_export(self, output_path, onnx_file_name, model_builder, cfg):
         raise NotImplementedError()
