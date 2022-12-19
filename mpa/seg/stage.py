@@ -6,7 +6,7 @@ import numpy as np
 from mmcv import ConfigDict
 from mmseg.utils import get_root_logger
 from mpa.stage import Stage
-from mpa.utils.config_utils import update_or_add_custom_hook
+from mpa.utils.config_utils import update_or_add_custom_hook, recursively_update_cfg
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -29,11 +29,31 @@ class SegStage(Stage):
             else:
                 raise ValueError("Unexpected config was passed through 'model_cfg'. "
                                  "it should have 'model' attribute in the config")
-            model_task = cfg.model.pop('task', 'segmentation')
-            if model_task != 'segmentation':
+            cfg.model_task = cfg.model.pop('task', 'SEGMENTATION')
+            if cfg.model_task != 'SEGMENTATION':
                 raise ValueError(
                     f'Given model_cfg ({model_cfg.filename}) is not supported by segmentation recipe'
                 )
+
+        # OV-plugin
+        ir_model_path = kwargs.get("ir_model_path")
+        if ir_model_path:
+            def is_mmov_model(k, v):
+                if k == "type" and v.startswith("MMOV"):
+                    return True
+                return False
+            ir_weight_path = kwargs.get("ir_weight_path", None)
+            ir_weight_init = kwargs.get("ir_weight_init", False)
+            recursively_update_cfg(
+                cfg,
+                is_mmov_model,
+                {
+                    "model_path": ir_model_path,
+                    "weight_path": ir_weight_path,
+                    "init_weight": ir_weight_init
+                }
+            )
+
         self.configure_model(cfg, training, **kwargs)
 
         if not cfg.get('task_adapt'):   # if task_adapt dict is empty(semi-sl), just pop to pass task_adapt
@@ -200,7 +220,7 @@ class SegStage(Stage):
 
         # Model classes
         if task_adapt_op == 'REPLACE':
-            if len(data_classes) == 1: # 'background'
+            if len(data_classes) == 1:  # 'background'
                 model_classes = org_model_classes.copy()
             else:
                 model_classes = data_classes.copy()

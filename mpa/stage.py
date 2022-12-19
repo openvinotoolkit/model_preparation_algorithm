@@ -217,7 +217,7 @@ class Stage(object):
                     logger.warning(f"type of split '{target}'' should be list or dict but {type(split)}")
 
         if training:
-            if 'unlabeled' in cfg.data:
+            if 'unlabeled' in cfg.data and cfg.train_type == 'SEMISUPERVISED':
                 update_or_add_custom_hook(
                     cfg,
                     ConfigDict(

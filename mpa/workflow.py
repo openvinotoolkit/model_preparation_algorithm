@@ -36,7 +36,9 @@ class Workflow(object):
         model_ckpt = kwargs.get('model_ckpt', None)
         # output_path = kwargs.get('output_path', '.')
         mode = kwargs.get('mode', 'train')
-        ir_path = kwargs.get('ir_path', None)
+        ir_model_path = kwargs.get('ir_model_path', None)
+        ir_weight_path = kwargs.get('ir_weight_path', None)
+        ir_weight_init = kwargs.get('ir_weight_init', False)
 
         self._call_wf_hooks('before_workflow')
         for i, stage in enumerate(self.stages):
@@ -63,7 +65,9 @@ class Workflow(object):
                 data_cfg=copy_config(data_cfg) if data_cfg is not None else data_cfg,
                 model_ckpt=model_ckpt,
                 # output_path=output_path+'/stage{:02d}_{}'.format(i, stage.name),
-                ir_path=ir_path,
+                ir_model_path=ir_model_path,
+                ir_weight_path=ir_weight_path,
+                ir_weight_init=ir_weight_init,
                 **stage_kwargs
             )
             # TODO: save context as pickle after each stage??
