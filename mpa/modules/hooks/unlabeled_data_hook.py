@@ -9,8 +9,11 @@ from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
-task_lib_name = dict(CLASSIFICATION="mmcls", DETECTION="mmdet", SEGMENTATION="mmseg")
-
+TASK_LIB_NAME = {
+    "classification" : "mmcls", 
+    "detection" : "mmdet", 
+    "segmentation" : "mmseg"
+}
 
 @HOOKS.register_module()
 class UnlabeledDataHook(Hook):
@@ -27,7 +30,7 @@ class UnlabeledDataHook(Hook):
         super().__init__(**kwargs)
 
         # Build unlabeled dataset & loader
-        task_lib_module = importlib.import_module(f"{task_lib_name[model_task]}.datasets")
+        task_lib_module = importlib.import_module(f"{TASK_LIB_NAME[model_task]}.datasets")
         build_dataset = getattr(task_lib_module, "build_dataset")
         build_dataloader = getattr(task_lib_module, "build_dataloader")
 
