@@ -3,6 +3,7 @@
 #
 
 import os
+import os.path as osp
 import time
 import numbers
 import glob
@@ -120,20 +121,20 @@ class SegTrainer(SegStage):
                 dict(type=type, **fp16_cfg, distributed=distributed)
             )
 
-        model = kwargs.get("model", None)
+        model_builder = kwargs.get("model_builder", None)
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
             mp.spawn(SegTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(target_classes, datasets, cfg, model, distributed, True, timestamp, meta))
+                     args=(target_classes, datasets, cfg, model_builder, distributed, True, timestamp, meta))
         else:
             SegTrainer.train_worker(
                 None,
                 target_classes,
                 datasets,
                 cfg,
-                model,
+                model_builder,
                 distributed,
                 True,
                 timestamp,
@@ -148,10 +149,21 @@ class SegTrainer(SegStage):
         best_ckpt_path = glob.glob(os.path.join(cfg.work_dir, 'best_mIoU_*.pth'))
         if len(best_ckpt_path) > 0:
             output_ckpt_path = best_ckpt_path[0]
-        return dict(final_ckpt=output_ckpt_path)
+        # NNCF model
+        compression_state_path = osp.join(cfg.work_dir, "compression_state.pth")
+        if not os.path.exists(compression_state_path):
+            compression_state_path = None
+        before_ckpt_path = osp.join(cfg.work_dir, "before_training.pth")
+        if not os.path.exists(before_ckpt_path):
+            before_ckpt_path = None
+        return dict(
+            final_ckpt=output_ckpt_path,
+            compression_state_path=compression_state_path,
+            before_ckpt_path=before_ckpt_path,
+        )
 
     @staticmethod
-    def train_worker(gpu, target_classes, datasets, cfg, model=None, distributed=False,
+    def train_worker(gpu, target_classes, datasets, cfg, model_builder=None, distributed=False,
                      validate=False, timestamp=None, meta=None):
         # logger = get_logger()
         if distributed:
@@ -161,7 +173,9 @@ class SegTrainer(SegStage):
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
         # Model
-        if model is None:
+        if model_builder is not None:
+            model = model_builder(cfg)
+        else:
             model = build_segmentor(cfg.model)
         model.CLASSES = target_classes
 

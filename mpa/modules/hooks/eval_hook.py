@@ -5,12 +5,13 @@
 from os import path as osp
 import numpy as np
 import mmcv
-from mmcv.runner import Hook
+from mmcv.runner import Hook, HOOKS
 
 import torch
 from torch.utils.data import DataLoader
 
 
+@HOOKS.register_module()
 class CustomEvalHook(Hook):
     """Custom Evaluation hook for the MPA
 
@@ -109,6 +110,7 @@ def single_gpu_test(model, data_loader):
     return results
 
 
+@HOOKS.register_module()
 class DistCustomEvalHook(CustomEvalHook):
     def __init__(self,
                  dataloader,

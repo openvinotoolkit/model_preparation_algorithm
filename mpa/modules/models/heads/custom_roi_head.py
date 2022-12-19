@@ -108,6 +108,7 @@ class CustomConvFCBBoxHead(Shared2FCBBoxHead, CrossDatasetDetectorHead):
             pos_gt_labels_list,
             cfg=rcnn_train_cfg)
         valid_label_mask = self.get_valid_label_mask(img_metas=img_metas, all_labels=labels, use_bg=True)
+        valid_label_mask = [i.to(gt_bboxes[0].device) for i in valid_label_mask]
 
         if concat:
             labels = torch.cat(labels, 0)

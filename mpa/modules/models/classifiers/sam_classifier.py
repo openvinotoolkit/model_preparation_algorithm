@@ -95,51 +95,62 @@ class SAMImageClassifier(ImageClassifier):
         return losses
 
     @staticmethod
-    def state_dict_hook(module, state_dict, *args, **kwargs):
+    def state_dict_hook(module, state_dict, prefix, *args, **kwargs):
         """Redirect model as output state_dict for OTX model compatibility
         """
         backbone_type = type(module.backbone).__name__
         if backbone_type not in ['OTXMobileNetV3', 'OTXEfficientNet', 'OTXEfficientNetV2']:
             return
 
-        output = OrderedDict()
         if backbone_type == 'OTXMobileNetV3':
-            for k, v in state_dict.items():
-                if k.startswith('backbone'):
-                    k = k.replace('backbone.', '')
-                elif k.startswith('head'):
-                    k = k.replace('head.', '')
-                    if '3' in k:  # MPA uses "classifier.3", OTX uses "classifier.4". Convert for OTX compatibility.
-                        k = k.replace('3', '4')
-                        if module.multilabel and not module.is_export:
-                            v = v.t()
-                output[k] = v
+            for k in list(state_dict.keys()):
+                v = state_dict.pop(k)
+                if not prefix or k.startswith(prefix):
+                    k = k.replace(prefix, "", 1)
+                    if k.startswith('backbone'):
+                        k = k.replace('backbone.', '')
+                    elif k.startswith('head'):
+                        k = k.replace('head.', '')
+                        if '3' in k:  # MPA uses "classifier.3", OTX uses "classifier.4". Convert for OTX compatibility.
+                            k = k.replace('3', '4')
+                            if module.multilabel and not module.is_export:
+                                v = v.t()
+                    k = prefix + k
+                state_dict[k] = v
 
         elif backbone_type == 'OTXEfficientNet':
-            for k, v in state_dict.items():
-                if k.startswith('backbone'):
-                    k = k.replace('backbone.', '')
-                elif k.startswith('head'):
-                    k = k.replace('head', 'output')
-                    if not module.hierarchical and not module.is_export:
-                        k = k.replace('fc', 'asl')
-                        v = v.t()
-                output[k] = v
+            for k in list(state_dict.keys()):
+                v = state_dict.pop(k)
+                if not prefix or k.startswith(prefix):
+                    k = k.replace(prefix, "", 1)
+                    if k.startswith('backbone'):
+                        k = k.replace('backbone.', '')
+                    elif k.startswith('head'):
+                        k = k.replace('head', 'output')
+                        if not module.hierarchical and not module.is_export:
+                            k = k.replace('fc', 'asl')
+                            v = v.t()
+                    k = prefix + k
+                state_dict[k] = v
 
         elif backbone_type == 'OTXEfficientNetV2':
-            for k, v in state_dict.items():
-                if k.startswith('backbone'):
-                    k = k.replace('backbone.', '')
-                elif k == 'head.fc.weight':
-                    k = k.replace('head.fc', 'model.classifier')
-                    if not module.hierarchical and not module.is_export:
-                        v = v.t()
-                output[k] = v
+            for k in list(state_dict.keys()):
+                v = state_dict.pop(k)
+                if not prefix or k.startswith(prefix):
+                    k = k.replace(prefix, "", 1)
+                    if k.startswith('backbone'):
+                        k = k.replace('backbone.', '')
+                    elif k == 'head.fc.weight':
+                        k = k.replace('head.fc', 'model.classifier')
+                        if not module.hierarchical and not module.is_export:
+                            v = v.t()
+                    k = prefix + k
+                state_dict[k] = v
 
-        return output
+        return state_dict
 
     @staticmethod
-    def load_state_dict_pre_hook(module, state_dict, *args, **kwargs):
+    def load_state_dict_pre_hook(module, state_dict, prefix, *args, **kwargs):
         """Redirect input state_dict to model for OTX model compatibility
         """
         backbone_type = type(module.backbone).__name__
@@ -149,38 +160,49 @@ class SAMImageClassifier(ImageClassifier):
         if backbone_type == 'OTXMobileNetV3':
             for k in list(state_dict.keys()):
                 v = state_dict.pop(k)
-                if k.startswith('classifier.'):
-                    if '4' in k:
-                        k = 'head.'+k.replace('4', '3')
-                        if module.multilabel:
-                            v = v.t()
-                    else:
-                        k = 'head.'+k
-                elif not k.startswith('backbone.'):
-                    k = 'backbone.'+k
+                if not prefix or k.startswith(prefix):
+                    k = k.replace(prefix, "", 1)
+                    if k.startswith('classifier.'):
+                        if '4' in k:
+                            k = 'head.'+k.replace('4', '3')
+                            if module.multilabel:
+                                v = v.t()
+                        else:
+                            k = 'head.'+k
+                    elif k.startswith("act"):
+                        k = "head." + k
+                    elif not k.startswith('backbone.'):
+                        k = 'backbone.'+k
+                    k = prefix + k
                 state_dict[k] = v
 
         elif backbone_type == 'OTXEfficientNet':
             for k in list(state_dict.keys()):
                 v = state_dict.pop(k)
-                if k.startswith('features.') and 'activ' not in k:
-                    k = 'backbone.'+k
-                elif k.startswith('output.'):
-                    k = k.replace('output', 'head')
-                    if not module.hierarchical:
-                        k = k.replace('asl', 'fc')
-                        v = v.t()
+                if not prefix or k.startswith(prefix):
+                    k = k.replace(prefix, "", 1)
+                    if k.startswith('features.') and 'activ' not in k:
+                        k = 'backbone.'+k
+                    elif k.startswith('output.'):
+                        k = k.replace('output', 'head')
+                        if not module.hierarchical:
+                            k = k.replace('asl', 'fc')
+                            v = v.t()
+                    k = prefix + k
                 state_dict[k] = v
 
         elif backbone_type == 'OTXEfficientNetV2':
             for k in list(state_dict.keys()):
                 v = state_dict.pop(k)
-                if k.startswith('model.classifier'):
-                    k = k.replace('model.classifier', 'head.fc')
-                    if not module.hierarchical:
-                        v = v.t()
-                elif k.startswith('model'):
-                    k = 'backbone.'+k
+                if not prefix or k.startswith(prefix):
+                    k = k.replace(prefix, "", 1)
+                    if k.startswith('model.classifier'):
+                        k = k.replace('model.classifier', 'head.fc')
+                        if not module.hierarchical:
+                            v = v.t()
+                    elif k.startswith('model'):
+                        k = 'backbone.'+k
+                    k = prefix + k
                 state_dict[k] = v
         else:
             logger.info('conversion is not required.')

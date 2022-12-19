@@ -127,7 +127,7 @@ class Stage(object):
                             since max_epoch is shorter than ckpt interval configuration')
                         cfg.checkpoint_config.interval = max_epochs
 
-        if hasattr(cfg, 'seed'):
+        if cfg.get("seed", None) is not None:
             _set_random_seed(cfg.seed, deterministic=cfg.get('deterministic', False))
         else:
             cfg.seed = None
