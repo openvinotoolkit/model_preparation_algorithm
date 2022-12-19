@@ -202,7 +202,7 @@ class DetectionInferrer(IncrDetectionStage):
                 eval_predictions = dataset.merged_results
 
         assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
-               'Number of elements should be the same, however, number of outputs are ' \
+               "Number of elements should be the same, however, number of outputs are " \
                f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
 
         outputs = dict(
