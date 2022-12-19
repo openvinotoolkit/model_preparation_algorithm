@@ -46,7 +46,11 @@ class DetectionStage(Stage):
             else:
                 raise ValueError("Unexpected config was passed through 'model_cfg'. "
                                  "it should have 'model' attribute in the config")
+<<<<<<< HEAD
             cfg.model_task = cfg.model.pop('task', 'DETECTION').upper()
+=======
+            cfg.model_task = cfg.model.pop('task', 'DETECTION')
+>>>>>>> cf408a5d8325d5b8f2499304081107043655677d
             if cfg.model_task != 'DETECTION':
                 raise ValueError(
                     f'Given model_cfg ({model_cfg.filename}) is not supported by detection recipe'
