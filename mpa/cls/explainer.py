@@ -10,10 +10,9 @@ from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 
 from mmcls.datasets import build_dataloader, build_dataset
-from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
-from mpa.cls.stage import ClsStage
+from mpa.cls.stage import ClsStage, build_classifier
 from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook
 from mpa.utils.logger import get_logger
 logger = get_logger()
@@ -40,14 +39,15 @@ class ClsExplainer(ClsStage):
             f'explainer algorithm: {explainer}'
         )
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
+        model_builder = kwargs.get("model_builder", build_classifier)
 
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
-        outputs = self._explain(cfg)
+        outputs = self._explain(cfg, model_builder)
         return dict(
             outputs=outputs
         )
 
-    def _explain(self, cfg):
+    def _explain(self, cfg, model_builder):
         self.explain_dataset = build_dataset(cfg.data.test)
 
         # Data loader
@@ -61,14 +61,11 @@ class ClsExplainer(ClsStage):
             persistent_workers=False)
 
         # build the model and load checkpoint
-        model = build_classifier(cfg.model)
-        self.extract_prob = hasattr(model, 'extract_prob')
+        model = model_builder(cfg)
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             wrap_fp16_model(model)
-        if cfg.load_from is not None:
-            logger.info('Load checkpoint from ' + cfg.load_from)
-            _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
+        self.extract_prob = hasattr(model, 'extract_prob')
 
         model.eval()
         model = MMDataParallel(model, device_ids=[0])

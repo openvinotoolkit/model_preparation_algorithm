@@ -40,6 +40,7 @@ class DetectionTrainer(DetectionStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
+        model_builder = kwargs.get("model_builder", build_detector)
         if mode not in self.mode:
             return {}
 
@@ -115,8 +116,6 @@ class DetectionTrainer(DetectionStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        model_builder = kwargs.get("model_builder", None)
-
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
@@ -161,11 +160,10 @@ class DetectionTrainer(DetectionStage):
                                     world_size=len(cfg.gpu_ids), rank=gpu)
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
-        # model
-        if model_builder is not None:
-            model = model_builder(cfg)
-        else:
-            model = build_detector(cfg.model)
+        # build the model and load checkpoint
+        if model_builder is None:
+            model_builder = build_detector
+        model = model_builder(cfg)
         model.CLASSES = target_classes
 
         train_detector(

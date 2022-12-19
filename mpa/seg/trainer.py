@@ -17,11 +17,10 @@ from mmcv import get_git_hash
 from mmseg import __version__
 from mmseg.apis import train_segmentor
 from mmseg.datasets import build_dataset
-from mmseg.models import build_segmentor
 from mmseg.utils import collect_env
 
 from mpa.registry import STAGES
-from mpa.seg.stage import SegStage
+from mpa.seg.stage import SegStage, build_segmentor
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -41,6 +40,7 @@ class SegTrainer(SegStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
+        model_builder = kwargs.get("model_builder", build_segmentor)
         if mode not in self.mode:
             return {}
 
@@ -121,8 +121,6 @@ class SegTrainer(SegStage):
                 dict(type=type, **fp16_cfg, distributed=distributed)
             )
 
-        model_builder = kwargs.get("model_builder", None)
-
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
@@ -173,10 +171,10 @@ class SegTrainer(SegStage):
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
         # Model
-        if model_builder is not None:
-            model = model_builder(cfg)
-        else:
-            model = build_segmentor(cfg.model)
+        # build the model and load checkpoint
+        if model_builder is None:
+            model_builder = build_segmentor
+        model = model_builder(cfg)
         model.CLASSES = target_classes
 
         train_segmentor(

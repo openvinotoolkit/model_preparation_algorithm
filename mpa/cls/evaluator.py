@@ -6,6 +6,7 @@ from os import path as osp
 
 from mpa.registry import STAGES
 from .inferrer import ClsInferrer
+from .stage import build_classifier
 
 from mpa.utils.logger import get_logger
 
@@ -23,6 +24,7 @@ class ClsEvaluator(ClsInferrer):
         self.eval = True
         self._init_logger()
         mode = kwargs.get('mode', 'train')
+        model_builder = kwargs.get("model_builder", build_classifier)
         if mode not in self.mode:
             logger.warning(f'mode for this stage {mode}')
             return {}
@@ -36,7 +38,7 @@ class ClsEvaluator(ClsInferrer):
         logger.info(f'Config:\n{cfg.pretty_text}')
 
         # Inference
-        infer_results = super()._infer(cfg)
+        infer_results = super().infer(cfg, model_builder)
 
         eval_cfg = cfg.get('evaluation', {})
         eval_cfg.pop('by_epoch', False)

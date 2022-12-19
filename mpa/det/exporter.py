@@ -5,29 +5,17 @@
 import os
 import warnings
 import traceback
-from functools import partial
 
 import numpy as np
 import torch
-from mmcv.runner import load_checkpoint
+from mmcv.runner import  wrap_fp16_model
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
 
-from .stage import DetectionStage
+from .stage import DetectionStage, build_detector
 
 
 logger = get_logger()
-
-
-def build_detector(config, checkpoint=None, device="cpu", cfg_options=None):
-    from mmdet.models import build_detector as origin_build_detector
-    if cfg_options is not None:
-        config.merge_from_dict(cfg_options)
-    model = origin_build_detector(config.model)
-    model = model.to(device)
-    if checkpoint is not None:
-        load_checkpoint(model=model, filename=checkpoint, map_location=device)
-    return model
 
 
 @STAGES.register_module()
@@ -48,15 +36,26 @@ class DetectionExporter(DetectionStage):
         output_path = os.path.join(cfg.work_dir, "export")
         os.makedirs(output_path, exist_ok=True)
 
-        model_builder = kwargs.get("model_builder", build_detector)
-
         from torch.jit._trace import TracerWarning
         warnings.filterwarnings("ignore", category=TracerWarning)
         precision = kwargs.pop("precision", "FP32")
-        if precision != "FP32":
+        if precision not in ("FP32", "FP16", "INT8"):
             raise NotImplementedError
         logger.info(f"Model will be exported with precision {precision}")
         onnx_file_name = cfg.get("model_name", "model") + ".onnx"
+
+        _model_builder = kwargs.get("model_builder", build_detector)
+
+        def model_builder(*args, **kwargs):
+            model = _model_builder(*args, **kwargs)
+
+            if precision == "FP16":
+                wrap_fp16_model(model)
+            elif precision == "INT8":
+                from nncf.torch.nncf_network import NNCFNetwork
+                assert isinstance(model, NNCFNetwork)
+
+            return model
 
         try:
             deploy_cfg = kwargs.get("deploy_cfg", None)
@@ -95,10 +94,10 @@ class DetectionExporter(DetectionStage):
         from mmdeploy.apis import build_task_processor, torch2onnx
 
         task_processor = build_task_processor(cfg, deploy_cfg, "cpu")
-        task_processor.__class__.init_pytorch_model = partial(
-            init_pytorch_model,
-            model_builder=model_builder
-        )
+
+        def _helper(*args, **kwargs):
+            return init_pytorch_model(*args, **kwargs, model_builder=model_builder)
+        task_processor.__class__.init_pytorch_model = _helper
 
         input_data_cfg = deploy_cfg.pop(
             "input_data", {"shape": (128, 128, 3), "file_path": None}

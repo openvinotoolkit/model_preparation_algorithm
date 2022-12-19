@@ -22,14 +22,13 @@ from mmcv.runner import DistSamplerSeedHook, Fp16OptimizerHook, build_optimizer,
 from mmcls import __version__
 from mmcls.apis import train_model
 from mmcls.datasets import build_dataset, build_dataloader
-from mmcls.models import build_classifier
 from mmcls.utils import collect_env
 from mmcls.core import DistOptimizerHook
 
 from mpa.registry import STAGES
 from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.stage import Stage
-from mpa.cls.stage import ClsStage
+from mpa.cls.stage import ClsStage, build_classifier
 from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.modules.hooks.fp16_sam_optimizer_hook import Fp16SAMOptimizerHook
 from mpa.utils.logger import get_logger
@@ -45,6 +44,7 @@ class ClsTrainer(ClsStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
+        model_builder = kwargs.get("model_builder", build_classifier)
         if mode not in self.mode:
             return {}
 
@@ -119,8 +119,6 @@ class ClsTrainer(ClsStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        model_builder = kwargs.get("model_builder", None)
-
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
@@ -160,11 +158,10 @@ class ClsTrainer(ClsStage):
                                     world_size=len(cfg.gpu_ids), rank=gpu)
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
-        # model
-        if model_builder is not None:
-            model = model_builder(cfg)
-        else:
-            model = build_classifier(cfg.model)
+        # build the model and load checkpoint
+        if model_builder is None:
+            model_builder = build_classifier
+        model = model_builder(cfg)
 
         # fp16 setting for custom sam optimizer
         fp16_cfg = cfg.pop('fp16', None)

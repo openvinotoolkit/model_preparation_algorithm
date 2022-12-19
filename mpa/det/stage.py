@@ -6,12 +6,30 @@ import numpy as np
 import torch
 
 from mmcv import ConfigDict
+from mmcv.runner import load_checkpoint
 from mmdet.datasets import build_dataset
 from mpa.stage import Stage
 from mpa.utils.config_utils import update_or_add_custom_hook
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
+
+
+def build_detector(
+    config,
+    checkpoint=None,
+    device="cpu",
+    cfg_options=None
+):
+    from mmdet.models import build_detector as origin_build_detector
+    if cfg_options is not None:
+        config.merge_from_dict(cfg_options)
+    model = origin_build_detector(config.model)
+    model = model.to(device)
+    checkpoint = checkpoint if checkpoint else config.get("load_from", None)
+    if checkpoint is not None:
+        load_checkpoint(model=model, filename=checkpoint, map_location=device)
+    return model
 
 
 class DetectionStage(Stage):
