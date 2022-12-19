@@ -61,12 +61,9 @@ class BaseRecordingForwardHook(ABC):
     def _recording_forward(
         self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
     ):
-        tensor = self.func(output)
-        tensor = tensor.detach().cpu().numpy()
-        if len(tensor) > 1:
-            for single_tensor in tensor:
-                self._records.append(single_tensor)
-        else:
+        tensors = self.func(output)
+        tensors = tensors.detach().cpu().numpy()
+        for tensor in tensors:
             self._records.append(tensor)
 
     def __enter__(self) -> BaseRecordingForwardHook:
