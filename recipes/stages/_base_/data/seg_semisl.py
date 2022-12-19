@@ -1,13 +1,6 @@
-#_base_ = [
-#    './pipelines/seg_semisl.py'
-#]
-
 __dataset_type = ''
 __data_root = ''
 __pipeline = ''
-#__train_pipeline = {{_base_.train_pipeline}}
-#__test_pipeline = {{_base_.test_pipeline}}
-#__unlabeled_pipeline = {{_base_.unlabeled_pipeline}}
 
 data = dict(
     train=dict(

@@ -14,6 +14,7 @@ import mpa.modules.datasets.pipelines.transforms.augmix
 import mpa.modules.datasets.pipelines.transforms.ote_transforms
 import mpa.modules.datasets.pipelines.transforms.random_augment
 import mpa.modules.datasets.pipelines.transforms.random_ratio_crop
+import mpa.modules.datasets.pipelines.transforms.twocrop_transform
 
 import mpa.modules.datasets.cls_csv_dataset
 import mpa.modules.datasets.cls_csv_incr_dataset
@@ -30,6 +31,7 @@ import mpa.modules.models.classifiers
 import mpa.modules.models.heads.cls_incremental_head
 import mpa.modules.models.heads.multi_classifier_head
 import mpa.modules.models.heads.non_linear_cls_head
+import mpa.modules.models.heads.supcon_cls_head
 
 import mpa.modules.models.heads.custom_cls_head
 import mpa.modules.models.heads.custom_multi_label_linear_cls_head
@@ -45,3 +47,5 @@ import mpa.modules.models.losses.ib_loss
 import mpa.modules.models.losses.asymmetric_loss_with_ignore
 import mpa.modules.models.losses.asymmetric_angular_loss_with_ignore
 import mpa.modules.models.losses.triplet_loss
+import mpa.modules.models.losses.barlowtwins_loss
+import mpa.modules.models.losses.mse_loss
