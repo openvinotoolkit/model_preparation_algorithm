@@ -7,7 +7,7 @@ from mmcv import ConfigDict
 from mmseg.utils import get_root_logger
 
 from mpa.stage import Stage
-from mpa.utils.config_utils import update_or_add_custom_hook
+from mpa.utils.config_utils import update_or_add_custom_hook, recursively_update_cfg
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -31,6 +31,25 @@ class SegStage(Stage):
         return cfg
 
     def configure_model(self, cfg, model_cfg, training, **kwargs):
+
+        ir_model_path = kwargs.get("ir_model_path")
+        if ir_model_path:
+            def is_mmov_model(k, v):
+                if k == "type" and v.startswith("MMOV"):
+                    return True
+                return False
+            ir_weight_path = kwargs.get("ir_weight_path", None)
+            ir_weight_init = kwargs.get("ir_weight_init", False)
+            recursively_update_cfg(
+                cfg,
+                is_mmov_model,
+                {
+                    "model_path": ir_model_path,
+                    "weight_path": ir_weight_path,
+                    "init_weight": ir_weight_init
+                }
+            )
+
         if model_cfg:
             if hasattr(model_cfg, 'model'):
                 cfg.merge_from_dict(model_cfg._cfg_dict)
@@ -108,7 +127,7 @@ class SegStage(Stage):
 
         # Model classes
         if task_adapt_op == 'REPLACE':
-            if len(data_classes) == 1: # 'background'
+            if len(data_classes) == 1:  # 'background'
                 model_classes = org_model_classes.copy()
             else:
                 model_classes = data_classes.copy()
