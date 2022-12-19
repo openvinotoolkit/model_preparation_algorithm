@@ -9,18 +9,17 @@ logger = get_logger()
 
 
 @SEGMENTORS.register_module()
-class MeanTeacherNaive(BaseSegmentor):
-    def __init__(self, orig_type=None, unsup_weight=0.1, warmup_start_iter=30, **kwargs):
-        logger.info('MeanTeacherNaive Segmentor init!')
-        super(MeanTeacherNaive, self).__init__()
+class MeanTeacher(BaseSegmentor):
+    def __init__(self, orig_type=None, unsup_weight=0.1, semisl_start_iter=30, **kwargs):
+        logger.info('MeanTeacher Segmentor init!')
+        super(MeanTeacher, self).__init__()
         self.test_cfg = kwargs['test_cfg']
-        self.warmup_start_iter = warmup_start_iter
+        self.semisl_start_iter = semisl_start_iter
         self.count_iter = 0
 
         cfg = kwargs.copy()
-        if orig_type == 'EncoderDecoder':
-            cfg['type'] = 'EncoderDecoder'
-            self.align_corners = cfg['decode_head'].align_corners
+        cfg['type'] = orig_type
+        self.align_corners = cfg['decode_head'].align_corners
         self.model_s = build_segmentor(cfg)
         self.model_t = build_segmentor(cfg)
         self.unsup_weight = unsup_weight
@@ -45,7 +44,7 @@ class MeanTeacherNaive(BaseSegmentor):
 
     def forward_train(self, img, img_metas, gt_semantic_seg, **kwargs):
         self.count_iter += 1
-        if self.warmup_start_iter > self.count_iter or 'extra_0' not in kwargs:
+        if self.semisl_start_iter > self.count_iter or 'extra_0' not in kwargs:
             x = self.model_s.extract_feat(img)
             loss_decode, _ = self.model_s._decode_head_forward_train(x, img_metas, gt_semantic_seg=gt_semantic_seg)
             return loss_decode
@@ -82,10 +81,10 @@ class MeanTeacherNaive(BaseSegmentor):
     def state_dict_hook(module, state_dict, *args, **kwargs):
         """Redirect student model as output state_dict (teacher as auxilliary)
         """
-        logger.info('----------------- MeanTeacherNaive.state_dict_hook() called')
+        logger.info('----------------- MeanTeacher.state_dict_hook() called')
         output = OrderedDict()
         for k, v in state_dict.items():
-            if 'model_s.' in k:
+            if k.startswith('model_s.'):
                 k = k.replace('model_s.', '')
                 output[k] = v
         return output
@@ -94,9 +93,8 @@ class MeanTeacherNaive(BaseSegmentor):
     def load_state_dict_pre_hook(module, state_dict, *args, **kwargs):
         """Redirect input state_dict to teacher model
         """
-        logger.info('----------------- MeanTeacherNaive.load_state_dict_pre_hook() called')
+        logger.info('----------------- MeanTeacher.load_state_dict_pre_hook() called')
         for k in list(state_dict.keys()):
             v = state_dict.pop(k)
-            if 'model_s.' not in k:
-                state_dict['model_s.'+k] = v
-                state_dict['model_t.'+k] = v
+            state_dict['model_s.' + k] = v
+            state_dict['model_t.' + k] = v

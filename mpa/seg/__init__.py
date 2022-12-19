@@ -11,8 +11,7 @@ from . import trainer
 from .semisl import trainer
 from .semisl import inferrer
 
-import mpa.modules.datasets.pipelines.seg_custom_pipelines
-import mpa.modules.datasets.seg_unlabeled_dataset
+import mpa.modules.datasets.pipelines.transforms.seg_custom_pipelines
 import mpa.modules.datasets.seg_incr_cityscapes_dataset
 import mpa.modules.datasets.seg_incr_voc_dataset
 import mpa.modules.datasets.seg_task_adapt_dataset

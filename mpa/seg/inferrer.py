@@ -41,14 +41,8 @@ class SegInferrer(SegStage):
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         outputs = self.infer(cfg, dump_features)
-        # outputs = np.array(outputs)
 
-        # Save outputs
-        # output_file_path = osp.join(cfg.work_dir, 'pre_stage_res.npy')
-        # output_file_path = osp.join(cfg.work_dir, 'infer_result.npy')
-        # np.save(output_file_path, outputs, allow_pickle=True)/
         return dict(
-            # output_file_path=output_file_path,
             outputs=outputs
         )
 
