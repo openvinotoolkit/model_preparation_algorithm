@@ -10,7 +10,7 @@ from mmcv import ConfigDict
 from mmcv import build_from_cfg
 
 from mpa.stage import Stage
-from mpa.utils.config_utils import update_or_add_custom_hook
+from mpa.utils.config_utils import update_or_add_custom_hook, recursively_update_cfg
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -35,8 +35,7 @@ class ClsStage(Stage):
             else:
                 cfg.model = copy.deepcopy(model_cfg.model)
 
-        cfg.model_task = cfg.model.pop('task', 'classification')
-        if cfg.model_task != 'classification':
+        if cfg.model.pop('task', None) != 'classification':
             raise ValueError(
                 f'Given model_cfg ({model_cfg.filename}) is not supported by classification recipe'
             )
@@ -48,14 +47,26 @@ class ClsStage(Stage):
         if cfg.get('resume', False):
             cfg.resume_from = cfg.load_from
 
-        self.configure_model(cfg, training, **kwargs)
+        # OV-plugin
+        ir_model_path = kwargs.get("ir_model_path")
+        if ir_model_path:
+            def is_mmov_model(k, v):
+                if k == "type" and v.startswith("MMOV"):
+                    return True
+                return False
+            ir_weight_path = kwargs.get("ir_weight_path", None)
+            ir_weight_init = kwargs.get("ir_weight_init", False)
+            recursively_update_cfg(
+                cfg,
+                is_mmov_model,
+                {
+                    "model_path": ir_model_path,
+                    "weight_path": ir_weight_path,
+                    "init_weight": ir_weight_init
+                }
+            )
 
-        # OMZ-plugin
-        if cfg.model.backbone.type == 'OmzBackboneCls':
-            ir_path = kwargs.get('ir_path', None)
-            if ir_path is None:
-                raise RuntimeError('OMZ model needs OpenVINO bin/XML files.')
-            cfg.model.backbone.model_path = ir_path
+        self.configure_model(cfg, training, **kwargs)
 
         pretrained = kwargs.get('pretrained', None)
         if pretrained and isinstance(pretrained, str):
@@ -110,32 +121,39 @@ class ClsStage(Stage):
             return
 
         # update model layer's in/out configuration
-        input_shape = [3, 224, 224]
-        logger.debug(f'input shape for backbone {input_shape}')
         from mmcls.models.builder import BACKBONES as backbone_reg
         layer = build_from_cfg(cfg.model.backbone, backbone_reg)
-        output = layer(torch.rand([1] + input_shape))
+        layer.eval()
+        input_shape = [3, 224, 224]
+        # MMOV model
+        if hasattr(layer, 'input_shapes'):
+            input_shape = next(iter(getattr(layer, 'input_shapes').values()))
+            input_shape = input_shape[1:]
+            if any(i < 0 for i in input_shape):
+                input_shape = [3, 244, 244]
+        logger.debug(f'input shape for backbone {input_shape}')
+        output = layer(torch.rand([1] + list(input_shape)))
         if isinstance(output, (tuple, list)):
             output = output[-1]
-        output = output.shape[1]
+        in_channels = output.shape[1]
         if cfg.model.get('neck') is not None:
             if cfg.model.neck.get('in_channels') is not None:
                 logger.info(f"'in_channels' config in model.neck is updated from "
-                            f"{cfg.model.neck.in_channels} to {output}")
-                cfg.model.neck.in_channels = output
-                input_shape = [i for i in range(output)]
+                            f"{cfg.model.neck.in_channels} to {in_channels}")
+                cfg.model.neck.in_channels = in_channels
                 logger.debug(f'input shape for neck {input_shape}')
                 from mmcls.models.builder import NECKS as neck_reg
                 layer = build_from_cfg(cfg.model.neck, neck_reg)
-                output = layer(torch.rand([1] + input_shape))
+                layer.eval()
+                output = layer(torch.rand(output.shape))
                 if isinstance(output, (tuple, list)):
                     output = output[-1]
-                output = output.shape[1]
+                in_channels = output.shape[1]
         if cfg.model.get('head') is not None:
             if cfg.model.head.get('in_channels') is not None:
                 logger.info(f"'in_channels' config in model.head is updated from "
-                            f"{cfg.model.head.in_channels} to {output}")
-                cfg.model.head.in_channels = output
+                            f"{cfg.model.head.in_channels} to {in_channels}")
+                cfg.model.head.in_channels = in_channels
 
             # checking task incremental model configurations
 
