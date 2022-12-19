@@ -7,7 +7,7 @@ import torch
 from mmdet.models.detectors import BaseDetector, TwoStageDetector
 from mmdet.utils.deployment.export_helpers import get_feature_vector
 from mmdet.integration.nncf.utils import no_nncf_trace
-from mpa.modules.hooks.auxiliary_hooks import DetSaliencyMapHook
+from mpa.modules.hooks.recording_forward_hooks import DetSaliencyMapHook
 
 
 class SAMDetectorMixin(BaseDetector):

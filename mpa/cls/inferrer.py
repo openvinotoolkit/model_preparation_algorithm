@@ -16,9 +16,7 @@ from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-# from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, FeatureVectorHook
-# FIXME: Need to merge two hook modules
-from mpa.modules.hooks.auxiliary_hooks import FeatureVectorHook, ReciproCAMHook
+from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook, ReciproCAMHook
 from mpa.modules.utils.task_adapt import prob_extractor
 from mpa.utils.logger import get_logger
 logger = get_logger()
@@ -101,9 +99,8 @@ class ClsInferrer(ClsStage):
                 data_info['soft_label'] = {task: value[i] for task, value in old_prob.items()}
             outputs = data_infos
         else:
-            with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as feature_vector_hook:
-                with ReciproCAMHook(model.module) if dump_saliency_map else nullcontext()
-                    as forward_explainer_hook:
+            with FeatureVectorHook(model.module) if dump_features else nullcontext() as feature_vector_hook:
+                with ReciproCAMHook(model.module) if dump_saliency_map else nullcontext() as forward_explainer_hook:
                     for data in data_loader:
                         with torch.no_grad():
                             result = model(return_loss=False, **data)
