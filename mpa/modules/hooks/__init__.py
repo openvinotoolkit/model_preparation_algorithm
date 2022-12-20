@@ -24,3 +24,4 @@ from . import fp16_sam_optimizer_hook
 from . import adaptive_training_hooks
 from . import ib_loss_hook
 from . import unlabeled_data_hook
+from . import eval_before_train_hook
