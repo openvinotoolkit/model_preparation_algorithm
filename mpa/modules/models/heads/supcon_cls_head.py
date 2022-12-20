@@ -80,11 +80,10 @@ class SupConClsHead(BaseHead):
 
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
-        pred = F.softmax(cls_score, dim=1) if cls_score is not None else None
         if torch.onnx.is_in_onnx_export():
-            return pred
-        pred = list(pred.detach().cpu().numpy())
-        return pred
+            return cls_score
+        pred = F.softmax(cls_score, dim=1) if cls_score is not None else None
+        return list(pred.detach().cpu().numpy())
 
     def forward_train(self, x: Tensor, gt_label: Tensor):
         """
