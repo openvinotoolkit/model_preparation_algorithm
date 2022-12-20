@@ -11,7 +11,7 @@ from mmcv.runner import load_checkpoint
 from mmdet.apis import single_gpu_test
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
-from mmdet.parallel import MMDataCPU
+from mmdet.utils.misc import prepare_mmdet_model_for_execution
 
 from mpa.det.stage import DetectionStage
 from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook, DetSaliencyMapHook
@@ -105,10 +105,8 @@ class DetectionExplainer(DetectionStage):
 
         model.eval()
         if torch.cuda.is_available():
-            eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
-                                        device_ids=cfg.gpu_ids)
-        else:
-            eval_model = MMDataCPU(model)
+            model = model.cuda()
+        eval_model = prepare_mmdet_model_for_execution(model, cfg, self.distributed)
 
         # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
         if is_module_wrapper(model):
@@ -116,7 +114,8 @@ class DetectionExplainer(DetectionStage):
 
         # Class-wise Saliency map for Single-Stage Detector, otherwise use class-ignore saliency map.
         with self.explainer_hook(eval_model.module) as saliency_hook:
-            _ = single_gpu_test(eval_model, explain_data_loader)
+            for data in explain_data_loader:
+                _ = eval_model(return_loss=False, rescale=True, **data)
             saliency_maps = saliency_hook.records
 
         # Check and unwrap ImageTilingDataset object from TaskAdaptEvalDataset

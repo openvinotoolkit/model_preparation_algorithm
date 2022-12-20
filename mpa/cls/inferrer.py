@@ -97,8 +97,7 @@ class ClsInferrer(ClsStage):
             outputs = data_infos
         else:
             with FeatureVectorHook(model.module) if dump_features else nullcontext() as feature_vector_hook:
-                with ReciproCAMHook(model.module) if dump_saliency_map else nullcontext() \
-                    as forward_explainer_hook:
+                with ReciproCAMHook(model.module) if dump_saliency_map else nullcontext() as forward_explainer_hook:
                     for data in data_loader:
                         with torch.no_grad():
                             result = model(return_loss=False, **data)
