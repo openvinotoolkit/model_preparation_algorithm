@@ -158,7 +158,7 @@ class Stage(object):
             gpu_ids = os.environ.get('CUDA_VISIBLE_DEVICES')
             logger.info(f'CUDA_VISIBLE_DEVICES = {gpu_ids}')
             if gpu_ids is not None:
-                self.cfg.gpu_ids = [int(gpu_ids.split(',')[0])]
+                self.cfg.gpu_ids = range(len(gpu_ids.split(',')))
             else:
                 self.cfg.gpu_ids = range(1)
 
