@@ -19,6 +19,7 @@ from mmseg.utils import get_root_logger
 from mpa.seg.builder import build_dataset
 from mpa.utils.data_cpu import MMDataCPU
 
+
 def set_random_seed(seed, deterministic=False):
     """Set random seed.
     Args:

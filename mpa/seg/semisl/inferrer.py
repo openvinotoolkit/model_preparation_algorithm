@@ -12,15 +12,25 @@ from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
 from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
 from mpa.registry import STAGES
-from .stage import SegStage
+from .stage import SemiSegStage
 from mpa.stage import Stage
 import torch
 
 
 @STAGES.register_module()
-class SegInferrer(SegStage):
+class SemiSegInferrer(SemiSegStage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def configure(self, model_cfg, model_ckpt, data_cfg, training=False, **kwargs):
+        cfg = super().configure(model_cfg, model_ckpt, data_cfg, training=training, **kwargs)
+
+        cfg.model.type = cfg.model.orig_type
+        cfg.model.pop("orig_type", False)
+        cfg.model.pop("unsup_weight", False)
+        cfg.model.pop("semisl_start_iter", False)
+
+        return cfg
 
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         """Run inference stage for segmentation
@@ -110,7 +120,7 @@ class SegInferrer(SegStage):
         model = MMDataParallel(model, device_ids=[0])
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
-        SegStage.set_inference_progress_callback(model, cfg)
+        SemiSegStage.set_inference_progress_callback(model, cfg)
 
         eval_predictions = []
         feature_vectors = []
