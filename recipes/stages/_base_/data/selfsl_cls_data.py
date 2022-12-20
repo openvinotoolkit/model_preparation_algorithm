@@ -52,7 +52,7 @@ __train_pipeline_v1 = [
 ]
 
 data = dict(
-    samples_per_gpu=256,
+    samples_per_gpu=64,
     workers_per_gpu=2,
     train=dict(
         type='SelfSLDataset',
