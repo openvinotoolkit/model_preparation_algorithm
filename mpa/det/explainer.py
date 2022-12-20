@@ -1,14 +1,9 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-import os.path as osp
 import torch
-
-import mmcv
-from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint
 
-from mmdet.apis import single_gpu_test
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
 from mmdet.utils.misc import prepare_mmdet_model_for_execution
@@ -107,10 +102,6 @@ class DetectionExplainer(DetectionStage):
         if torch.cuda.is_available():
             model = model.cuda()
         eval_model = prepare_mmdet_model_for_execution(model, cfg, self.distributed)
-
-        # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
-        if is_module_wrapper(model):
-            model = model.module
 
         # Class-wise Saliency map for Single-Stage Detector, otherwise use class-ignore saliency map.
         with self.explainer_hook(eval_model.module) as saliency_hook:

@@ -72,7 +72,7 @@ class ClsExplainer(ClsStage):
             _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         model.eval()
-        model = MMDataParallel(model, device_ids=[0])
+        model = self._put_model_on_gpu(model, cfg)
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
