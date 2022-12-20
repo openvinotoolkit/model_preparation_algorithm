@@ -15,13 +15,12 @@ from mmcv.utils import get_git_hash
 from mmdet import __version__
 from mmdet.apis import train_detector
 from mmdet.datasets import build_dataset
-from mmdet.models import build_detector
 from mmdet.utils import collect_env
 
 from mpa.registry import STAGES
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.utils.logger import get_logger
-from .stage import DetectionStage
+from .stage import DetectionStage, build_detector
 
 logger = get_logger()
 
@@ -165,6 +164,8 @@ class DetectionTrainer(DetectionStage):
             model_builder = build_detector
         model = model_builder(cfg)
         model.CLASSES = target_classes
+
+        DetectionTrainer.configure_custom_fp16_optimizer(cfg, distributed)
 
         train_detector(
             model,

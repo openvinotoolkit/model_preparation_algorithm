@@ -255,6 +255,20 @@ class Stage(object):
                     update_hook(opt, custom_hooks, idx, hook)
 
     @staticmethod
+    def configure_custom_fp16_optimizer(
+        config: Config,
+        distributed: bool = False
+    ):
+        fp16_config = config.pop("fp16", None)
+        if fp16_config is not None:
+            if config.optimizer_config.get("type", None) == "SAMOptimizerHook":
+                config.optimizer_config.type = "Fp16SAMOptimizerHook"
+                config.optimizer_config.distributed = distributed
+                config.optimizer_config.loss_scale = fp16_config["loss_scale"]
+            else:
+                config.fp16 = fp16_config
+
+    @staticmethod
     def get_model_meta(cfg):
         ckpt_path = cfg.get('load_from', None)
         meta = {}
