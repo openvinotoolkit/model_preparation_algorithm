@@ -12,6 +12,7 @@ from mmdet.models import build_detector
 from mmdet.models.detectors import TwoStageDetector
 from mmdet.utils.deployment import get_feature_vector
 from mmdet.apis import single_gpu_test
+from mmdet.utils.misc import prepare_mmdet_model_for_execution
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
