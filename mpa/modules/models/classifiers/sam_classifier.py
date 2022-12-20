@@ -257,11 +257,17 @@ class SAMImageClassifier(ImageClassifier):
            Overriding for OpenVINO export with features
         """
         x = self.backbone(img)
+        # For Global Backbones (det/seg/etc..),
+        # In case of tuple or list, only the feat of the last layer is used.
+        if isinstance(x, (tuple, list)):
+            x = x[-1]
+
         if torch.onnx.is_in_onnx_export():
             self.featuremap = x
 
         if self.with_neck:
             x = self.neck(x)
+
         return x
 
     def simple_test(self, img, img_metas):
