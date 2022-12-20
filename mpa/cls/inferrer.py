@@ -11,8 +11,7 @@ from mmcls.datasets import build_dataloader, build_dataset
 from mmcls.models import build_classifier
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.recording_forward_hooks import (ActivationMapHook,
-                                                       FeatureVectorHook)
+from mpa.modules.hooks.recording_forward_hooks import ReciproCAMHook, FeatureVectorHook
 from mpa.modules.utils.task_adapt import prob_extractor
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
@@ -97,9 +96,8 @@ class ClsInferrer(ClsStage):
                 data_info['soft_label'] = {task: value[i] for task, value in old_prob.items()}
             outputs = data_infos
         else:
-            with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as feature_vector_hook:
-                with ActivationMapHook(model.module.backbone) if dump_saliency_map else nullcontext() \
-                    as forward_explainer_hook:
+            with FeatureVectorHook(model.module) if dump_features else nullcontext() as feature_vector_hook:
+                with ReciproCAMHook(model.module) if dump_saliency_map else nullcontext() as forward_explainer_hook:
                     for data in data_loader:
                         with torch.no_grad():
                             result = model(return_loss=False, **data)
@@ -108,10 +106,9 @@ class ClsInferrer(ClsStage):
                     saliency_maps = forward_explainer_hook.records if dump_saliency_map else [None] * len(self.dataset)
 
         assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
-            (
-                "Number of elements should be the same, however, number of outputs are ",
-                f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
-            )
+               "Number of elements should be the same, however, number of outputs are " \
+               f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
+
         outputs = dict(
             eval_predictions=eval_predictions,
             feature_vectors=feature_vectors,

@@ -14,12 +14,13 @@ from mmcls.models import build_classifier
 
 from mpa.registry import STAGES
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, EigenCamHook, ReciproCAMHook
 from mpa.utils.logger import get_logger
 logger = get_logger()
 EXPLAINER_HOOK_SELECTOR = {
     'eigencam': EigenCamHook,
     'activationmap': ActivationMapHook,
+    'classwisesaliencymap': ReciproCAMHook,
 }
 
 
@@ -35,9 +36,9 @@ class ClsExplainer(ClsStage):
         explainer = kwargs.get('explainer')
         self.explainer_hook = EXPLAINER_HOOK_SELECTOR.get(explainer.lower(), None)
         if self.explainer_hook is None:
-            raise NotImplementedError(f'explainer algorithm {explainer} not supported')
+            raise NotImplementedError(f'Explainer algorithm {explainer} not supported!')
         logger.info(
-            f'explainer algorithm: {explainer}'
+            f'Explainer algorithm: {explainer}'
         )
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
@@ -71,11 +72,11 @@ class ClsExplainer(ClsStage):
             _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         model.eval()
-        model = MMDataParallel(model, device_ids=[0])
+        model = self._put_model_on_gpu(model, cfg)
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
-        with self.explainer_hook(model.module.backbone) as forward_explainer_hook:
+        with self.explainer_hook(model.module) as forward_explainer_hook:
             # do inference and record intermediate fmap
             for data in explain_data_loader:
                 with torch.no_grad():

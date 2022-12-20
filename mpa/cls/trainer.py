@@ -9,7 +9,6 @@ from torch import nn
 
 import warnings
 
-
 import mmcv
 from mmcv.runner import DistSamplerSeedHook, Fp16OptimizerHook, build_optimizer, build_runner, HOOKS
 

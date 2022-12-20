@@ -8,7 +8,7 @@ from mmcls.models.builder import CLASSIFIERS
 from mmcls.models.classifiers.base import BaseClassifier
 from mmcls.models.classifiers.image import ImageClassifier
 from mpa.modules.utils.task_adapt import map_class_names
-from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, FeatureVectorHook
+from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook, ReciproCAMHook
 from mpa.utils.logger import get_logger
 from collections import OrderedDict
 import functools
@@ -277,7 +277,7 @@ class SAMImageClassifier(ImageClassifier):
         x = self.extract_feat(img)
         logits = self.head.simple_test(x)
         if self.featuremap is not None and torch.onnx.is_in_onnx_export():
-            saliency_map = ActivationMapHook.func(self.featuremap)
+            saliency_map = ReciproCAMHook(self).func(self.featuremap)
             feature_vector = FeatureVectorHook.func(self.featuremap)
             return logits, feature_vector, saliency_map
         else:
