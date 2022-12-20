@@ -7,6 +7,7 @@ import platform
 import shutil
 import sys
 import tempfile
+from typing import Any, Callable, Union
 import warnings
 from importlib import import_module
 
@@ -172,3 +173,15 @@ def remove_custom_hook(cfg: Config, hook_type: str):
                 break
         if idx_to_del is not None:
             del custom_hooks[idx_to_del]
+
+
+def recursively_update_cfg(
+    cfg: Union[Config, dict],
+    criterion: Callable[[Any, Any], bool],
+    update_dict: Any,
+):
+    for k, v in list(cfg.items()):
+        if isinstance(v, dict):
+            recursively_update_cfg(v, criterion, update_dict)
+        if criterion(k, v):
+            cfg.update(update_dict)
