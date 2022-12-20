@@ -7,6 +7,7 @@ import random
 import time
 import json
 import os.path as osp
+from typing import Callable
 
 import mmcv
 import numpy as np
@@ -256,17 +257,69 @@ class Stage(object):
 
     @staticmethod
     def configure_custom_fp16_optimizer(
-        config: Config,
+        cfg: Config,
         distributed: bool = False
     ):
-        fp16_config = config.pop("fp16", None)
+        fp16_config = cfg.pop("fp16", None)
         if fp16_config is not None:
-            if config.optimizer_config.get("type", None) == "SAMOptimizerHook":
-                config.optimizer_config.type = "Fp16SAMOptimizerHook"
-                config.optimizer_config.distributed = distributed
-                config.optimizer_config.loss_scale = fp16_config["loss_scale"]
+            if cfg.optimizer_config.get("type", None) == "SAMOptimizerHook":
+                cfg.optimizer_config.type = "Fp16SAMOptimizerHook"
+                cfg.optimizer_config.distributed = distributed
+                cfg.optimizer_config.loss_scale = fp16_config["loss_scale"]
             else:
-                config.fp16 = fp16_config
+                cfg.fp16 = fp16_config
+
+    @staticmethod
+    def configure_unlabeled_dataloader(
+        cfg: Config,
+        dataset_builder: Callable,
+        dataloader_builder: Callable,
+        distributed: bool = False
+    ):
+        if 'unlabeled' in cfg.data:
+            if len(cfg.data.unlabeled.get('pipeline', [])) == 0:
+                cfg.data.unlabeled.pipeline = cfg.data.train.pipeline.copy()
+            unlabeled_data = dataset_builder(cfg.data.pop("unlabeled"))
+            unlabeled_loader_cfg = cfg.data.pop('unlabeled_dataloader', {}),
+            # The default loader config
+            loader_cfg = dict(
+                num_gpus=len(cfg.gpu_ids),
+                dist=distributed,
+                round_up=True,
+                seed=cfg.get("seed"),
+                sampler_cfg=cfg.get('sampler', None),
+            )
+            # The overall dataloader settings
+            loader_cfg.update({
+                k: v
+                for k, v in cfg.data.items() if k not in [
+                    'train', 'val', 'test', 'train_dataloader', 'val_dataloader',
+                    'test_dataloader'
+                ]
+            })
+            # The specific dataloader settings
+            unlabeled_loader = dataloader_builder(
+                unlabeled_data,
+                **{**loader_cfg, **unlabeled_loader_cfg},
+            )
+
+            custom_hooks = cfg.get("custom_hooks", [])
+            updated = False
+            for custom_hook in custom_hooks:
+                if custom_hook["type"] == "ComposeDataLoadersHook":
+                    custom_hook["data_loaders"] = [
+                        *custom_hook["data_loaders"],
+                        unlabeled_loader
+                    ]
+                    updated = True
+            if not updated:
+                custom_hooks.append(
+                    ConfigDict(
+                        type='ComposeDataLoadersHook',
+                        data_loaders=unlabeled_loader,
+                    )
+                )
+            cfg.custom_hooks = custom_hooks
 
     @staticmethod
     def get_model_meta(cfg):

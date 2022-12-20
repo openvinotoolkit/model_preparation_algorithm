@@ -60,10 +60,7 @@ class ClsTrainer(ClsStage):
                     dash_line)
 
         # Data
-        if 'unlabeled' in cfg.data:
-            datasets = [[build_dataset(cfg.data.train), build_dataset(cfg.data.unlabeled)]]
-        else:
-            datasets = [build_dataset(cfg.data.train)]
+        datasets = [build_dataset(cfg.data.train)]
 
         # Dataset for HPO
         hp_config = kwargs.get('hp_config', None)
@@ -157,6 +154,12 @@ class ClsTrainer(ClsStage):
         model = model_builder(cfg)
 
         ClsTrainer.configure_custom_fp16_optimizer(cfg, distributed)
+        ClsTrainer.configure_unlabeled_dataloader(
+            cfg,
+            build_dataset,
+            build_dataloader,
+            distributed
+        )
 
         # register custom eval hooks
         if validate:

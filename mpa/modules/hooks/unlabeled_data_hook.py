@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from mmcv.runner import get_dist_info
-from mmcv.runner import HOOKS, Hook
+from typing import Sequence, Union
 
-from mmdet.datasets import build_dataset, build_dataloader
+from torch.utils.data import DataLoader
+from mmcv.runner import HOOKS, Hook
 
 from mpa.modules.datasets.composed_dataloader import ComposedDL
 from mpa.utils.logger import get_logger
@@ -14,38 +14,34 @@ logger = get_logger()
 
 
 @HOOKS.register_module()
-class UnlabeledDataHook(Hook):
+class ComposeDataLoadersHook(Hook):
 
     def __init__(
         self,
-        unlabeled_data_cfg,
-        samples_per_gpu,
-        workers_per_gpu,
-        seed=None,
-        **kwargs
+        data_loaders: Union[Sequence[DataLoader], DataLoader],
     ):
-        super().__init__(**kwargs)
-        # Build unlabeled dataset & loader
-        logger.info('In UnlabeledDataHook.before_epoch, creating unlabeled dataset...')
-        self.unlabeled_dataset = build_dataset(unlabeled_data_cfg)
-        _, world_size = get_dist_info()
-        logger.info('In UnlabeledDataHook.before_epoch, creating unlabeled data_loader...')
-        self.unlabeled_loader = build_dataloader(
-            self.unlabeled_dataset,
-            samples_per_gpu,
-            workers_per_gpu,
-            num_gpus=world_size,
-            dist=(world_size > 1),
-            seed=seed,
-            **kwargs
-        )
+        self.data_loaders = []
+        self.composed_loader = None
+
+        self.add_dataloaders(data_loaders)
+
+    def add_dataloaders(self, data_loaders: Union[Sequence[DataLoader], DataLoader]):
+        if isinstance(data_loaders, DataLoader):
+            data_loaders = [data_loaders]
+        else:
+            data_loaders = list(data_loaders)
+
+        self.data_loaders.extend(data_loaders)
         self.composed_loader = None
 
     def before_epoch(self, runner):
         if self.composed_loader is None:
-            logger.info('In UnlabeledDataHook.before_epoch, creating ComposedDL'
-                        f'([labeled({len(runner.data_loader)}, unlabeled({len(self.unlabeled_loader)})])')
-            self.composed_loader = ComposedDL([runner.data_loader, self.unlabeled_loader])
-        # Per-epoch replacement: train-only loader -> train+unlabeled loader
+            logger.info(
+                "Creating ComposedDL "
+                f"(runner's -> {[len(runner.data_loader)]}, "
+                f"hook's -> {[len(i) for i in self.data_loaders]})"
+            )
+            self.composed_loader = ComposedDL([runner.data_loader, *self.data_loaders])
+        # Per-epoch replacement: train-only loader -> train loader + additional loaders
         # (It's similar to local variable in epoch. Need to update every epoch...)
         runner.data_loader = self.composed_loader

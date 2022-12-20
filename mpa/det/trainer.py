@@ -14,7 +14,7 @@ import torch.multiprocessing as mp
 from mmcv.utils import get_git_hash
 from mmdet import __version__
 from mmdet.apis import train_detector
-from mmdet.datasets import build_dataset
+from mmdet.datasets import build_dataset, build_dataloader
 from mmdet.utils import collect_env
 
 from mpa.registry import STAGES
@@ -166,6 +166,12 @@ class DetectionTrainer(DetectionStage):
         model.CLASSES = target_classes
 
         DetectionTrainer.configure_custom_fp16_optimizer(cfg, distributed)
+        DetectionTrainer.configure_unlabeled_dataloader(
+            cfg,
+            build_dataset,
+            build_dataloader,
+            distributed
+        )
 
         train_detector(
             model,
