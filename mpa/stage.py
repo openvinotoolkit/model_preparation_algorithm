@@ -62,6 +62,7 @@ class Stage(object):
         self.index = index
         self.input = kwargs.pop('input', {})  # input_map?? input_dict? just input?
         self.output_keys = kwargs.pop('output', [])
+        self._distributed = False
 
         if common_cfg is None:
             common_cfg = dict(output_path='logs')
@@ -139,17 +140,6 @@ class Stage(object):
         logger.info(f'work dir = {cfg.work_dir}')
         mmcv.mkdir_or_exist(os.path.abspath(work_dir))
 
-        if not hasattr(cfg, 'gpu_ids'):
-            gpu_ids = os.environ.get('CUDA_VISIBLE_DEVICES', None)
-            logger.info(f'CUDA_VISIBLE_DEVICES = {gpu_ids}')
-            if gpu_ids is not None:
-                if isinstance(gpu_ids, str):
-                    cfg.gpu_ids = range(len(gpu_ids.split(',')))
-                else:
-                    raise ValueError(f'not supported type for gpu_ids: {type(gpu_ids)}')
-            else:
-                cfg.gpu_ids = range(1)
-
         # config logger replace hook
         hook_cfg = ConfigDict(
             type='LoggerReplaceHook'
@@ -157,6 +147,24 @@ class Stage(object):
         update_or_add_custom_hook(cfg, hook_cfg)
 
         self.cfg = cfg
+
+        self.__init_gpu_usage()
+
+    def __init_gpu_usage(self):
+        if torch.distributed.is_initialized():
+            self._distributed = True
+            self.cfg.gpu_ids = [torch.distributed.get_rank(group=None)]
+        elif 'gpu_ids' not in self.cfg:
+            gpu_ids = os.environ.get('CUDA_VISIBLE_DEVICES')
+            logger.info(f'CUDA_VISIBLE_DEVICES = {gpu_ids}')
+            if gpu_ids is not None:
+                self.cfg.gpu_ids = [int(gpu_ids.split(',')[0])]
+            else:
+                self.cfg.gpu_ids = range(1)
+
+    @property
+    def distributed(self):
+        return self._distributed
 
     def run(self, **kwargs):
         raise NotImplementedError

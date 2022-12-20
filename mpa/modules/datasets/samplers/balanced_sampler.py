@@ -18,7 +18,8 @@ class BalancedSampler(Sampler):
         samples_per_gpu (int): batch size of Sampling
         efficient_mode (bool): Flag about using efficient mode
     """
-    def __init__(self, dataset, batch_size, efficient_mode=True):
+    def __init__(self, dataset, batch_size, efficient_mode=True,
+                 num_replicas=1, rank=0, drop_last=False):
         self.batch_size = batch_size
         self.repeat = 1
         if hasattr(dataset, 'times'):
@@ -30,6 +31,9 @@ class BalancedSampler(Sampler):
         self.img_indices = self.dataset.img_indices
         self.num_cls = len(self.img_indices.keys())
         self.data_length = len(self.dataset)
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.drop_last = drop_last
 
         if efficient_mode:
             # Reduce the # of sampling (sampling data for a single epoch)
@@ -42,11 +46,30 @@ class BalancedSampler(Sampler):
                 self.num_trials = int(self.data_length / self.num_cls)
         else:
             self.num_trials = int(self.data_length / self.num_cls)
-        self.compute_sampler_length()
+        self.num_samples = self.calculate_num_samples()
+
         logger.info(f"This sampler will select balanced samples {self.num_trials} times")
 
-    def compute_sampler_length(self):
-        self.sampler_length = self.num_trials * self.num_cls * self.repeat
+    def calculate_num_samples(self):
+        num_samples = self.num_trials * self.num_cls * self.repeat
+
+        if self.num_replicas > 1:
+            # If the dataset length is evenly divisible by # of replicas, then there
+            # is no need to drop any data, since the dataset will be split equally.
+            if self.drop_last and num_samples % self.num_replicas != 0:  # type: ignore
+                # Split to nearest available length that is evenly divisible.
+                # This is to ensure each rank receives the same amount of data when
+                # using this Sampler.
+                num_samples = math.ceil(
+                    # `type:ignore` is required because Dataset cannot provide a default __len__
+                    # see NOTE in pytorch/torch/utils/data/sampler.py
+                    (num_samples - self.num_replicas) / self.num_replicas  # type: ignore
+                )
+            else:
+                num_samples = math.ceil(num_samples / self.num_replicas)  # type: ignore
+            self.total_size = num_samples * self.num_replicas
+
+        return num_samples
 
     def __iter__(self):
         indices = []
@@ -59,7 +82,26 @@ class BalancedSampler(Sampler):
         indices = np.concatenate(indices)
         indices = indices.astype(np.int64).tolist()
 
+        if self.num_replicas > 1:
+            if not self.drop_last:
+                # add extra samples to make it evenly divisible
+                padding_size = self.total_size - len(indices)
+                if padding_size <= len(indices):
+                    indices += indices[:padding_size]
+                else:
+                    indices += (indices * math.ceil(padding_size / len(indices)))[:padding_size]
+            else:
+                # remove tail of data to make it evenly divisible.
+                indices = indices[:self.total_size]
+            assert len(indices) == self.total_size
+
+            # split and distribute indices
+            len_indices = len(indices)
+            indices = indices[self.rank * len_indices // self.num_replicas : (self.rank+1) * len_indices // self.num_replicas]
+
+            assert len(indices) == self.num_samples
+
         return iter(indices)
 
     def __len__(self):
-        return self.sampler_length
+        return self.num_samples
