@@ -27,7 +27,7 @@ class UnlabeledDataHook(Hook):
         seed=None,
         **kwargs
     ):
-        super().__init__(**kwargs)
+        super().__init__()
 
         # Build unlabeled dataset & loader
         task_lib_module = importlib.import_module(f"{TASK_LIB_NAME[model_task]}.datasets")
@@ -37,7 +37,6 @@ class UnlabeledDataHook(Hook):
         self.unlabeled_dataset = build_dataset(unlabeled_data_cfg)
 
         _, world_size = get_dist_info()
-
         logger.info('In UnlabeledDataHook, creating unlabeled data_loader...')
         self.unlabeled_loader = build_dataloader(
             self.unlabeled_dataset,
