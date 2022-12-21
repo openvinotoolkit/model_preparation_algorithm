@@ -1,24 +1,21 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+import os.path as osp
 from contextlib import nullcontext
 
-import os.path as osp
+import mmcv
 import numpy as np
 import torch
-
-import mmcv
-from mmcv.parallel import MMDataParallel
-from mmcv.runner import load_checkpoint, wrap_fp16_model
-
 from mmcls.datasets import build_dataloader, build_dataset
 from mmcls.models import build_classifier
-
-from mpa.registry import STAGES
+from mmcv.runner import load_checkpoint, wrap_fp16_model
 from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook, ReciproCAMHook
+from mpa.modules.hooks.recording_forward_hooks import ReciproCAMHook, FeatureVectorHook
 from mpa.modules.utils.task_adapt import prob_extractor
+from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
+
 logger = get_logger()
 
 
@@ -83,7 +80,7 @@ class ClsInferrer(ClsStage):
             _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
 
         model.eval()
-        model = MMDataParallel(model, device_ids=[0])
+        model = self._put_model_on_gpu(model, cfg)
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         ClsStage.set_inference_progress_callback(model, cfg)
@@ -109,10 +106,9 @@ class ClsInferrer(ClsStage):
                     saliency_maps = forward_explainer_hook.records if dump_saliency_map else [None] * len(self.dataset)
 
         assert len(eval_predictions) == len(feature_vectors) == len(saliency_maps), \
-            (
-                "Number of elements should be the same, however, number of outputs are ",
-                f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
-            )
+               "Number of elements should be the same, however, number of outputs are " \
+               f"{len(eval_predictions)}, {len(feature_vectors)}, and {len(saliency_maps)}"
+
         outputs = dict(
             eval_predictions=eval_predictions,
             feature_vectors=feature_vectors,

@@ -8,10 +8,12 @@ import numpy as np
 
 from mmcv import ConfigDict
 from mmcv import build_from_cfg
+from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 
 from mpa.stage import Stage
 from mpa.utils.config_utils import update_or_add_custom_hook, recursively_update_cfg
 from mpa.utils.logger import get_logger
+from mpa.utils.data_cpu import MMDataCPU
 
 logger = get_logger()
 
@@ -118,7 +120,7 @@ class ClsStage(Stage):
             return
 
         # update model layer's in/out configuration
-        from mmcls.models.builder import BACKBONES as backbone_reg
+        from mmcv.cnn import MODELS as backbone_reg
         layer = build_from_cfg(cfg.model.backbone, backbone_reg)
         layer.eval()
         input_shape = [3, 224, 224]
@@ -284,6 +286,26 @@ class ClsStage(Stage):
                 cfg.model.head.num_old_classes = len(old_classes)
         return model_tasks, dst_classes
 
+    def _put_model_on_gpu(self, model, cfg):
+        if torch.cuda.is_available():
+            model = model.cuda()
+            if self.distributed:
+                # put model on gpus
+                find_unused_parameters = cfg.get('find_unused_parameters', False)
+                # Sets the `find_unused_parameters` parameter in
+                # torch.nn.parallel.DistributedDataParallel
+                model = MMDistributedDataParallel(
+                    model,
+                    device_ids=[torch.cuda.current_device()],
+                    broadcast_buffers=False,
+                    find_unused_parameters=find_unused_parameters)
+            else:
+                model = MMDataParallel(
+                    model.cuda(), device_ids=[0])
+        else:
+            model = MMDataCPU(model)
+
+        return model
 
 def refine_tasks(train_cfg, meta, adapt_type):
     new_tasks = train_cfg['tasks']

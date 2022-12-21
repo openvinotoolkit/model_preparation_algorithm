@@ -62,12 +62,9 @@ class BaseRecordingForwardHook(ABC):
     def _recording_forward(
         self, _: torch.nn.Module, input: torch.Tensor, output: torch.Tensor
     ):
-        tensor = self.func(output)
-        tensor = tensor.detach().cpu().numpy()
-        if len(tensor) > 1:
-            for single_tensor in tensor:
-                self._records.append(single_tensor)
-        else:
+        tensors = self.func(output)
+        tensors = tensors.detach().cpu().numpy()
+        for tensor in tensors:
             self._records.append(tensor)
 
     def __enter__(self) -> BaseRecordingForwardHook:
@@ -260,7 +257,8 @@ class ReciproCAMHook(BaseRecordingForwardHook):
         self._num_classes = module.head.num_classes
 
     def func(self, feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
-        """Generate the saliency maps using Recipro-CAM and then normalizing to (0, 255).
+        """
+        Generate the class-wise saliency maps using Recipro-CAM and then normalizing to (0, 255).
 
         Args:
             feature_map (Union[torch.Tensor, List[torch.Tensor]]): feature maps from backbone or list of feature maps

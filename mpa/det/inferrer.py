@@ -4,21 +4,18 @@
 from contextlib import nullcontext
 
 import torch
-from mmcv.parallel import MMDataParallel, is_module_wrapper
+from mmcv.parallel import is_module_wrapper
 from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor, ImageTilingDataset
 from mmdet.models import build_detector
 from mmdet.models.detectors import TwoStageDetector
-from mmdet.parallel import MMDataCPU
-from mmdet.utils.deployment import get_feature_vector
-from mmdet.apis import single_gpu_test
+from mmdet.utils.misc import prepare_mmdet_model_for_execution
 
 from mpa.registry import STAGES
 from mpa.utils.logger import get_logger
 from mpa.det.incremental import IncrDetectionStage
-from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, DetSaliencyMapHook
-
+from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, DetSaliencyMapHook, FeatureVectorHook
 
 logger = get_logger()
 
@@ -37,9 +34,9 @@ class DetectionInferrer(IncrDetectionStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
-        eval = kwargs.pop('eval', False)
-        dump_features = kwargs.pop('dump_features', False)
-        dump_saliency_map = kwargs.pop('dump_saliency_map', False)
+        eval = kwargs.pop("eval", False)
+        dump_features = kwargs.pop("dump_features", False)
+        dump_saliency_map = kwargs.pop("dump_saliency_map", False)
         if mode not in self.mode:
             return {}
 
@@ -143,24 +140,8 @@ class DetectionInferrer(IncrDetectionStage):
 
         model.eval()
         if torch.cuda.is_available():
-            eval_model = MMDataParallel(model.cuda(cfg.gpu_ids[0]),
-                                        device_ids=cfg.gpu_ids)
-        else:
-            eval_model = MMDataCPU(model)
-
-        eval_predictions = []
-        feature_vectors = []
-
-        def dump_features_hook(mod, inp, out):
-            with torch.no_grad():
-                feature_vector = get_feature_vector(out)
-                assert feature_vector.size(0) == 1
-            feature_vectors.append(feature_vector.view(-1).detach().cpu().numpy())
-
-        def dummy_dump_features_hook(mod, inp, out):
-            feature_vectors.append(None)
-
-        feature_vector_hook = dump_features_hook if dump_features else dummy_dump_features_hook
+            model = model.cuda()
+        eval_model = prepare_mmdet_model_for_execution(model, cfg, self.distributed)
 
         # Use a single gpu for testing. Set in both mm_val_dataloader and eval_model
         if is_module_wrapper(model):
@@ -170,13 +151,18 @@ class DetectionInferrer(IncrDetectionStage):
         if not dump_saliency_map:
             saliency_hook = nullcontext()
         elif isinstance(model, TwoStageDetector):
-            saliency_hook = ActivationMapHook(eval_model.module.backbone)
+            saliency_hook = ActivationMapHook(eval_model.module)
         else:
             saliency_hook = DetSaliencyMapHook(eval_model.module)
 
-        with eval_model.module.register_forward_hook(feature_vector_hook):
+        eval_predictions = []
+        with FeatureVectorHook(eval_model.module) if dump_features else nullcontext() as feature_vector_hook:
             with saliency_hook:
-                eval_predictions = single_gpu_test(eval_model, data_loader)
+                for data in data_loader:
+                    with torch.no_grad():
+                        result = eval_model(return_loss=False, rescale=True, **data)
+                    eval_predictions.extend(result)
+                feature_vectors = feature_vector_hook.records if dump_features else [None] * len(self.dataset)
                 saliency_maps = saliency_hook.records if dump_saliency_map else [None] * len(self.dataset)
 
         for key in [
