@@ -41,10 +41,7 @@ class ModelEmaV2Hook(Hook):
 
     def before_train_epoch(self, runner):
         if not hasattr(self, "use_ema"):
-            if isinstance(runner.data_loader.dataset, list):
-                self.use_ema = sum([len(i) for i in runner.data_loader.dataset]) > self.dataset_len_thr
-            else:
-                self.use_ema = len(runner.data_loader.dataset) > self.dataset_len_thr
+            self.use_ema = len(runner.data_loader.dataset) > self.dataset_len_thr
 
         if self.use_ema and not hasattr(runner, "ema_model"):
             model = runner.model
