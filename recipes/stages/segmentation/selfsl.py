@@ -3,7 +3,7 @@ _base_ = [
     '../_base_/logs/tensorboard_logger.py',
     '../_base_/optimizers/sgd.py',
     '../_base_/runners/epoch_runner.py',
-    '../_base_/data/warmstart_seg_data.py'
+    '../_base_/data/selfsl_seg_data.py'
 ]
 
 optimizer = dict(
