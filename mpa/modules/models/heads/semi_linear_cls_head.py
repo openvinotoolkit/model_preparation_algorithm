@@ -79,6 +79,7 @@ class SemiLinearClsHead(LinearClsHead):
                 * mask
             )
         losses["loss"] = lx + self.unlabeled_coef * lu
+        losses["unlabeled_loss"] = self.unlabeled_coef * lu
 
         # compute accuracy
         acc = self.compute_accuracy(logits_x, gt_label)
