@@ -124,7 +124,7 @@ class SemiSegInferrer(SemiSegStage):
 
         eval_predictions = []
         feature_vectors = []
-        with FeatureVectorHook(model.module.backbone) if dump_features else nullcontext() as fhook:
+        with FeatureVectorHook(model.module) if dump_features else nullcontext() as fhook:
             for data in mm_val_dataloader:
                 with torch.no_grad():
                     result = model(return_loss=False, output_logits=True, **data)
