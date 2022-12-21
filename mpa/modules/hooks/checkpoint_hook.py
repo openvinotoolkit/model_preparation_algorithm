@@ -67,10 +67,10 @@ class CheckpointHookWithValResults(Hook):
     @master_only
     def _save_checkpoint(self, runner):
         """Save the current checkpoint and delete unwanted checkpoint."""
+        cur_ckpt_filename = f'best_model_epoch_{runner.epoch + 1}.pth'
         runner.save_checkpoint(
-            self.out_dir, filename_tmpl='best_model.pth', save_optimizer=self.save_optimizer, **self.args)
+            self.out_dir, filename_tmpl=cur_ckpt_filename, save_optimizer=self.save_optimizer, **self.args)
         if runner.meta is not None:
-            cur_ckpt_filename = 'best_model.pth'
             runner.meta.setdefault('hook_msgs', dict())
             runner.meta['hook_msgs']['last_ckpt'] = os.path.join(
                 self.out_dir, cur_ckpt_filename)

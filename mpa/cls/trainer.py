@@ -8,6 +8,7 @@ import os.path as osp
 import time
 import warnings
 import torch
+import glob
 
 import torch.multiprocessing as mp
 import torch.distributed as dist
@@ -129,9 +130,9 @@ class ClsTrainer(ClsStage):
                                     meta)
 
         # Save outputs
-        output_ckpt_path = osp.join(cfg.work_dir, 'best_model.pth'
-                                    if osp.exists(osp.join(cfg.work_dir, 'best_model.pth'))
-                                    else 'latest.pth')
+        best_weights = list(glob.iglob(osp.join(cfg.work_dir, "**/best*.pth"), recursive=True))
+        output_ckpt_path = best_weights[0] if best_weights else "latest.pth"
+
         return dict(final_ckpt=output_ckpt_path)
 
     @staticmethod
