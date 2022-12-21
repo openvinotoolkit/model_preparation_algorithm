@@ -1,10 +1,18 @@
 _base_ = [
-    '../_base_/default.py',
     '../_base_/logs/tensorboard_logger.py',
     '../_base_/optimizers/sgd.py',
     '../_base_/runners/epoch_runner.py',
     '../_base_/data/selfsl_seg_data.py'
 ]
+
+
+# doesn't inherit default.py to disenable task_adapt
+cudnn_benchmark = True
+
+seed = 5
+deterministic = False
+
+hparams = dict(dummy=0)
 
 optimizer = dict(
     type='SGD',
@@ -51,4 +59,3 @@ checkpoint_config = dict(
 )
 
 find_unused_parameters = False
-task_adapt = None
