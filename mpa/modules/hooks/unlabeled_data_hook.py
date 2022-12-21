@@ -37,6 +37,7 @@ class UnlabeledDataHook(Hook):
         self.unlabeled_dataset = build_dataset(unlabeled_data_cfg)
 
         _, world_size = get_dist_info()
+
         logger.info('In UnlabeledDataHook, creating unlabeled data_loader...')
         self.unlabeled_loader = build_dataloader(
             self.unlabeled_dataset,
