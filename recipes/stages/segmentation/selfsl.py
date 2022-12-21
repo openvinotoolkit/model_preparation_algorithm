@@ -50,6 +50,5 @@ checkpoint_config = dict(
     interval=1
 )
 
-seed = 42
 find_unused_parameters = False
 task_adapt = None
