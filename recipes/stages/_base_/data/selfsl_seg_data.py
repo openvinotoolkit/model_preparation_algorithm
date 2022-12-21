@@ -49,14 +49,10 @@ __train_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=8,
+    samples_per_gpu=16,
     workers_per_gpu=2,
     train=dict(
-        type='RepeatDataset',
-        times=1,
-        dataset=dict(
-            type='MPASegDataset',
-            pipeline=__train_pipeline
-        )
+        type='MPASegDataset',
+        pipeline=__train_pipeline
     )
 )
