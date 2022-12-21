@@ -34,8 +34,9 @@ class BaseRecordingForwardHook(ABC):
             print(hook.records)
     Args:
         module (torch.nn.Module): The PyTorch module to be registered in forward pass
+        fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
+                                  Defaults to 0 which uses the largest feature map from FPN.
     """
-
     def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
         self._module = module
         self._handle = None
@@ -259,8 +260,13 @@ class ReciproCAMHook(BaseRecordingForwardHook):
         self._num_classes = module.head.num_classes
 
     def func(self, feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
-        """
-        Generate the class-wise saliency maps using Recipro-CAM and then normalizing to (0, 255).
+        """Generate the saliency maps using Recipro-CAM and then normalizing to (0, 255).
+
+        Args:
+            feature_map (Union[torch.Tensor, List[torch.Tensor]]): feature maps from backbone or list of feature maps
+                                                                    from FPN.
+            fpn_idx (int, optional): The layer index to be processed if the model is a FPN.
+                                      Defaults to 0 which uses the largest feature map from FPN.
 
         Returns:
             torch.Tensor: Class-wise Saliency Maps. One saliency map per each class - [batch, class_id, H, W]
