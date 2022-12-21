@@ -2,20 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import os
-import numbers
+
 import os.path as osp
 import time
-import warnings
-import torch
-import numpy as np
-import random
+from torch import nn
 
-import torch.multiprocessing as mp
-import torch.distributed as dist
+import warnings
 
 import mmcv
-from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import DistSamplerSeedHook, Fp16OptimizerHook, build_optimizer, build_runner, HOOKS
 
 from mmcls import __version__
@@ -31,7 +25,6 @@ from mpa.cls.stage import ClsStage
 from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
 from mpa.modules.hooks.fp16_sam_optimizer_hook import Fp16SAMOptimizerHook
 from mpa.utils.logger import get_logger
-from mpa.utils.data_cpu import MMDataCPU
 
 logger = get_logger()
 
@@ -51,13 +44,6 @@ class ClsTrainer(ClsStage):
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
         # Environment
-        distributed = False
-        if cfg.gpu_ids is not None:
-            if isinstance(cfg.get('gpu_ids'), numbers.Number):
-                cfg.gpu_ids = [cfg.get('gpu_ids')]
-            if len(cfg.gpu_ids) > 1:
-                distributed = True
-
         env_info_dict = collect_env()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
         dash_line = '-' * 60 + '\n'
@@ -99,61 +85,29 @@ class ClsTrainer(ClsStage):
                 else:
                     cfg.checkpoint_config.meta.update({'CLASSES': self.model_classes})
 
-        if distributed:
-            if cfg.dist_params.get('linear_scale_lr', False):
-                new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
-                logger.info(f'enabled linear scaling rule to the learning rate. \
-                    changed LR from {cfg.optimizer.lr} to {new_lr}')
-                cfg.optimizer.lr = new_lr
-
         # Save config
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        if distributed:
-            os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
-            os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
-
-            mp.spawn(ClsTrainer.train_worker, nprocs=len(cfg.gpu_ids),
-                     args=(datasets, cfg, distributed, True, timestamp, meta))
-        else:
-            ClsTrainer.train_worker(None, datasets, cfg,
-                                    distributed,
-                                    True,
-                                    timestamp,
-                                    meta)
-
-        # Save outputs
-        output_ckpt_path = osp.join(cfg.work_dir, 'best_model.pth'
-                                    if osp.exists(osp.join(cfg.work_dir, 'best_model.pth'))
-                                    else 'latest.pth')
-        return dict(final_ckpt=output_ckpt_path)
-
-    @staticmethod
-    def train_worker(gpu, dataset, cfg, distributed, validate, timestamp, meta):
-        logger.info(f'called train_worker() gpu={gpu}, distributed={distributed}, validate={validate}')
-        if distributed:
-            torch.cuda.set_device(gpu)
-            dist.init_process_group(backend=cfg.dist_params.get('backend', 'nccl'),
-                                    world_size=len(cfg.gpu_ids), rank=gpu)
-            logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
-
         # model
         model = build_classifier(cfg.model)
 
+        if self.distributed:
+            self._modify_cfg_for_distributed(model, cfg)
+
         # prepare data loaders
-        dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
+        datasets = datasets if isinstance(datasets, (list, tuple)) else [datasets]
         train_data_cfg = Stage.get_train_data_cfg(cfg)
         drop_last = train_data_cfg.drop_last if train_data_cfg.get('drop_last', False) else False
 
         # updated to adapt list of dataset for the 'train'
         data_loaders = [build_dataloader(
-                            dataset[0],
+                            datasets[0],
                             cfg.data.samples_per_gpu,
                             cfg.data.workers_per_gpu,
                             # cfg.gpus will be ignored if distributed
                             num_gpus=len(cfg.gpu_ids),
-                            dist=distributed,
+                            dist=self.distributed,
                             round_up=True,
                             seed=cfg.seed,
                             drop_last=drop_last,
@@ -161,26 +115,7 @@ class ClsTrainer(ClsStage):
                         )]
 
         # put model on gpus
-        if torch.cuda.is_available():
-            model = model.cuda()
-
-        # put model on gpus
-        if torch.cuda.is_available():
-            if distributed:
-                # put model on gpus
-                find_unused_parameters = cfg.get('find_unused_parameters', False)
-                # Sets the `find_unused_parameters` parameter in
-                # torch.nn.parallel.DistributedDataParallel
-                model = MMDistributedDataParallel(
-                    model,
-                    device_ids=[torch.cuda.current_device()],
-                    broadcast_buffers=False,
-                    find_unused_parameters=find_unused_parameters)
-            else:
-                model = MMDataParallel(
-                    model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
-        else:
-            model = MMDataCPU(model)
+        model = self._put_model_on_gpu(model, cfg)
 
         # build runner
         optimizer = build_optimizer(model, cfg.optimizer)
@@ -216,8 +151,8 @@ class ClsTrainer(ClsStage):
                 opt_hook = Fp16OptimizerHook
             cfg.optimizer_config.pop('type')
             optimizer_config = opt_hook(
-                **cfg.optimizer_config, **fp16_cfg, distributed=distributed)
-        elif distributed and 'type' not in cfg.optimizer_config:
+                **cfg.optimizer_config, **fp16_cfg, distributed=self.distributed)
+        elif self.distributed and 'type' not in cfg.optimizer_config:
             optimizer_config = DistOptimizerHook(**cfg.optimizer_config)
         else:
             optimizer_config = cfg.optimizer_config
@@ -229,12 +164,13 @@ class ClsTrainer(ClsStage):
         if cfg.get('checkpoint_config', False):
             runner.register_hook(ClsTrainer.register_checkpoint_hook(cfg.checkpoint_config))
 
-        if distributed:
+        if self.distributed:
             runner.register_hook(DistSamplerSeedHook())
 
         for hook in cfg.get('custom_hooks', ()):
             runner.register_hook_from_cfg(hook)
 
+        validate = True if cfg.data.get('val', None) else False
         # register eval hooks
         if validate:
             val_dataset = build_dataset(cfg.data.val, dict(test_mode=True))
@@ -242,23 +178,40 @@ class ClsTrainer(ClsStage):
                 val_dataset,
                 samples_per_gpu=cfg.data.samples_per_gpu,
                 workers_per_gpu=cfg.data.workers_per_gpu,
-                dist=distributed,
+                dist=self.distributed,
                 shuffle=False,
                 round_up=True,
                 persistent_workers=False)
             eval_cfg = cfg.get('evaluation', {})
             eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'
-            eval_hook = DistCustomEvalHook if distributed else CustomEvalHook
+            eval_hook = DistCustomEvalHook if self.distributed else CustomEvalHook
             runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority='ABOVE_NORMAL')
 
         if cfg.get('resume_from', False):
             runner.resume(cfg.resume_from)
         elif cfg.get('load_from', False):
-            if gpu is None:
-                runner.load_checkpoint(cfg.load_from)
+            if self.distributed:
+                runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{cfg.gpu_ids[0]}')
             else:
-                runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{gpu}')
+                runner.load_checkpoint(cfg.load_from)
         runner.run(data_loaders, cfg.workflow)
+
+        logger.info(f'called train_worker() distributed={self.distributed}, validate=True')
+
+        # Save outputs
+        output_ckpt_path = osp.join(cfg.work_dir, 'best_model.pth'
+                                    if osp.exists(osp.join(cfg.work_dir, 'best_model.pth'))
+                                    else 'latest.pth')
+        return dict(final_ckpt=output_ckpt_path)
+
+    def _modify_cfg_for_distributed(self, model, cfg):
+        nn.SyncBatchNorm.convert_sync_batchnorm(model)
+
+        if cfg.dist_params.get('linear_scale_lr', False):
+            new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
+            logger.info(f'enabled linear scaling rule to the learning rate. \
+                changed LR from {cfg.optimizer.lr} to {new_lr}')
+            cfg.optimizer.lr = new_lr
 
     @staticmethod
     def register_checkpoint_hook(checkpoint_config):

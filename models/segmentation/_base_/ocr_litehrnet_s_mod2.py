@@ -1,7 +1,6 @@
 __norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     type='ClassIncrSegmentor',
-    is_task_adapt=True,
     pretrained=None,
     backbone=dict(
         type='LiteHRNet',
