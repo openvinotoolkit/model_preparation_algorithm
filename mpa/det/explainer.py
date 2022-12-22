@@ -75,7 +75,22 @@ class DetectionExplainer(DetectionStage):
 
         # Target classes
         target_classes = explain_dataset.CLASSES
-        cfg.model.bbox_head.num_classes = len(target_classes)
+        head_names = ('mask_head', 'bbox_head', 'segm_head')
+        num_classes = len(target_classes)
+        if 'roi_head' in cfg.model:
+            # For Faster-RCNNs
+            for head_name in head_names:
+                if head_name in cfg.model.roi_head:
+                    if isinstance(cfg.model.roi_head[head_name], list):
+                        for head in cfg.model.roi_head[head_name]:
+                            head.num_classes = num_classes
+                    else:
+                        cfg.model.roi_head[head_name].num_classes = num_classes
+        else:
+            # For other architectures (including SSD)
+            for head_name in head_names:
+                if head_name in cfg.model:
+                    cfg.model[head_name].num_classes = num_classes
 
         # Model
         cfg.model.pretrained = None
