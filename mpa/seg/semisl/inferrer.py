@@ -6,11 +6,12 @@ from contextlib import nullcontext
 import os.path as osp
 
 import mmcv
-from mmcv.parallel import MMDataParallel
+from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.models import build_segmentor
 from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
+from mmseg.parallel import MMDataCPU
 from mpa.registry import STAGES
 from .stage import SemiSegStage
 from mpa.stage import Stage
@@ -117,7 +118,21 @@ class SemiSegInferrer(SemiSegStage):
 
         # Inference
         model.eval()
-        model = MMDataParallel(model, device_ids=[0])
+        if torch.cuda.is_available():
+            if self.distributed:
+                model = model.cuda()
+                find_unused_parameters = cfg.get('find_unused_parameters', False)
+                # Sets the `find_unused_parameters` parameter in
+                # torch.nn.parallel.DistributedDataParallel
+                model = MMDistributedDataParallel(
+                    model,
+                    device_ids=[torch.cuda.current_device()],
+                    broadcast_buffers=False,
+                    find_unused_parameters=find_unused_parameters)
+            else:
+                model = MMDataParallel(model.cuda(), device_ids=[0])
+        else:
+            model = MMDataCPU(model)
 
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         SemiSegStage.set_inference_progress_callback(model, cfg)
