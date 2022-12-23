@@ -80,7 +80,7 @@ class SegStage(Stage):
             if cfg.data.get('val', False):
                 self.validate = True
         # Dataset
-        src_data_cfg = Stage.get_train_data_cfg(cfg)
+        src_data_cfg = Stage.get_data_cfg(cfg, "train")
         for mode in ['train', 'val', 'test']:
             if src_data_cfg.type == 'MPASegDataset':
                 if cfg.data[mode]['type'] != 'MPASegDataset':
