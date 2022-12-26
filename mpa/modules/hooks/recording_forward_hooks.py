@@ -36,7 +36,7 @@ class BaseRecordingForwardHook(ABC):
         module (torch.nn.Module): The PyTorch module to be registered in forward pass
     """
 
-    def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
+    def __init__(self, module: torch.nn.Module, fpn_idx: int = -1) -> None:
         self._module = module
         self._handle = None
         self._records = []
@@ -47,7 +47,7 @@ class BaseRecordingForwardHook(ABC):
         return self._records
 
     @abstractmethod
-    def func(x: torch.Tensor, fpn_idx: int = 0) -> torch.Tensor:
+    def func(x: torch.Tensor, fpn_idx: int = -1) -> torch.Tensor:
         """This method get the feature vector or saliency map from the output of the module.
         Args:
             x (torch.Tensor): Feature map from the backbone module
@@ -76,7 +76,7 @@ class BaseRecordingForwardHook(ABC):
 
 class EigenCamHook(BaseRecordingForwardHook):
     @staticmethod
-    def func(feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+    def func(feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = -1) -> torch.Tensor:
         if isinstance(feature_map, (list, tuple)):
             feature_map = feature_map[fpn_idx]
 
@@ -101,7 +101,7 @@ class EigenCamHook(BaseRecordingForwardHook):
 class ActivationMapHook(BaseRecordingForwardHook):
     @staticmethod
     def func(
-        feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0
+        feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = -1
     ) -> torch.Tensor:
         """Generate the saliency map by average feature maps then normalizing to (0, 255)."""
         if isinstance(feature_map, (list, tuple)):
@@ -249,13 +249,13 @@ class ReciproCAMHook(BaseRecordingForwardHook):
     Implementation of recipro-cam for class-wise saliency map
     recipro-cam: gradient-free reciprocal class activation map (https://arxiv.org/pdf/2209.14074.pdf)
     """
-    def __init__(self, module: torch.nn.Module, fpn_idx: int = 0) -> None:
+    def __init__(self, module: torch.nn.Module, fpn_idx: int = -1) -> None:
         super().__init__(module, fpn_idx)
         self._neck = module.neck if module.with_neck else None
         self._head = module.head
         self._num_classes = module.head.num_classes
 
-    def func(self, feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = 0) -> torch.Tensor:
+    def func(self, feature_map: Union[torch.Tensor, Sequence[torch.Tensor]], fpn_idx: int = -1) -> torch.Tensor:
         """
         Generate the class-wise saliency maps using Recipro-CAM and then normalizing to (0, 255).
 
