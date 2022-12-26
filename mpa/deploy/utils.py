@@ -11,7 +11,7 @@ def is_mmdeploy_enabled():
     return importlib.util.find_spec("mmdeploy") is not None
 
 
-def init_pytorch_model(ctx, model_checkpoint=None, cfg_options=None, **kwargs):
+def mmdeploy_init_model_helper(ctx, model_checkpoint=None, cfg_options=None, **kwargs):
     model_builder = kwargs.pop("model_builder")
     model = model_builder(
         ctx.model_cfg,

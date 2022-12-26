@@ -87,36 +87,9 @@ class SegExporter(SegStage):
         }
 
     def _mmdeploy_export(self, output_path, onnx_file_name, model_builder, cfg, deploy_cfg):
-        from mpa.deploy.apis import onnx2openvino
-        from mpa.deploy.utils import init_pytorch_model
-        from mmdeploy.apis import build_task_processor, torch2onnx
+        from mpa.deploy.apis import export2openvino
 
-        task_processor = build_task_processor(cfg, deploy_cfg, "cpu")
-
-        def _helper(*args, **kwargs):
-            return init_pytorch_model(*args, **kwargs, model_builder=model_builder)
-        task_processor.__class__.init_pytorch_model = _helper
-
-        input_data_cfg = deploy_cfg.pop(
-            "input_data", {"shape": (128, 128, 3), "file_path": None}
-        )
-        if input_data_cfg.get("file_path"):
-            import cv2
-            input_data = cv2.imread(input_data_cfg.get("file_path"))
-        else:
-            input_data = np.zeros(input_data_cfg.shape, dtype=np.uint8)
-
-        torch2onnx(
-            input_data,
-            output_path,
-            onnx_file_name,
-            deploy_cfg=deploy_cfg,
-            model_cfg=cfg,
-            model_checkpoint=cfg.load_from,
-            device="cpu",
-        )
-
-        onnx2openvino(output_path, onnx_file_name, deploy_cfg)
+        export2openvino(output_path, onnx_file_name, model_builder, cfg, deploy_cfg)
 
     def _naive_export(self, output_path, onnx_file_name, model_builder, cfg):
         raise NotImplementedError()
