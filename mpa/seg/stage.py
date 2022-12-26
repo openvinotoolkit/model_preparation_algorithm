@@ -82,7 +82,7 @@ class SegStage(Stage):
         # Dataset
         src_data_cfg = Stage.get_data_cfg(cfg, "train")
         for mode in ['train', 'val', 'test']:
-            if src_data_cfg.type == 'MPASegDataset':
+            if src_data_cfg.type == 'MPASegDataset' and cfg.data.get(mode, False):
                 if cfg.data[mode]['type'] != 'MPASegDataset':
                     # Wrap original dataset config
                     org_type = cfg.data[mode]['type']
@@ -93,15 +93,16 @@ class SegStage(Stage):
         """Adjust settings for task adaptation
         """
         self.logger = get_root_logger()
-        self.logger.info(f'task config!!!!: training={training}')
-        task_adapt_op = cfg['task_adapt'].get('op', 'REPLACE')
+        if cfg.get('task_adapt', None):
+            self.logger.info(f'task config!!!!: training={training}')
+            task_adapt_op = cfg['task_adapt'].get('op', 'REPLACE')
 
-        # Task classes
-        org_model_classes, model_classes, data_classes = \
-            self.configure_classes(cfg, task_adapt_op)
+            # Task classes
+            org_model_classes, model_classes, data_classes = \
+                self.configure_classes(cfg, task_adapt_op)
 
-        # Incremental learning
-        self.configure_cls_incr(cfg, org_model_classes, model_classes)
+            # Incremental learning
+            self.configure_cls_incr(cfg, org_model_classes, model_classes)
 
     def configure_classes(self, cfg, task_adapt_op):
         # Task classes
