@@ -26,7 +26,6 @@ class SegStage(Stage):
         self.configure_ckpt(cfg, model_ckpt, kwargs.get('pretrained', None))
         self.configure_data(cfg, data_cfg, training)
         self.configure_task(cfg, training, **kwargs)
-        self.configure_hyperparams(cfg, training, **kwargs)
 
         return cfg
 
@@ -81,7 +80,7 @@ class SegStage(Stage):
             if cfg.data.get('val', False):
                 self.validate = True
         # Dataset
-        src_data_cfg = Stage.get_train_data_cfg(cfg)
+        src_data_cfg = Stage.get_data_cfg(cfg, "train")
         for mode in ['train', 'val', 'test']:
             if src_data_cfg.type == 'MPASegDataset' and cfg.data.get(mode, False):
                 if cfg.data[mode]['type'] != 'MPASegDataset':
@@ -89,18 +88,6 @@ class SegStage(Stage):
                     org_type = cfg.data[mode]['type']
                     cfg.data[mode]['type'] = 'MPASegDataset'
                     cfg.data[mode]['org_type'] = org_type
-
-    def configure_hyperparams(self, cfg, training, **kwargs):
-        if 'hyperparams' in cfg:
-            hyperparams = kwargs.get('hyperparams', None)
-            if hyperparams is not None:
-                bs = hyperparams.get('bs', None)
-                if bs is not None:
-                    cfg.data.samples_per_gpu = bs
-
-                lr = hyperparams.get('lr', None)
-                if lr is not None:
-                    cfg.optimizer.lr = lr
 
     def configure_task(self, cfg, training, **kwargs):
         """Adjust settings for task adaptation

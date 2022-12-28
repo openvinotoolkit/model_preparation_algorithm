@@ -104,10 +104,14 @@ class ClsTrainer(ClsStage):
 
         # prepare data loaders
         datasets = datasets if isinstance(datasets, (list, tuple)) else [datasets]
-        train_data_cfg = Stage.get_train_data_cfg(cfg)
-        drop_last = train_data_cfg.drop_last if train_data_cfg.get('drop_last', False) else False
-
-        # updated to adapt list of datasets for the 'train'
+        train_data_cfg = Stage.get_data_cfg(cfg, "train")
+        otx_dataset = train_data_cfg.get("otx_dataset", None)
+        drop_last = False
+        dataset_len = len(otx_dataset) if otx_dataset else 0
+        # if task == h-label & dataset size is bigger than batch size
+        if train_data_cfg.get("hierarchical_info", None) and dataset_len > cfg.data.get("samples_per_gpu", 2):
+            drop_last = True
+        # updated to adapt list of dataset for the 'train'
         data_loaders = []
         sub_loaders = []
         for ds in datasets:
@@ -179,7 +183,7 @@ class ClsTrainer(ClsStage):
             cfg.optimizer_config.pop('type')
             optimizer_config = opt_hook(
                 **cfg.optimizer_config, **fp16_cfg, distributed=self.distributed)
-        elif self.distributed and 'type' not in cfg.optimizer_config:
+        elif self.distributed and "type" not in cfg.optimizer_config:
             optimizer_config = DistOptimizerHook(**cfg.optimizer_config)
         else:
             optimizer_config = cfg.optimizer_config
@@ -197,7 +201,7 @@ class ClsTrainer(ClsStage):
         for hook in cfg.get('custom_hooks', ()):
             runner.register_hook_from_cfg(hook)
 
-        validate = True if cfg.data.get('val', None) else False
+        validate = True if cfg.data.get("val", None) else False
         # register eval hooks
         if validate:
             val_dataset = build_dataset(cfg.data.val, dict(test_mode=True))
@@ -218,26 +222,26 @@ class ClsTrainer(ClsStage):
             runner.resume(cfg.resume_from)
         elif cfg.get('load_from', False):
             if self.distributed:
-                runner.load_checkpoint(cfg.load_from, map_location=f'cuda:{cfg.gpu_ids[0]}')
+                runner.load_checkpoint(cfg.load_from, map_location=f"cuda:{cfg.gpu_ids[0]}")
             else:
                 runner.load_checkpoint(cfg.load_from)
         runner.run(data_loaders, cfg.workflow)
 
-        logger.info(f'called train_worker() distributed={self.distributed}, validate=True')
+        logger.info(f"called train_worker() distributed={self.distributed}, validate=True")
 
         # Save outputs
-        output_ckpt_path = osp.join(cfg.work_dir, 'best_model.pth'
-                                    if osp.exists(osp.join(cfg.work_dir, 'best_model.pth'))
-                                    else 'latest.pth')
+        output_ckpt_path = osp.join(cfg.work_dir, "best_model.pth"
+                                    if osp.exists(osp.join(cfg.work_dir, "best_model.pth"))
+                                    else "latest.pth")
         return dict(final_ckpt=output_ckpt_path)
 
     def _modify_cfg_for_distributed(self, model, cfg):
         nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
-        if cfg.dist_params.get('linear_scale_lr', False):
+        if cfg.dist_params.get("linear_scale_lr", False):
             new_lr = len(cfg.gpu_ids) * cfg.optimizer.lr
-            logger.info(f'enabled linear scaling rule to the learning rate. \
-                changed LR from {cfg.optimizer.lr} to {new_lr}')
+            logger.info(f"enabled linear scaling rule to the learning rate. \
+                changed LR from {cfg.optimizer.lr} to {new_lr}")
             cfg.optimizer.lr = new_lr
 
     @staticmethod
