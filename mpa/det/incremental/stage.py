@@ -7,6 +7,7 @@ import torch
 
 from mmcv import ConfigDict
 from mmdet.datasets import build_dataset
+from mpa.stage import Stage
 from mpa.det.stage import DetectionStage
 from mpa.utils.config_utils import update_or_add_custom_hook
 from mpa.utils.logger import get_logger
@@ -116,7 +117,7 @@ class IncrDetectionStage(DetectionStage):
     def configure_task_cls_incr(self, cfg, task_adapt_type, org_model_classes, model_classes):
         """Patch config for incremental learning"""
         if task_adapt_type == 'mpa':
-            self.configure_bbox_head(cfg, model_classes)
+            self.configure_bbox_head(cfg, org_model_classes, model_classes)
             self.configure_task_adapt_hook(cfg, org_model_classes, model_classes)
             self.configure_ema(cfg)
             self.configure_val_interval(cfg)
@@ -124,7 +125,7 @@ class IncrDetectionStage(DetectionStage):
             src_data_cfg = self.get_train_data_cfg(cfg)
             src_data_cfg.pop('old_new_indices', None)
 
-    def configure_bbox_head(self, cfg, model_classes):
+    def configure_bbox_head(self, cfg, org_model_classes, model_classes):
         """Patch bbox head in detector for class incremental learning.
         Most of patching are related with hyper-params in focal loss
         """
@@ -228,7 +229,7 @@ class IncrDetectionStage(DetectionStage):
         new_classes = np.setdiff1d(model_classes, org_model_classes).tolist()
         old_classes = np.intersect1d(org_model_classes, model_classes).tolist()
 
-        src_data_cfg = self.get_train_data_cfg(cfg)
+        src_data_cfg = Stage.get_train_data_cfg(cfg)
 
         ids_old, ids_new = [], []
         data_cfg = cfg.data.test.copy()
