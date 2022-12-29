@@ -64,5 +64,5 @@ task_adapt = dict(
 ignore = True
 
 
-find_unused_parameters = True
+find_unused_parameters = False
 seed = 42
