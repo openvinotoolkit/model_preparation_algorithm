@@ -36,8 +36,8 @@ class DetectionExporter(DetectionStage):
         output_path = os.path.join(cfg.work_dir, "export")
         os.makedirs(output_path, exist_ok=True)
 
-        from torch.jit._trace import TracerWarning
-        warnings.filterwarnings("ignore", category=TracerWarning)
+        #  from torch.jit._trace import TracerWarning
+        #  warnings.filterwarnings("ignore", category=TracerWarning)
         precision = kwargs.pop("precision", "FP32")
         if precision not in ("FP32", "FP16", "INT8"):
             raise NotImplementedError
