@@ -3,6 +3,7 @@
 #
 
 from mmcv.runner import HOOKS, Hook
+from mmcv.runner import get_dist_info
 from torch.utils.data import DataLoader
 
 from mpa.modules.datasets.samplers.cls_incr_sampler import ClsIncrSampler
@@ -50,10 +51,13 @@ class TaskAdaptHook(Hook):
             num_workers = runner.data_loader.num_workers
             collate_fn = runner.data_loader.collate_fn
             worker_init_fn = runner.data_loader.worker_init_fn
+            rank, world_size = get_dist_info()
             if self.sampler_type == 'balanced':
-                sampler = BalancedSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
+                sampler = BalancedSampler(dataset, batch_size, efficient_mode=self.efficient_mode,
+                    num_replicas=world_size, rank=rank)
             else:
-                sampler = ClsIncrSampler(dataset, batch_size, efficient_mode=self.efficient_mode)
+                sampler = ClsIncrSampler(dataset, batch_size, efficient_mode=self.efficient_mode,
+                    num_replicas=world_size, rank=rank)
             runner.data_loader = DataLoader(
                 dataset,
                 batch_size=batch_size,

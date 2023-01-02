@@ -8,7 +8,7 @@ from mmcls.models.builder import CLASSIFIERS
 from mmcls.models.classifiers.base import BaseClassifier
 from mmcls.models.classifiers.image import ImageClassifier
 from mpa.modules.utils.task_adapt import map_class_names
-from mpa.modules.hooks.recording_forward_hooks import ActivationMapHook, FeatureVectorHook
+from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook, ReciproCAMHook
 from mpa.utils.logger import get_logger
 from collections import OrderedDict
 import functools
@@ -106,9 +106,9 @@ class SAMImageClassifier(ImageClassifier):
         if backbone_type == 'OTXMobileNetV3':
             for k, v in state_dict.items():
                 if k.startswith('backbone'):
-                    k = k.replace('backbone.', '')
+                    k = k.replace('backbone.', '', 1)
                 elif k.startswith('head'):
-                    k = k.replace('head.', '')
+                    k = k.replace('head.', '', 1)
                     if '3' in k:  # MPA uses "classifier.3", OTX uses "classifier.4". Convert for OTX compatibility.
                         k = k.replace('3', '4')
                         if module.multilabel and not module.is_export:
@@ -118,9 +118,9 @@ class SAMImageClassifier(ImageClassifier):
         elif backbone_type == 'OTXEfficientNet':
             for k, v in state_dict.items():
                 if k.startswith('backbone'):
-                    k = k.replace('backbone.', '')
+                    k = k.replace('backbone.', '', 1)
                 elif k.startswith('head'):
-                    k = k.replace('head', 'output')
+                    k = k.replace('head', 'output', 1)
                     if not module.hierarchical and not module.is_export:
                         k = k.replace('fc', 'asl')
                         v = v.t()
@@ -129,7 +129,7 @@ class SAMImageClassifier(ImageClassifier):
         elif backbone_type == 'OTXEfficientNetV2':
             for k, v in state_dict.items():
                 if k.startswith('backbone'):
-                    k = k.replace('backbone.', '')
+                    k = k.replace('backbone.', '', 1)
                 elif k == 'head.fc.weight':
                     k = k.replace('head.fc', 'model.classifier')
                     if not module.hierarchical and not module.is_export:
@@ -257,11 +257,17 @@ class SAMImageClassifier(ImageClassifier):
            Overriding for OpenVINO export with features
         """
         x = self.backbone(img)
+        # For Global Backbones (det/seg/etc..),
+        # In case of tuple or list, only the feat of the last layer is used.
+        if isinstance(x, (tuple, list)):
+            x = x[-1]
+
         if torch.onnx.is_in_onnx_export():
             self.featuremap = x
 
         if self.with_neck:
             x = self.neck(x)
+
         return x
 
     def simple_test(self, img, img_metas):
@@ -271,7 +277,7 @@ class SAMImageClassifier(ImageClassifier):
         x = self.extract_feat(img)
         logits = self.head.simple_test(x)
         if self.featuremap is not None and torch.onnx.is_in_onnx_export():
-            saliency_map = ActivationMapHook.func(self.featuremap)
+            saliency_map = ReciproCAMHook(self).func(self.featuremap)
             feature_vector = FeatureVectorHook.func(self.featuremap)
             return logits, feature_vector, saliency_map
         else:

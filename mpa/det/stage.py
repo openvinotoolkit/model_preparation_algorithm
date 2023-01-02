@@ -8,7 +8,7 @@ import torch
 from mmcv import ConfigDict
 from mmdet.datasets import build_dataset
 from mpa.stage import Stage
-from mpa.utils.config_utils import update_or_add_custom_hook
+from mpa.utils.config_utils import update_or_add_custom_hook, recursively_update_cfg
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -46,8 +46,8 @@ class DetectionStage(Stage):
             else:
                 raise ValueError("Unexpected config was passed through 'model_cfg'. "
                                  "it should have 'model' attribute in the config")
-            model_task = cfg.model.pop('task', 'detection')
-            if model_task != 'detection':
+            cfg.model_task = cfg.model.pop('task', 'detection')
+            if cfg.model_task != 'detection':
                 raise ValueError(
                     f'Given model_cfg ({model_cfg.filename}) is not supported by detection recipe'
                 )
@@ -69,6 +69,25 @@ class DetectionStage(Stage):
                 cfg.model.rpn_head.model_path = ir_path
             else:
                 raise NotImplementedError(f'Unknown model type - {cfg.model.type}')
+
+        # OV-plugin
+        ir_model_path = kwargs.get("ir_model_path")
+        if ir_model_path:
+            def is_mmov_model(k, v):
+                if k == "type" and v.startswith("MMOV"):
+                    return True
+                return False
+            ir_weight_path = kwargs.get("ir_weight_path", None)
+            ir_weight_init = kwargs.get("ir_weight_init", False)
+            recursively_update_cfg(
+                cfg,
+                is_mmov_model,
+                {
+                    "model_path": ir_model_path,
+                    "weight_path": ir_weight_path,
+                    "init_weight": ir_weight_init
+                }
+            )
 
     def configure_ckpt(self, cfg, model_ckpt, pretrained):
         """ Patch checkpoint path for pretrained weight.
@@ -100,7 +119,7 @@ class DetectionStage(Stage):
             cfg.data.train.type = super_type
         if training:
             if 'dataset' in cfg.data.train:
-                train_cfg = self.get_train_data_cfg(cfg)
+                train_cfg = self.get_data_cfg(cfg, "train")
                 train_cfg.otx_dataset = cfg.data.train.pop('otx_dataset', None)
                 train_cfg.labels = cfg.data.train.get('labels', None)
                 train_cfg.data_classes = cfg.data.train.pop('data_classes', None)

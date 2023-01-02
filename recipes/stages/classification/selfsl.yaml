@@ -1,14 +1,18 @@
 _base_: [
-    '../_base_/default.py',
+    # remove default.py to disenable task_adapt
+    '../_base_/dist/dist.py',
     '../_base_/logs/tensorboard_logger.py',
     '../_base_/optimizers/lars.py',
     '../_base_/runners/iter_runner.py',
     '../_base_/schedules/cos_anneal.py',
-    '../_base_/models/cls_selfsl.py',
-    '../_base_/data/selfsl_dataset_bs128.py'
+    '../_base_/data/selfsl_cls_data.py',
 ]
 
-down_task: classification
+# in default.py settings
+cudnn_benchmark: true
+hparams:
+    dummy: 0
+
 
 model:
    base_momentum: 0.97
@@ -20,7 +24,7 @@ optimizer:
     exclude_bn_from_weight_decay: true
 
 lr_config:
-    warmup: 'linear'
+    warmup: linear
     warmup_iters: 50
     warmup_ratio: 0.0001
     warmup_by_epoch: false
@@ -29,11 +33,14 @@ runner:
     max_iters: 5000
 
 checkpoint_config:
-    interval: 1000
+    by_epoch: false
+    interval: 100
+    max_keep_ckpts: 1
 
 log_config:
-    interval: 100
+    interval: 10
     ignore_last: false
 
-seed: 1234
-deterministic: true
+custom_hooks:
+    - type: EMAMomentumUpdateHook
+      end_momentum: 1.0

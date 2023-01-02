@@ -62,6 +62,7 @@ class Stage(object):
         self.index = index
         self.input = kwargs.pop('input', {})  # input_map?? input_dict? just input?
         self.output_keys = kwargs.pop('output', [])
+        self._distributed = False
 
         if common_cfg is None:
             common_cfg = dict(output_path='logs')
@@ -139,17 +140,6 @@ class Stage(object):
         logger.info(f'work dir = {cfg.work_dir}')
         mmcv.mkdir_or_exist(os.path.abspath(work_dir))
 
-        if not hasattr(cfg, 'gpu_ids'):
-            gpu_ids = os.environ.get('CUDA_VISIBLE_DEVICES', None)
-            logger.info(f'CUDA_VISIBLE_DEVICES = {gpu_ids}')
-            if gpu_ids is not None:
-                if isinstance(gpu_ids, str):
-                    cfg.gpu_ids = range(len(gpu_ids.split(',')))
-                else:
-                    raise ValueError(f'not supported type for gpu_ids: {type(gpu_ids)}')
-            else:
-                cfg.gpu_ids = range(1)
-
         # config logger replace hook
         hook_cfg = ConfigDict(
             type='LoggerReplaceHook'
@@ -157,6 +147,24 @@ class Stage(object):
         update_or_add_custom_hook(cfg, hook_cfg)
 
         self.cfg = cfg
+
+        self.__init_gpu_usage()
+
+    def __init_gpu_usage(self):
+        if torch.distributed.is_initialized():
+            self._distributed = True
+            self.cfg.gpu_ids = [torch.distributed.get_rank(group=None)]
+        elif 'gpu_ids' not in self.cfg:
+            gpu_ids = os.environ.get('CUDA_VISIBLE_DEVICES')
+            logger.info(f'CUDA_VISIBLE_DEVICES = {gpu_ids}')
+            if gpu_ids is not None:
+                self.cfg.gpu_ids = range(len(gpu_ids.split(',')))
+            else:
+                self.cfg.gpu_ids = range(1)
+
+    @property
+    def distributed(self):
+        return self._distributed
 
     def run(self, **kwargs):
         raise NotImplementedError
@@ -260,19 +268,20 @@ class Stage(object):
         return meta
 
     @staticmethod
-    def get_train_data_cfg(cfg):
-        if 'dataset' in cfg.data.train:  # Concat|RepeatDataset
-            dataset = cfg.data.train.dataset
+    def get_data_cfg(cfg, subset):
+        assert subset in ["train", "val", "test"], f"Unknown subset:{subset}"
+        if 'dataset' in cfg.data[subset]:  # Concat|RepeatDataset
+            dataset = cfg.data[subset].dataset
             while hasattr(dataset, 'dataset'):
                 dataset = dataset.dataset
             return dataset
         else:
-            return cfg.data.train
+            return cfg.data[subset]
 
     @staticmethod
     def get_data_classes(cfg):
         data_classes = []
-        train_cfg = Stage.get_train_data_cfg(cfg)
+        train_cfg = Stage.get_data_cfg(cfg, "train")
         if 'data_classes' in train_cfg:
             data_classes = list(train_cfg.pop('data_classes', []))
         elif 'classes' in train_cfg:
