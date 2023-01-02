@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2022 Intel Corporation
+# Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -418,7 +418,9 @@ def register_extra_symbolics_for_openvino(opset=11):
     #  register_op("view_as", view_as_symbolic, "", opset)
     #  register_op("topk", topk_symbolic, "", opset)
     # register_op('multiclass_nms_core', multiclass_nms_core_symbolic, 'mmdet_custom', opset)
-    register_op('roi_feature_extractor', roi_feature_extractor_symbolics, 'mmdet_custom', opset)
+    register_op(
+        "roi_feature_extractor", roi_feature_extractor_symbolics, "mmdet_custom", opset
+    )
 
     #  patch_nms_aten_to()
     #  patch_conv_ws()
@@ -427,6 +429,7 @@ def register_extra_symbolics_for_openvino(opset=11):
 
 def unregister_extra_symbolics_for_openvino(opset=11):
     from torch.onnx.symbolic_registry import _registry
+
     #  _registry.get(('', opset), {}).pop('view_as', None)
     #  _registry.get(('', opset), {}).pop('topk', None)
-    _registry.get(('mmdet_custom', opset), {}).pop('roi_feature_extractor', None)
+    _registry.get(("mmdet_custom", opset), {}).pop("roi_feature_extractor", None)

@@ -18,7 +18,6 @@ logger = get_logger()
 
 @STAGES.register_module()
 class SegExporter(SegStage):
-
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         self._init_logger()
         logger.info("exporting the model")
@@ -79,7 +78,7 @@ class SegExporter(SegStage):
                 # raise RuntimeError('Optimization was unsuccessful.') from ex
                 return {
                     "outputs": None,
-                    "msg": f"exception {type(ex)}: {ex}\n\n{traceback.format_exc()}"
+                    "msg": f"exception {type(ex)}: {ex}\n\n{traceback.format_exc()}",
                 }
 
         bin_file = [f for f in os.listdir(output_dir) if f.endswith(".bin")][0]
@@ -111,8 +110,8 @@ class SegExporter(SegStage):
         )
 
     def _naive_export(self, output_dir, model_builder, precision, cfg, model_name):
-        from mmseg.datasets.pipelines import Compose
         from mmseg.apis.inference import LoadImage
+        from mmseg.datasets.pipelines import Compose
 
         from ..deploy.apis import NaiveExporter
 

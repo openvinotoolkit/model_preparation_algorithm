@@ -4,7 +4,6 @@
 
 import os
 import traceback
-from copy import deepcopy
 
 import numpy as np
 from mmcv.runner import wrap_fp16_model
@@ -19,9 +18,6 @@ logger = get_logger()
 
 @STAGES.register_module()
 class DetectionExporter(DetectionStage):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         self._init_logger()
         logger.info("exporting the model")
@@ -97,7 +93,13 @@ class DetectionExporter(DetectionStage):
         }
 
     def _mmdeploy_export(
-        self, output_dir, model_builder, precision, cfg, deploy_cfg, model_name,
+        self,
+        output_dir,
+        model_builder,
+        precision,
+        cfg,
+        deploy_cfg,
+        model_name,
     ):
         from mpa.deploy.apis import MMdeployExporter
 
@@ -108,13 +110,13 @@ class DetectionExporter(DetectionStage):
         )
 
     def _naive_export(self, output_dir, model_builder, precision, cfg, model_name):
-        from mmdet.datasets.pipelines import Compose
         from mmdet.apis.inference import LoadImage
+        from mmdet.datasets.pipelines import Compose
 
         from ..deploy.apis import NaiveExporter
         from ..deploy.utils.mmdet_symbolic import (
             register_extra_symbolics_for_openvino,
-            unregister_extra_symbolics_for_openvino
+            unregister_extra_symbolics_for_openvino,
         )
 
         def get_fake_data(cfg, orig_img_shape=(128, 128, 3)):

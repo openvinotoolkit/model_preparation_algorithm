@@ -18,9 +18,6 @@ logger = get_logger()
 
 @STAGES.register_module()
 class ClsExporter(ClsStage):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         """Run exporter stage"""
         self._init_logger()
