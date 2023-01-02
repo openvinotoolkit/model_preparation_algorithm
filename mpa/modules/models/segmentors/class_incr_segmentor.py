@@ -76,6 +76,9 @@ class ClassIncrSegmentor(MixLossMixin, PixelWeightsMixin, EncoderDecoder):
         """Simple test with single image."""
 
         seg_logit = self.inference(img, img_meta, rescale)
+        if torch.onnx.is_in_onnx_export():
+            return seg_logit
+
         if output_logits:
             seg_pred = seg_logit
         else:
