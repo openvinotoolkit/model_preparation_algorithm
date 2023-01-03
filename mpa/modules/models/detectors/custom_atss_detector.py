@@ -9,6 +9,7 @@ from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
 from mpa.modules.utils.task_adapt import map_class_names
 from mpa.utils.logger import get_logger
+from mpa.deploy.utils import is_mmdeploy_enabled
 
 logger = get_logger()
 
@@ -78,3 +79,22 @@ class CustomATSS(SAMDetectorMixin, L2SPDetectorMixin, ATSS):
 
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
+
+
+if is_mmdeploy_enabled():
+    from mmdeploy.core import FUNCTION_REWRITER
+    from mpa.modules.hooks.recording_forward_hooks import (
+        FeatureVectorHook,
+        ActivationMapHook,
+    )
+
+    @FUNCTION_REWRITER.register_rewriter(
+        "mpa.modules.models.detectors.custom_atss_detector."
+        "CustomATSS.simple_test"
+    )
+    def custom_atss__simple_test(ctx, self, img, img_metas, **kwargs):
+        feat = self.extract_feat(img)
+        out = self.bbox_head.simple_test(feat, img_metas, **kwargs)
+        feature_vector = FeatureVectorHook.func(feat)
+        sailency_map = ActivationMapHook.func(feat[-1])
+        return (*out, feature_vector, sailency_map)

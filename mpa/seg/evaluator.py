@@ -7,6 +7,7 @@ import mmcv
 import torch
 from mpa.registry import STAGES
 from .inferrer import SegInferrer
+from .stage import build_segmentor
 
 
 @STAGES.register_module()
@@ -17,6 +18,7 @@ class SegEvaluator(SegInferrer):
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
         self._init_logger()
         mode = kwargs.get('mode', 'eval')
+        model_builder = kwargs.get("model_builder", build_segmentor)
         if mode not in self.mode:
             return {}
 
@@ -26,7 +28,7 @@ class SegEvaluator(SegInferrer):
         mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         # Inference
-        infer_results = super().infer(cfg)
+        infer_results = super().infer(cfg, model_builder)
         segmentations = infer_results['segmentations']
 
         # Evaluate inference results

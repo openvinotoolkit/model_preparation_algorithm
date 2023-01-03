@@ -7,6 +7,7 @@ import random
 import time
 import json
 import os.path as osp
+from typing import Any, Callable, Dict
 
 import mmcv
 import numpy as np
@@ -253,6 +254,85 @@ class Stage(object):
             for opt_key, opt in custom_hook_options.items():
                 if hook['type'] == opt_key:
                     update_hook(opt, custom_hooks, idx, hook)
+
+    @staticmethod
+    def configure_fp16_optimizer(
+        cfg: Config,
+        distributed: bool = False
+    ):
+        """
+        Configure Fp16OptimizerHook and Fp16SAMOptimizerHook.
+        """
+
+        fp16_config = cfg.pop("fp16", None)
+        if fp16_config is not None:
+            optim_type = cfg.optimizer_config.get("type", "OptimizerHook")
+            opts: Dict[str, Any] = dict(
+                distributed=distributed,
+                **fp16_config,
+            )
+            if optim_type == "SAMOptimizerHook":
+                opts["type"] = "Fp16SAMOptimizerHook"
+            elif optim_type == "OptimizerHook":
+                opts["type"] = "Fp16OptimizerHook"
+            else:
+                # does not support optimizerhook type
+                # let mm library handle it
+                cfg.fp16 = fp16_config
+                opts = dict()
+            cfg.optimizer_config.update(opts)
+
+    @staticmethod
+    def configure_unlabeled_dataloader(
+        cfg: Config,
+        dataset_builder: Callable,
+        dataloader_builder: Callable,
+        distributed: bool = False
+    ):
+        if 'unlabeled' in cfg.data:
+            if len(cfg.data.unlabeled.get('pipeline', [])) == 0:
+                cfg.data.unlabeled.pipeline = cfg.data.train.pipeline.copy()
+            unlabeled_data = dataset_builder(cfg.data.pop("unlabeled"))
+            unlabeled_loader_cfg = cfg.data.pop('unlabeled_dataloader', {}),
+            # The default loader config
+            loader_cfg = dict(
+                num_gpus=len(cfg.gpu_ids),
+                dist=distributed,
+                round_up=True,
+                seed=cfg.get("seed"),
+                sampler_cfg=cfg.get('sampler', None),
+            )
+            # The overall dataloader settings
+            loader_cfg.update({
+                k: v
+                for k, v in cfg.data.items() if k not in [
+                    'train', 'val', 'test', 'train_dataloader', 'val_dataloader',
+                    'test_dataloader'
+                ]
+            })
+            # The specific dataloader settings
+            unlabeled_loader = dataloader_builder(
+                unlabeled_data,
+                **{**loader_cfg, **unlabeled_loader_cfg},
+            )
+
+            custom_hooks = cfg.get("custom_hooks", [])
+            updated = False
+            for custom_hook in custom_hooks:
+                if custom_hook["type"] == "ComposeDataLoadersHook":
+                    custom_hook["data_loaders"] = [
+                        *custom_hook["data_loaders"],
+                        unlabeled_loader
+                    ]
+                    updated = True
+            if not updated:
+                custom_hooks.append(
+                    ConfigDict(
+                        type='ComposeDataLoadersHook',
+                        data_loaders=unlabeled_loader,
+                    )
+                )
+            cfg.custom_hooks = custom_hooks
 
     @staticmethod
     def get_model_meta(cfg):

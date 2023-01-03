@@ -9,6 +9,7 @@ from .sam_detector_mixin import SAMDetectorMixin
 from .l2sp_detector_mixin import L2SPDetectorMixin
 from mpa.modules.utils.task_adapt import map_class_names
 from mpa.utils.logger import get_logger
+from mpa.deploy.utils import is_mmdeploy_enabled
 
 logger = get_logger()
 
@@ -72,3 +73,27 @@ class CustomMaskRCNN(SAMDetectorMixin, L2SPDetectorMixin, MaskRCNN):
 
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
+
+
+if is_mmdeploy_enabled():
+    from mmdeploy.core import FUNCTION_REWRITER
+    from mpa.modules.hooks.recording_forward_hooks import (
+        FeatureVectorHook,
+        ActivationMapHook,
+    )
+
+    @FUNCTION_REWRITER.register_rewriter(
+        "mpa.modules.models.detectors.custom_maskrcnn_detector."
+        "CustomMaskRCNN.simple_test"
+    )
+    def custom_mask_rcnn__simple_test(
+        ctx, self, img, img_metas, proposals=None, **kwargs
+    ):
+        assert self.with_bbox, "Bbox head must be implemented."
+        x = self.extract_feat(img)
+        feature_vector = FeatureVectorHook.func(x)
+        sailency_map = ActivationMapHook.func(x[-1])
+        if proposals is None:
+            proposals, _ = self.rpn_head.simple_test_rpn(x, img_metas)
+        out = self.roi_head.simple_test(x, proposals, img_metas, rescale=False)
+        return (*out, feature_vector, sailency_map)

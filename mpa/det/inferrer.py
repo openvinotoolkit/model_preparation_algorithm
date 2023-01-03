@@ -8,13 +8,12 @@ from mmcv.parallel import MMDataParallel, is_module_wrapper
 from mmcv.runner import load_checkpoint
 
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
-from mmdet.models import build_detector
 #from mmdet.parallel import MMDataCPU
 from otx.algorithms.common.adapters.mmcv.data_cpu import MMDataCPU
 #from mmdet.utils.deployment import get_saliency_map, get_feature_vector
 
 from mpa.registry import STAGES
-from .stage import DetectionStage
+from .stage import DetectionStage, build_detector
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -37,7 +36,7 @@ class DetectionInferrer(DetectionStage):
         eval = kwargs.get('eval', False)
         dump_features = kwargs.get('dump_features', False)
         dump_saliency_map = kwargs.get('dump_saliency_map', False)
-        model_builder = kwargs.get("model_builder", None)
+        model_builder = kwargs.get("model_builder", build_detector)
         if mode not in self.mode:
             return {}
 
@@ -48,7 +47,7 @@ class DetectionInferrer(DetectionStage):
 
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
-        outputs = self.infer(cfg, eval=eval, model_builder=model_builder, dump_features=dump_features,
+        outputs = self.infer(cfg, model_builder=model_builder, eval=eval, dump_features=dump_features,
                              dump_saliency_map=dump_saliency_map)
 
         # Save outputs
@@ -72,7 +71,7 @@ class DetectionInferrer(DetectionStage):
         print(json_dump)
         """
 
-    def infer(self, cfg, eval=False, model_builder=None, dump_features=False, dump_saliency_map=False):
+    def infer(self, cfg, model_builder=None, eval=False, dump_features=False, dump_saliency_map=False):
         samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
@@ -123,11 +122,10 @@ class DetectionInferrer(DetectionStage):
             elif cfg.model.neck.get('rfp_backbone'):
                 if cfg.model.neck.rfp_backbone.get('pretrained'):
                     cfg.model.neck.rfp_backbone.pretrained = None
-
-        if model_builder is not None:
-            model = model_builder(cfg)
-        else:
-            model = build_detector(cfg.model)
+        # build the model and load checkpoint
+        if model_builder is None:
+            model_builder = build_detector
+        model = model_builder(cfg)
         model.CLASSES = target_classes
 
         # TODO: Check Inference FP16 Support

@@ -11,6 +11,7 @@ from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
 
 from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
 from mpa.modules.utils.task_adapt import map_class_names
+from mpa.deploy.utils import is_mmdeploy_enabled
 
 from .mix_loss_mixin import MixLossMixin
 from .pixel_weights_mixin import PixelWeightsMixin
@@ -36,7 +37,6 @@ class ClassIncrSegmentor(MixLossMixin, PixelWeightsMixin, EncoderDecoder):
                     task_adapt['src_classes']   # chkpt_classes
                 )
             )
-        self.feature_maps = None
 
     @staticmethod
     def load_state_dict_pre_hook(model, model_classes, chkpt_classes, chkpt_dict, prefix, *args, **kwargs):
@@ -72,32 +72,49 @@ class ClassIncrSegmentor(MixLossMixin, PixelWeightsMixin, EncoderDecoder):
             # Replace checkpoint weight by mixed weights
             chkpt_dict[chkpt_name] = model_param
 
-    def extract_feat(self, img):
-        """Extract features from images."""
-        x = self.backbone(img)
-        if torch.onnx.is_in_onnx_export():
-            self.feature_maps = x
-        if self.with_neck:
-            x = self.neck(x)
-        return x
-
     def simple_test(self, img, img_meta, rescale=True, output_logits=False):
         """Simple test with single image."""
 
         seg_logit = self.inference(img, img_meta, rescale)
+        if torch.onnx.is_in_onnx_export():
+            return seg_logit
+
         if output_logits:
             seg_pred = seg_logit
         else:
             seg_pred = seg_logit.argmax(dim=1)
 
-        if torch.onnx.is_in_onnx_export():
-            feature_vector = FeatureVectorHook.func(self.feature_maps)
-            if not output_logits:
-                # our inference backend only support 4D output
-                seg_pred = seg_pred.unsqueeze(0)
-            return seg_pred, feature_vector
-
         seg_pred = seg_pred.cpu().numpy()
         seg_pred = list(seg_pred)
 
         return seg_pred
+
+
+if is_mmdeploy_enabled():
+    from mmdeploy.core import FUNCTION_REWRITER
+
+    @FUNCTION_REWRITER.register_rewriter(
+        "mpa.modules.models.segmentors.class_incr_segmentor."
+        "ClassIncrSegmentor.extract_feat"
+    )
+    def single_stage_detector__extract_feat(ctx, self, img):
+        feat = self.backbone(img)
+        self.feature_map = feat
+        if self.with_neck:
+            feat = self.neck(feat)
+        return feat
+
+    @FUNCTION_REWRITER.register_rewriter(
+        "mpa.modules.models.segmentors.class_incr_segmentor."
+        "ClassIncrSegmentor.simple_test"
+    )
+    def single_stage_detector__simple_test(ctx, self, img, img_metas, **kwargs):
+        # without output activation
+        #  seg_logit = self.encode_decode(img, img_metas)
+        #  feature_vector = FeatureVectorHook.func(self.feature_maps)
+        #  return seg_logit, feature_vector
+
+        # with output activation
+        seg_logit = self.inference(img, img_metas, True)
+        feature_vector = FeatureVectorHook.func(self.feature_map)
+        return seg_logit, feature_vector

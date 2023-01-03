@@ -8,6 +8,7 @@ import numpy as np
 
 from mmcv import ConfigDict
 from mmcv import build_from_cfg
+from mmcv.runner import load_checkpoint
 
 from mpa.stage import Stage
 from mpa.utils.config_utils import update_or_add_custom_hook
@@ -19,6 +20,23 @@ CLASS_INC_DATASET = ['MPAClsDataset', 'MPAMultilabelClsDataset', 'MPAHierarchica
                      'ClsDirDataset', 'ClsTVDataset']
 PSEUDO_LABEL_ENABLE_DATASET = ['ClassIncDataset', 'LwfTaskIncDataset', 'ClsTVDataset']
 WEIGHT_MIX_CLASSIFIER = ['SAMImageClassifier']
+
+
+def build_classifier(
+    config,
+    checkpoint=None,
+    device="cpu",
+    cfg_options=None,
+):
+    from mmcls.models import build_classifier as origin_build_classifier
+    if cfg_options is not None:
+        config.merge_from_dict(cfg_options)
+    model = origin_build_classifier(config.model)
+    model = model.to(device)
+    checkpoint = checkpoint if checkpoint else config.get("load_from", None)
+    if checkpoint is not None:
+        load_checkpoint(model=model, filename=checkpoint, map_location=device)
+    return model
 
 
 class ClsStage(Stage):

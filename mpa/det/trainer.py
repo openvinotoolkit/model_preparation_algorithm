@@ -14,16 +14,13 @@ import torch.multiprocessing as mp
 from mmcv.utils import get_git_hash
 from mmdet import __version__
 from mmdet.apis import train_detector
-from mmdet.datasets import build_dataset
-from mmdet.models import build_detector
+from mmdet.datasets import build_dataset, build_dataloader
 from mmdet.utils import collect_env
-# TODO[JAEGUK]: Remove import detection_tasks
-# from detection_tasks.apis.detection.config_utils import cluster_anchors
 
 from mpa.registry import STAGES
-from .stage import DetectionStage
 from mpa.modules.utils.task_adapt import extract_anchor_ratio
 from mpa.utils.logger import get_logger
+from .stage import DetectionStage, build_detector
 
 logger = get_logger()
 
@@ -42,6 +39,7 @@ class DetectionTrainer(DetectionStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
+        model_builder = kwargs.get("model_builder", build_detector)
         if mode not in self.mode:
             return {}
 
@@ -117,7 +115,7 @@ class DetectionTrainer(DetectionStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        model_builder = kwargs.get("model_builder", None)
+        DetectionTrainer.configure_fp16_optimizer(cfg, distributed)
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
@@ -163,19 +161,19 @@ class DetectionTrainer(DetectionStage):
                                     world_size=len(cfg.gpu_ids), rank=gpu)
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
-        # model
-        if model_builder is not None:
-            model = model_builder(cfg)
-        else:
-            model = build_detector(cfg.model)
+        # build the model and load checkpoint
+        if model_builder is None:
+            model_builder = build_detector
+        model = model_builder(cfg)
         model.CLASSES = target_classes
-        # Do clustering for SSD model
-        # TODO[JAEGUK]: Temporal Disable cluster_anchors for SSD model
-        # if hasattr(cfg.model, 'bbox_head') and hasattr(cfg.model.bbox_head, 'anchor_generator'):
-        #     if getattr(cfg.model.bbox_head.anchor_generator, 'reclustering_anchors', False):
-        #         train_cfg = Stage.get_train_data_cfg(cfg)
-        #         train_dataset = train_cfg.get('otx_dataset', None)
-        #         cfg, model = cluster_anchors(cfg, train_dataset, model)
+
+        DetectionTrainer.configure_unlabeled_dataloader(
+            cfg,
+            build_dataset,
+            build_dataloader,
+            distributed
+        )
+
         train_detector(
             model,
             datasets,

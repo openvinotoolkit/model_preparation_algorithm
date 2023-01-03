@@ -6,6 +6,7 @@ import os.path as osp
 import json
 from mpa.registry import STAGES
 from .inferrer import DetectionInferrer
+from .stage import build_detector
 from mpa.utils.logger import get_logger
 
 logger = get_logger()
@@ -24,6 +25,7 @@ class DetectionEvaluator(DetectionInferrer):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
+        model_builder = kwargs.get("model_builder", build_detector)
         if mode not in self.mode:
             return {}
 
@@ -35,7 +37,7 @@ class DetectionEvaluator(DetectionInferrer):
         # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
 
         # Inference
-        infer_results = self.infer(cfg)
+        infer_results = self.infer(cfg, model_builder)
         detections = infer_results['detections']
 
         # Evaluate inference results

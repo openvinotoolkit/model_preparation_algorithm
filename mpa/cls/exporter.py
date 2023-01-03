@@ -3,113 +3,138 @@
 #
 
 import os
-import torch.onnx
-from functools import partial
+import traceback
 
-from mmcv.runner import load_checkpoint, wrap_fp16_model
-
-from mmcls.models import build_classifier
-from mpa.registry import STAGES
-from .stage import ClsStage
-from mpa.utils import mo_wrapper
-from mpa.utils.logger import get_logger
 import numpy as np
-import torch
-from mmcls.datasets.pipelines import Compose
+from mmcv.runner import wrap_fp16_model
+from mpa.registry import STAGES
+from mpa.utils.logger import get_logger
+
+from .stage import ClsStage, build_classifier
+
+
 logger = get_logger()
 
 
 @STAGES.register_module()
 class ClsExporter(ClsStage):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def get_fake_input(self, cfg, orig_img_shape=(128, 128, 3)):
-        pipeline = cfg.data.test.pipeline
-        pipeline = Compose(pipeline)
-        data = dict(img=np.zeros(orig_img_shape, dtype=np.uint8))
-        data = pipeline(data)
-        return data
-
-    def get_norm_values(self, cfg):
-        pipeline = cfg.data.test.pipeline
-        mean_values = [0, 0, 0]
-        scale_values = [1, 1, 1]
-        for pipeline_step in pipeline:
-            if pipeline_step.type == 'Normalize':
-                mean_values = pipeline_step.mean
-                scale_values = pipeline_step.std
-                break
-        return mean_values, scale_values
-
     def run(self, model_cfg, model_ckpt, data_cfg, **kwargs):
-        """Run exporter stage
-
-        """
+        """Run exporter stage"""
         self._init_logger()
-        mode = kwargs.get('mode', 'train')
+        logger.info("exporting the model")
+        mode = kwargs.get("mode", "train")
         if mode not in self.mode:
-            logger.warning(f'mode for this stage {mode}')
+            logger.warning(f"mode for this stage {mode}")
             return {}
 
         cfg = self.configure(model_cfg, model_ckpt, data_cfg, training=False, **kwargs)
 
-        output_path = os.path.join(cfg.work_dir, 'export')
-        onnx_path = output_path+'/model.onnx'
-        os.makedirs(output_path, exist_ok=True)
+        output_dir = os.path.join(cfg.work_dir, "export")
+        os.makedirs(output_dir, exist_ok=True)
 
-        # build the model and load checkpoint
-        model = build_classifier(cfg.model)
+        #  from torch.jit._trace import TracerWarning
+        #  import warnings
+        #  warnings.filterwarnings("ignore", category=TracerWarning)
+        precision = kwargs.pop("precision", "FP32")
+        if precision not in ("FP32", "FP16", "INT8"):
+            raise NotImplementedError
+        logger.info(f"Model will be exported with precision {precision}")
+        model_name = cfg.get("model_name", "model")
 
-        logger.info('load checkpoint from ' + cfg.load_from)
-        _ = load_checkpoint(model, cfg.load_from, map_location='cpu')
-        if hasattr(model, 'is_export'):
-            model.is_export = True
-        model.eval()
-        model.forward = partial(model.forward, img_metas={}, return_loss=False)
+        _model_builder = kwargs.get("model_builder", build_classifier)
 
-        data = self.get_fake_input(cfg)
-        fake_img = data['img'].unsqueeze(0)
+        def model_builder(*args, **kwargs):
+            model = _model_builder(*args, **kwargs)
+            if hasattr(model, "is_export"):
+                model.is_export = True
 
-        precision = kwargs.pop('precision', 'FP32')
-        logger.info(f'Model will be exported with precision {precision}')
+            if precision == "FP16":
+                wrap_fp16_model(model)
+            elif precision == "INT8":
+                from nncf.torch.nncf_network import NNCFNetwork
+
+                assert isinstance(model, NNCFNetwork)
+
+            return model
 
         try:
-            torch.onnx.export(model,
-                              fake_img,
-                              onnx_path,
-                              verbose=False,
-                              export_params=True,
-                              input_names=['data'],
-                              output_names=['logits', 'feature_vector', 'saliency_map'],
-                              dynamic_axes={},
-                              opset_version=11,
-                              operator_export_type=torch.onnx.OperatorExportTypes.ONNX
-                              )
-
-            mean_values, scale_values = self.get_norm_values(cfg)
-            mo_args = {
-                'input_model': onnx_path,
-                'mean_values': mean_values,
-                'scale_values': scale_values,
-                'data_type': precision,
-                'model_name': 'model',
-                'reverse_input_channels': None,
-            }
-
-            ret, msg = mo_wrapper.generate_ir(output_path, output_path, silent=True, **mo_args)
-            os.remove(onnx_path)
-
+            deploy_cfg = kwargs.get("deploy_cfg", None)
+            if deploy_cfg is not None:
+                self._mmdeploy_export(
+                    output_dir,
+                    model_builder,
+                    precision,
+                    cfg,
+                    deploy_cfg,
+                    model_name,
+                )
+            else:
+                self._naive_export(
+                    output_dir, model_builder, precision, cfg, model_name
+                )
         except Exception as ex:
-            return {'outputs': None, 'msg': f'exception {type(ex)}'}
-        bin_file = [f for f in os.listdir(output_path) if f.endswith('.bin')][0]
-        xml_file = [f for f in os.listdir(output_path) if f.endswith('.xml')][0]
-        logger.info('Exporting completed')
+            if (
+                len([f for f in os.listdir(output_dir) if f.endswith(".bin")]) == 0
+                and len([f for f in os.listdir(output_dir) if f.endswith(".xml")]) == 0
+            ):
+                # output_model.model_status = ModelStatus.FAILED
+                # raise RuntimeError('Optimization was unsuccessful.') from ex
+                return {
+                    "outputs": None,
+                    "msg": f"exception {type(ex)}: {ex}\n\n{traceback.format_exc()}",
+                }
 
+        bin_file = [f for f in os.listdir(output_dir) if f.endswith(".bin")][0]
+        xml_file = [f for f in os.listdir(output_dir) if f.endswith(".xml")][0]
+        logger.info("Exporting completed")
         return {
-            'outputs': {
-                'bin': os.path.join(output_path, bin_file),
-                'xml': os.path.join(output_path, xml_file)
+            "outputs": {
+                "bin": os.path.join(output_dir, bin_file),
+                "xml": os.path.join(output_dir, xml_file),
             },
-            'msg': ''
+            "msg": "",
         }
+
+    def _mmdeploy_export(
+        self,
+        output_dir,
+        model_builder,
+        precision,
+        cfg,
+        deploy_cfg,
+        model_name,
+    ):
+        from ..deploy.apis import MMdeployExporter
+
+        if precision == "FP16":
+            deploy_cfg.backend_config.mo_options.flags.append("--compress_to_fp16")
+        MMdeployExporter.export2openvino(
+            output_dir, model_builder, cfg, deploy_cfg, model_name=model_name
+        )
+
+    def _naive_export(self, output_dir, model_builder, precision, cfg, model_name):
+        from mmcls.datasets.pipelines import Compose
+
+        from ..deploy.apis import NaiveExporter
+
+        def get_fake_data(cfg, orig_img_shape=(128, 128, 3)):
+            pipeline = cfg.data.test.pipeline
+            pipeline = Compose(pipeline)
+            data = dict(img=np.zeros(orig_img_shape, dtype=np.uint8))
+            data = pipeline(data)
+            return data
+
+        fake_data = get_fake_data(cfg)
+        opset_version = 11
+
+        NaiveExporter.export2openvino(
+            output_dir,
+            model_builder,
+            cfg,
+            fake_data,
+            precision=precision,
+            model_name=model_name,
+            input_names=["data"],
+            output_names=["logits"],
+            opset_version=opset_version,
+        )

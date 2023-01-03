@@ -16,24 +16,16 @@ import torch.multiprocessing as mp
 import torch.distributed as dist
 
 import mmcv
-from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
-from mmcv.runner import DistSamplerSeedHook, Fp16OptimizerHook, build_optimizer, build_runner, HOOKS
 
 from mmcls import __version__
 from mmcls.apis import train_model
 from mmcls.datasets import build_dataset, build_dataloader
-from mmcls.models import build_classifier
 from mmcls.utils import collect_env
-from mmcls.core import DistOptimizerHook
 
 from mpa.registry import STAGES
-from mpa.modules.datasets.composed_dataloader import ComposedDL
-from mpa.stage import Stage
-from mpa.cls.stage import ClsStage
-from mpa.modules.hooks.eval_hook import CustomEvalHook, DistCustomEvalHook
-from mpa.modules.hooks.fp16_sam_optimizer_hook import Fp16SAMOptimizerHook
+from mpa.cls.stage import ClsStage, build_classifier
 from mpa.utils.logger import get_logger
-from mpa.utils.data_cpu import MMDataCPU
+
 
 logger = get_logger()
 
@@ -45,6 +37,7 @@ class ClsTrainer(ClsStage):
         """
         self._init_logger()
         mode = kwargs.get('mode', 'train')
+        model_builder = kwargs.get("model_builder", build_classifier)
         if mode not in self.mode:
             return {}
 
@@ -67,10 +60,7 @@ class ClsTrainer(ClsStage):
                     dash_line)
 
         # Data
-        if 'unlabeled' in cfg.data:
-            datasets = [[build_dataset(cfg.data.train), build_dataset(cfg.data.unlabeled)]]
-        else:
-            datasets = [build_dataset(cfg.data.train)]
+        datasets = [build_dataset(cfg.data.train)]
 
         # Dataset for HPO
         hp_config = kwargs.get('hp_config', None)
@@ -119,7 +109,7 @@ class ClsTrainer(ClsStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        model_builder = kwargs.get("model_builder", None)
+        ClsTrainer.configure_fp16_optimizer(cfg, distributed)
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
@@ -160,21 +150,17 @@ class ClsTrainer(ClsStage):
                                     world_size=len(cfg.gpu_ids), rank=gpu)
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
-        # model
-        if model_builder is not None:
-            model = model_builder(cfg)
-        else:
-            model = build_classifier(cfg.model)
+        # build the model and load checkpoint
+        if model_builder is None:
+            model_builder = build_classifier
+        model = model_builder(cfg)
 
-        # fp16 setting for custom sam optimizer
-        fp16_cfg = cfg.pop('fp16', None)
-        if fp16_cfg is not None:
-            if cfg.optimizer_config.get('type', None) == 'SAMOptimizerHook':
-                cfg.optimizer_config.type = "Fp16SAMOptimizerHook"
-                cfg.optimizer_config.distributed = distributed
-                cfg.optimizer_config.loss_scale = fp16_cfg["loss_scale"]
-            else:
-                cfg.fp16 = fp16_cfg
+        ClsTrainer.configure_unlabeled_dataloader(
+            cfg,
+            build_dataset,
+            build_dataloader,
+            distributed
+        )
 
         # register custom eval hooks
         if validate:

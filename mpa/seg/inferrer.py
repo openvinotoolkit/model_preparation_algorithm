@@ -9,10 +9,9 @@ import mmcv
 from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint, wrap_fp16_model
 from mmseg.datasets import build_dataloader, build_dataset
-from mmseg.models import build_segmentor
 from mpa.modules.hooks.recording_forward_hooks import FeatureVectorHook
 from mpa.registry import STAGES
-from mpa.seg.stage import SegStage
+from mpa.seg.stage import SegStage, build_segmentor
 from mpa.stage import Stage
 from mpa.utils.logger import get_logger
 import torch
@@ -35,7 +34,7 @@ class SegInferrer(SegStage):
         self._init_logger()
         dump_features = kwargs.get('dump_features', False)
         mode = kwargs.get('mode', 'train')
-        model_builder = kwargs.get("model_builder", None)
+        model_builder = kwargs.get("model_builder", build_segmentor)
         if mode not in self.mode:
             return {}
 
@@ -106,10 +105,10 @@ class SegInferrer(SegStage):
                 if cfg.model.neck.rfp_backbone.get('pretrained'):
                     cfg.model.neck.rfp_backbone.pretrained = None
         cfg.model.test_cfg.return_repr_vector = True
-        if model_builder is not None:
-            model = model_builder(cfg)
-        else:
-            model = build_segmentor(cfg.model, train_cfg=None, test_cfg=None)
+        # build the model and load checkpoint
+        if model_builder is None:
+            model_builder = build_segmentor
+        model = model_builder(cfg)
         model.CLASSES = target_classes
 
         fp16_cfg = cfg.get('fp16', None)
