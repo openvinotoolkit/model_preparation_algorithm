@@ -109,6 +109,8 @@ class ClsTrainer(ClsStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.yaml')) # FIXME bug to save
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
+        ClsTrainer.configure_fp16_optimizer(cfg, distributed)
+
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
@@ -153,7 +155,6 @@ class ClsTrainer(ClsStage):
             model_builder = build_classifier
         model = model_builder(cfg)
 
-        ClsTrainer.configure_custom_fp16_optimizer(cfg, distributed)
         ClsTrainer.configure_unlabeled_dataloader(
             cfg,
             build_dataset,

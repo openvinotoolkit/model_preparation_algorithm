@@ -115,6 +115,8 @@ class DetectionTrainer(DetectionStage):
         # cfg.dump(osp.join(cfg.work_dir, 'config.py'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
+        DetectionTrainer.configure_fp16_optimizer(cfg, distributed)
+
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
             os.environ['MASTER_PORT'] = cfg.dist_params.get('master_port', '29500')
@@ -165,7 +167,6 @@ class DetectionTrainer(DetectionStage):
         model = model_builder(cfg)
         model.CLASSES = target_classes
 
-        DetectionTrainer.configure_custom_fp16_optimizer(cfg, distributed)
         DetectionTrainer.configure_unlabeled_dataloader(
             cfg,
             build_dataset,

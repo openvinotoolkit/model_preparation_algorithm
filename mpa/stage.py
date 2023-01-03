@@ -7,7 +7,7 @@ import random
 import time
 import json
 import os.path as osp
-from typing import Callable
+from typing import Any, Callable, Dict
 
 import mmcv
 import numpy as np
@@ -256,18 +256,31 @@ class Stage(object):
                     update_hook(opt, custom_hooks, idx, hook)
 
     @staticmethod
-    def configure_custom_fp16_optimizer(
+    def configure_fp16_optimizer(
         cfg: Config,
         distributed: bool = False
     ):
+        """
+        Configure Fp16OptimizerHook and Fp16SAMOptimizerHook.
+        """
+
         fp16_config = cfg.pop("fp16", None)
         if fp16_config is not None:
-            if cfg.optimizer_config.get("type", None) == "SAMOptimizerHook":
-                cfg.optimizer_config.type = "Fp16SAMOptimizerHook"
-                cfg.optimizer_config.distributed = distributed
-                cfg.optimizer_config.loss_scale = fp16_config["loss_scale"]
+            optim_type = cfg.optimizer_config.get("type", "OptimizerHook")
+            opts: Dict[str, Any] = dict(
+                distributed=distributed,
+                **fp16_config,
+            )
+            if optim_type == "SAMOptimizerHook":
+                opts["type"] = "Fp16SAMOptimizerHook"
+            elif optim_type == "OptimizerHook":
+                opts["type"] = "Fp16OptimizerHook"
             else:
+                # does not support optimizerhook type
+                # let mm library handle it
                 cfg.fp16 = fp16_config
+                opts = dict()
+            cfg.optimizer_config.update(opts)
 
     @staticmethod
     def configure_unlabeled_dataloader(

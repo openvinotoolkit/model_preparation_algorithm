@@ -111,15 +111,7 @@ class SegTrainer(SegStage):
         # cfg.dump(os.path.join(cfg.work_dir, 'config.yaml'))
         # logger.info(f'Config:\n{cfg.pretty_text}')
 
-        # mmseg api does not implement fp16 config
-        fp16_cfg = cfg.get('fp16', None)
-        if fp16_cfg is not None:
-            type = cfg.optimizer_config.get("type", "Fp16OptimizerHook")
-            if not type.startswith("Fp16"):
-                type = "Fp16" + type
-            cfg.optimizer_config.update(
-                dict(type=type, **fp16_cfg, distributed=distributed)
-            )
+        SegTrainer.configure_fp16_optimizer(cfg, distributed)
 
         if distributed:
             os.environ['MASTER_ADDR'] = cfg.dist_params.get('master_addr', 'localhost')
@@ -170,7 +162,6 @@ class SegTrainer(SegStage):
                                     world_size=len(cfg.gpu_ids), rank=gpu)
             logger.info(f'dist info world_size = {dist.get_world_size()}, rank = {dist.get_rank()}')
 
-        # Model
         # build the model and load checkpoint
         if model_builder is None:
             model_builder = build_segmentor
