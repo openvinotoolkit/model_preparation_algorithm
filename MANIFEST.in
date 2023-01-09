@@ -1,0 +1,3 @@
+recursive-include recipes *
+exclude mpa/modules/datasets/pipelines/transforms/cython_augments/*.c
+exclude mpa/modules/datasets/pipelines/transforms/cython_augments/*.html

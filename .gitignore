@@ -18,3 +18,7 @@ htmlcov/
 /logs
 venv/
 *.so
+
+# Cython generated C-code & html
+mpa/modules/datasets/pipelines/transforms/cython_augments/*.c
+mpa/modules/datasets/pipelines/transforms/cython_augments/*.html
