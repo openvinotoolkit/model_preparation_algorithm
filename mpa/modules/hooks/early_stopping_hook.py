@@ -8,8 +8,8 @@ from typing import Optional
 from mmcv.runner.hooks import HOOKS, Hook
 from mmcv.runner import BaseRunner, LrUpdaterHook
 from mmcv.utils import print_log
-from ote_sdk.utils.argument_checks import check_input_parameters_type
-from ote_sdk.usecases.reporting.time_monitor_callback import TimeMonitorCallback
+from otx.api.utils.argument_checks import check_input_parameters_type
+from otx.api.usecases.reporting.time_monitor_callback import TimeMonitorCallback
 
 from mmcls.utils.logger import get_root_logger
 
