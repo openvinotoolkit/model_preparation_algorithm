@@ -93,7 +93,7 @@ class TimmModelsWrapper(nn.Module):
 
 
 @BACKBONES.register_module()
-class OTEEfficientNetV2(TimmModelsWrapper):
+class OTXEfficientNetV2(TimmModelsWrapper):
     def __init__(self, version="s_21k", **kwargs):
         self.model_name = "efficientnetv2_" + version
         super().__init__(model_name=self.model_name, **kwargs)

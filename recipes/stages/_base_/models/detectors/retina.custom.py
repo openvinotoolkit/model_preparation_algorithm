@@ -5,12 +5,12 @@ _base_ = [
 model= dict(
     type='CustomRetinaNet',
     #pretrained=None,
-    #backbone=dict(  # Replacding R50 by OTE MV2
+    #backbone=dict(  # Replacding R50 by OTX MV2
     #    _delete_=True,
     #    type='mobilenetv2_w1',
     #    out_indices=(2, 3, 4, 5),
     #    frozen_stages=-1,
-    #    norm_eval=True,  # False in OTE setting
+    #    norm_eval=True,  # False in OTX setting
     #    pretrained=True,
     #),
     #neck=dict(

@@ -1404,7 +1404,7 @@ def _test():
 
 
 @BACKBONES.register_module()
-class OTEEfficientNet(EfficientNet):
+class OTXEfficientNet(EfficientNet):
     """
     Create EfficientNet model with specific parameters.
     Parameters:

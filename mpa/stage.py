@@ -336,7 +336,7 @@ class Stage(object):
         # InferenceProgressCallback (Time Monitor enable into Infer task)
         time_monitor = None
         if cfg.get('custom_hooks', None):
-            time_monitor = [hook.time_monitor for hook in cfg.custom_hooks if hook.type == 'OTEProgressHook']
+            time_monitor = [hook.time_monitor for hook in cfg.custom_hooks if hook.type == 'OTXProgressHook']
             time_monitor = time_monitor[0] if time_monitor else None
         if time_monitor is not None:
             def pre_hook(module, input):

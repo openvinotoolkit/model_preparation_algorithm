@@ -302,7 +302,7 @@ class MobileNetV3(MobileNetV3Base):
 
 
 @BACKBONES.register_module()
-class OTEMobileNetV3(MobileNetV3):
+class OTXMobileNetV3(MobileNetV3):
     cfgs = dict(
         small=[
             # k, t, c, SE, HS, s

@@ -2,7 +2,7 @@
 model = dict(
     type='ImageClassifier',
     backbone=dict(
-        type='OTEEfficientNet',
+        type='OTXEfficientNet',
         pretrained=True,
         version='b0'),
     neck=dict(type='GlobalAveragePooling'),

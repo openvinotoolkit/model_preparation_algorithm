@@ -175,7 +175,7 @@ class EarlyStoppingHook(Hook):
 
 
 @HOOKS.register_module()
-class OTEProgressHook(Hook):
+class OTXProgressHook(Hook):
     @check_input_parameters_type()
     def __init__(self, time_monitor: TimeMonitorCallback, verbose: bool = False):
         super().__init__()

@@ -2,7 +2,7 @@
 model = dict(
     type='ImageClassifier',
     backbone=dict(
-        type='OTEMobileNetV3',
+        type='OTXMobileNetV3',
         pretrained=True,
         mode='small',
         width_mult=1.0),
