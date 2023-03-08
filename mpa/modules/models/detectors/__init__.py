@@ -12,3 +12,4 @@ from . import custom_vfnet_detector
 from . import custom_atss_detector
 from . import custom_yolox_detector
 from . import custom_maskrcnn_detector
+from . import custom_maskrcnn_detector_optimised
